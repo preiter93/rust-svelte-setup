@@ -10,8 +10,11 @@ create:
 drop:
     psql -h localhost -U postgres -w -c "DROP DATABASE IF EXISTS {{DATABASE_NAME}};"
 
-migrate:
+migrate-up:
     migrate -path {{MIGRATIONS_DIR}} -database "{{DATABASE_URL}}" up
+
+migrate-down:
+    migrate -path {{MIGRATIONS_DIR}} -database "{{DATABASE_URL}}" down
 
 create-migration name:
     migrate create -ext sql -dir {{MIGRATIONS_DIR}} -seq {{name}}
