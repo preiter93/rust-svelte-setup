@@ -1,0 +1,20 @@
+set dotenv-load
+
+DATABASE_URL := "postgres://$PG_USER:$PG_PASSWORD@$PG_HOST:$PG_PORT/$PG_DBNAME?sslmode=disable"
+DATABASE_NAME := "$PG_DBNAME"
+MIGRATIONS_DIR := "migrations"
+
+create:
+    psql -h localhost -U postgres -w -c "CREATE DATABASE {{DATABASE_NAME}};"
+
+drop:
+    psql -h localhost -U postgres -w -c "DROP DATABASE IF EXISTS {{DATABASE_NAME}};"
+
+migrate:
+    migrate -path {{MIGRATIONS_DIR}} -database "{{DATABASE_URL}}" up
+
+create-migration name:
+    migrate create -ext sql -dir {{MIGRATIONS_DIR}} -seq {{name}}
+
+connect:
+    psql {{DATABASE_NAME}}
