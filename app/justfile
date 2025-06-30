@@ -1,0 +1,4 @@
+[working-directory: '../scripts/proto-gen-ts']
+generate-protos:
+  npm install
+  npm run proto

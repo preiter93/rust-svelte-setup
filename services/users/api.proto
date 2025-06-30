@@ -1,0 +1,29 @@
+syntax = "proto3";
+package proto;
+
+service ApiService {
+    rpc CreateUser(CreateUserReq) returns (CreateUserResp) {}
+    rpc GetUser(GetUserReq) returns (GetUserResp) {}
+    rpc ListUsers(ListUsersReq) returns (ListUsersResp) {}
+}
+
+message CreateUserReq {}
+message CreateUserResp {
+    string id = 1;
+}
+
+message GetUserReq {
+    string id = 1;
+}
+message GetUserResp {
+    User user = 1;
+}
+
+message ListUsersReq {}
+message ListUsersResp {
+    repeated User users = 1;
+}
+
+message User {
+    string id = 1;
+}

@@ -1,0 +1,10 @@
+// Original file: /Users/philippreiter/Svelte/sveltekit-rust-base/services/users/api.proto
+
+
+export interface CreateUserResp {
+  'id'?: (string);
+}
+
+export interface CreateUserResp__Output {
+  'id': (string);
+}

@@ -4,6 +4,11 @@ DATABASE_URL := "postgres://$PG_USER:$PG_PASSWORD@$PG_HOST:$PG_PORT/$PG_DBNAME?s
 DATABASE_NAME := "$PG_DBNAME"
 MIGRATIONS_DIR := "migrations"
 
+PROTO_GEN_RS_BINARY := "../../scripts/proto-gen-rs/target/release/proto-gen-rs"
+
+generate-protos:
+  {{PROTO_GEN_RS_BINARY}}
+
 create:
     psql -h localhost -U postgres -w -c "CREATE DATABASE {{DATABASE_NAME}};"
 

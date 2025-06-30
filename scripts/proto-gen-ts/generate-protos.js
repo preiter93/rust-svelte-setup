@@ -5,8 +5,9 @@ import { join, resolve, dirname } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const PROTO_SRC = join(__dirname, "../*.proto");
-const OUT_DIR = resolve(__dirname, "../../app/src/lib/protos");
+// TODO: Do this for all services
+const PROTO_SRC = join(__dirname, "../../services/users/*proto");
+const OUT_DIR = resolve(__dirname, "../../app/src/lib/protos/users");
 
 execSync(`proto-loader-gen-types \
   --longs=String \

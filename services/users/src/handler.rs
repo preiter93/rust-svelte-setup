@@ -9,12 +9,12 @@ use crate::{
     helper::internal,
     proto::{
         CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, ListUsersReq, ListUsersResp,
-        users_service_server::UsersService,
+        api_service_server::ApiService,
     },
 };
 
 #[tonic::async_trait]
-impl UsersService for Server {
+impl ApiService for Server {
     /// Creates a new user.
     ///
     /// # Errors

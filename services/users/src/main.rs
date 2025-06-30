@@ -8,7 +8,7 @@ pub mod proto;
 use db::DBCLient;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
-use proto::users_service_server::UsersServiceServer;
+use proto::api_service_server::ApiServiceServer;
 
 const GRPC_PORT: &str = "50051";
 
@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let server = Server { db };
 
     let addr = format!("[::]:{GRPC_PORT}").parse()?;
-    let svc = UsersServiceServer::new(server);
+    let svc = ApiServiceServer::new(server);
     println!("listening on :{GRPC_PORT}");
     tonic::transport::Server::builder()
         .add_service(svc)

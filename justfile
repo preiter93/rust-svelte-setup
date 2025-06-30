@@ -1,10 +1,12 @@
-[working-directory: 'protos/rs']
+[working-directory: 'services']
 generate-protos-rs:
-  cargo run
+  for d in */;\
+    do echo "Generating protos in $d"; \
+    just -f $d/justfile generate-protos; \
+  done
 
-[working-directory: 'protos/ts']
+[working-directory: 'app']
 generate-protos-ts:
-  npm install
-  npm run proto
+  just -f ./justfile generate-protos
 
 generate-protos: generate-protos-rs generate-protos-ts
