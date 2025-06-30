@@ -1048,21 +1048,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "service-users"
-version = "0.1.0"
-dependencies = [
- "deadpool-postgres",
- "dotenv",
- "prost",
- "serde",
- "thiserror",
- "tokio",
- "tokio-postgres",
- "tonic",
- "uuid",
-]
-
-[[package]]
 name = "sha2"
 version = "0.10.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1444,6 +1429,21 @@ name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
+
+[[package]]
+name = "users"
+version = "0.1.0"
+dependencies = [
+ "deadpool-postgres",
+ "dotenv",
+ "prost",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tokio-postgres",
+ "tonic",
+ "uuid",
+]
 
 [[package]]
 name = "uuid"
