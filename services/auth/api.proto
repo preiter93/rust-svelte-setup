@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package proto;
+
+import "google/protobuf/timestamp.proto";
+
+// service ApiService {
+// }
+
+message Session {
+  string id = 1;
+  bytes secret_hash = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
