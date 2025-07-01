@@ -18,7 +18,6 @@ impl From<Session> for crate::proto::Session {
     fn from(val: Session) -> crate::proto::Session {
         crate::proto::Session {
             id: val.id,
-            secret_hash: val.secret_hash,
             created_at: Some(datetime_to_prost(val.created_at)),
         }
     }

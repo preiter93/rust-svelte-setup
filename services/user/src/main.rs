@@ -2,9 +2,9 @@ use std::error::Error;
 
 pub mod db;
 pub mod handler;
-pub mod helper;
 #[allow(clippy::all)]
 pub mod proto;
+pub mod utils;
 use db::DBCLient;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;

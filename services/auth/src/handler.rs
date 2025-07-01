@@ -4,7 +4,7 @@ use thiserror::Error;
 use crate::{
     db::{DBCLient, DBError},
     proto::Session,
-    utils::{constant_time_equal, datetime_to_prost, generate_secure_random_string, hash_secret},
+    utils::{constant_time_equal, generate_secure_random_string, hash_secret},
 };
 
 const SESSION_EXPIRES_IN_SECONDS: i64 = 60 * 60 * 24; // 1 day
@@ -19,9 +19,10 @@ impl Server {
     ///
     /// # Errors
     /// - database error
-    pub async fn create_session(&self) -> Result<(Session, String), CreateSessionError> {
+    pub async fn create_session(
+        &self,
+    ) -> Result<(crate::utils::Session, String), CreateSessionError> {
         let now: DateTime<Utc> = Utc::now();
-        let timestamp = datetime_to_prost(now);
 
         let id = generate_secure_random_string();
         let secret = generate_secure_random_string();
@@ -32,10 +33,10 @@ impl Server {
         let token = format!("{id}.{secret}");
 
         Ok((
-            Session {
+            crate::utils::Session {
                 id,
                 secret_hash,
-                created_at: Some(timestamp),
+                created_at: now,
             },
             token,
         ))

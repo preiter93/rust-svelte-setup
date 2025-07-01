@@ -6,11 +6,11 @@ use uuid::Uuid;
 use crate::{
     Server,
     db::DBError,
-    helper::internal,
     proto::{
         CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, ListUsersReq, ListUsersResp,
         api_service_server::ApiService,
     },
+    utils::internal,
 };
 
 #[tonic::async_trait]

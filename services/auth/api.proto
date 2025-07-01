@@ -9,6 +9,6 @@ import "google/protobuf/timestamp.proto";
 
 message Session {
   string id = 1;
-  bytes secret_hash = 2;
+  // bytes secret_hash = 2;
   google.protobuf.Timestamp created_at = 3;
 }
