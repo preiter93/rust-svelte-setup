@@ -13,7 +13,7 @@ fn main() -> std::io::Result<()> {
 
     if !proto_files.is_empty() {
         tonic_build::configure()
-            .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
+            // .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
             .out_dir(&src_dir)
             .compile(&proto_files, &[current_dir])
             .expect("Failed to compile protos");
