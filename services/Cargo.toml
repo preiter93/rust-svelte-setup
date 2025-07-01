@@ -11,12 +11,12 @@ resolver = "2"
 chrono = "0.4"
 deadpool-postgres = "0.14"
 dotenv = "0.15"
-prost = "0.11"
-prost-types = "0.11"
+prost = "0.13"
+prost-types = "0.13"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 tokio = { version = "1.0", features = ["rt-multi-thread", "rt", "macros"] }
 tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
-tonic = { version = "0.9", features = ["tls", "tls-roots"] }
+tonic = { version = "0.13", features = ["tls-native-roots"] }
 uuid = { version = "1", features = ["v4"] }
 

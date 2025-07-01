@@ -7,17 +7,12 @@ use crate::{
     utils::{constant_time_equal, datetime_to_prost, generate_secure_random_string, hash_secret},
 };
 
-const SESSION_EXPIRES_IN_SECONDS: i64 = 60 * 60 * 24;
+const SESSION_EXPIRES_IN_SECONDS: i64 = 60 * 60 * 24; // 1 day
 
 #[derive(Clone)]
 pub struct Server {
     pub db: DBCLient,
 }
-
-// pub struct SessionWithToken {
-//     session: Session,
-//     token: String,
-// }
 
 impl Server {
     /// [`Documentation`]: https://lucia-auth.com/sessions/basic
