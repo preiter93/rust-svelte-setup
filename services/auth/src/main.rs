@@ -1,4 +1,4 @@
-use crate::{db::DBCLient, handler::Server};
+use crate::{db::DBCLient, handler::Service};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
 use std::error::Error;
@@ -19,9 +19,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pool = connect_to_db(&cfg)?;
     let db = DBCLient::new(pool);
 
-    let server = Server { db };
+    let server = Service { db };
 
-    let (_session, token) = server.create_session().await?;
+    let token = server.create_session().await?;
     let session = server.validate_session_token(&token).await?;
 
     println!("{session:?}");

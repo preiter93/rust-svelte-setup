@@ -1,11 +1,9 @@
-use chrono::{DateTime, TimeZone, Utc};
-use prost_types::Timestamp;
+use chrono::{DateTime, Utc};
 use rand::distr::{Alphanumeric, SampleString as _};
 
 use rand::SeedableRng as _;
 use rand::rngs::StdRng;
 use sha2::{Digest, Sha256};
-use thiserror::Error;
 
 #[derive(Clone, PartialEq)]
 pub struct Session {
@@ -18,7 +16,7 @@ impl From<Session> for crate::proto::Session {
     fn from(val: Session) -> crate::proto::Session {
         crate::proto::Session {
             id: val.id,
-            created_at: Some(datetime_to_prost(val.created_at)),
+            created_at: Some(val.created_at.into()),
         }
     }
 }
@@ -45,29 +43,29 @@ pub fn hash_secret(secret: &str) -> Vec<u8> {
     hasher.finalize().to_vec()
 }
 
-/// Converts `chrono::DateTime<Utc>` to `prost_types::Timestamp`
-#[must_use]
-pub fn datetime_to_prost(ts: DateTime<Utc>) -> Timestamp {
-    Timestamp {
-        seconds: ts.timestamp(),
-        nanos: ts.timestamp_subsec_nanos() as i32,
-    }
-}
-
-/// Converts `prost_types::Timestamp` to `chrono::DateTime<Utc>`
-///
-/// # Errors
-/// - invalid timestamp
-pub fn prost_to_datetime(ts: &Timestamp) -> Result<DateTime<Utc>, TimestampError> {
-    Utc.timestamp_opt(ts.seconds, ts.nanos as u32)
-        .single()
-        .ok_or(TimestampError)
-}
-
-/// An error indicating that a `prost_types::Timestamp` value is invalid.
-#[derive(Debug, Error)]
-#[error("invalid timestamp")]
-pub struct TimestampError;
+// /// Converts `chrono::DateTime<Utc>` to `prost_types::Timestamp`
+// #[must_use]
+// pub fn datetime_to_prost(ts: DateTime<Utc>) -> Timestamp {
+//     Timestamp {
+//         seconds: ts.timestamp(),
+//         nanos: ts.timestamp_subsec_nanos() as i32,
+//     }
+// }
+//
+// /// Converts `prost_types::Timestamp` to `chrono::DateTime<Utc>`
+// ///
+// /// # Errors
+// /// - invalid timestamp
+// pub fn prost_to_datetime(ts: &Timestamp) -> Result<DateTime<Utc>, TimestampError> {
+//     Utc.timestamp_opt(ts.seconds, ts.nanos as u32)
+//         .single()
+//         .ok_or(TimestampError)
+// }
+//
+// /// An error indicating that a `prost_types::Timestamp` value is invalid.
+// #[derive(Debug, Error)]
+// #[error("invalid timestamp")]
+// pub struct TimestampError;
 
 /// Compares two byte slices for equality in constant time to prevent timing attacks.
 #[must_use]

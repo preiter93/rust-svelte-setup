@@ -1,3 +1,13 @@
+//! # Session-based authentication:
+//! - The user logs in with a username and password
+//! - The server authenticates the user and generates a session token
+//! - The session token is stored in the database together with user info
+//! - The token is sent to the client and stored in a cookie or local storage
+//! - For requests the client sends the session token
+//! - The server fetches user id from the token via the database and authorizes the user
+//!
+//! # Further readings
+//! <https://lucia-auth.com/sessions/basic>
 use chrono::{DateTime, Duration, Utc};
 use thiserror::Error;
 
@@ -10,18 +20,21 @@ use crate::{
 const SESSION_EXPIRES_IN_SECONDS: i64 = 60 * 60 * 24; // 1 day
 
 #[derive(Clone)]
-pub struct Server {
+pub struct Service {
     pub db: DBCLient,
 }
 
-impl Server {
-    /// [`Documentation`]: https://lucia-auth.com/sessions/basic
+type SessionToken = String;
+
+impl Service {
+    /// Creates a new session.
     ///
     /// # Errors
     /// - database error
-    pub async fn create_session(
-        &self,
-    ) -> Result<(crate::utils::Session, String), CreateSessionError> {
+    ///
+    /// # Further readings
+    /// <https://lucia-auth.com/sessions/basic>
+    pub async fn create_session(&self) -> Result<SessionToken, CreateSessionError> {
         let now: DateTime<Utc> = Utc::now();
 
         let id = generate_secure_random_string();
@@ -32,14 +45,15 @@ impl Server {
 
         let token = format!("{id}.{secret}");
 
-        Ok((
-            crate::utils::Session {
-                id,
-                secret_hash,
-                created_at: now,
-            },
-            token,
-        ))
+        // Ok((
+        //     crate::utils::Session {
+        //         id,
+        //         secret_hash,
+        //         created_at: now,
+        //     },
+        //     token,
+        // ))
+        Ok(token)
     }
 
     /// Validates a sessions token by parsing out the id and secret
@@ -52,7 +66,8 @@ impl Server {
     /// - session secret is invalid
     /// - database error
     ///
-    /// [`Documentation`]: https://lucia-auth.com/sessions/basic
+    /// # Further readings
+    /// <https://lucia-auth.com/sessions/basic>
     pub async fn validate_session_token(
         &self,
         token: &str,

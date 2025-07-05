@@ -13,7 +13,9 @@ fn main() -> std::io::Result<()> {
 
     if !proto_files.is_empty() {
         tonic_build::configure()
-            // .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
+            .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
+            .compile_well_known_types(true)
+            .extern_path(".google.protobuf", "::prost-wkt-types")
             .out_dir(&src_dir)
             .compile_protos(&proto_files, &[current_dir])
             .expect("Failed to compile protos");
