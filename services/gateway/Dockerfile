@@ -1,13 +1,23 @@
 # TODO: Use multistage build
 # TODO: Use slim image
+# TODO: Use prebuild image
+
 FROM rust:1.88.0-bookworm as dev
+RUN cargo install cargo-chef
+
+ARG SERVICE_NAME=gateway
+ENV SERVICE_NAME=${SERVICE_NAME}
 
 WORKDIR /services
 
 COPY . .
 
-EXPOSE 3000
+RUN cargo chef prepare  --recipe-path recipe.json --bin ${SERVICE_NAME}
+RUN cargo chef cook --release --recipe-path recipe.json --bin ${SERVICE_NAME}
+RUN cargo build --release --bin ${SERVICE_NAME}
 
-WORKDIR /services/gateway
+# EXPOSE 3000
 
-CMD cargo run
+# WORKDIR /services/${SERVICE_NAME}
+
+# CMD ./target/release/${SERVICE_NAME} 
