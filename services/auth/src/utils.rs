@@ -12,14 +12,14 @@ pub struct Session {
     pub created_at: DateTime<Utc>,
 }
 
-impl From<Session> for crate::proto::Session {
-    fn from(val: Session) -> crate::proto::Session {
-        crate::proto::Session {
-            id: val.id,
-            created_at: Some(val.created_at.into()),
-        }
-    }
-}
+// impl From<Session> for crate::proto::Session {
+//     fn from(val: Session) -> crate::proto::Session {
+//         crate::proto::Session {
+//             id: val.id,
+//             created_at: Some(val.created_at.into()),
+//         }
+//     }
+// }
 
 /// Generates cryptographically secure random strings.
 ///

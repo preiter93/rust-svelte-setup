@@ -2,9 +2,9 @@
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Session {
+    /// string id = 1;
+    /// // bytes secret_hash = 2;
+    /// google.protobuf.Timestamp created_at = 3;
     #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    /// bytes secret_hash = 2;
-    #[prost(message, optional, tag = "3")]
-    pub created_at: ::core::option::Option<::prost_wkt_types::Timestamp>,
+    pub token: ::prost::alloc::string::String,
 }

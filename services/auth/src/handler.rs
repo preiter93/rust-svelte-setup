@@ -45,14 +45,6 @@ impl Service {
 
         let token = format!("{id}.{secret}");
 
-        // Ok((
-        //     crate::utils::Session {
-        //         id,
-        //         secret_hash,
-        //         created_at: now,
-        //     },
-        //     token,
-        // ))
         Ok(token)
     }
 
@@ -96,7 +88,9 @@ impl Service {
             return Err(ValidateSessionTokenError::SecretMismatch);
         }
 
-        Ok(session.into())
+        Ok(Session {
+            token: token.to_owned(),
+        })
     }
 }
 
@@ -107,6 +101,7 @@ pub enum CreateSessionError {
 }
 
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ValidateSessionTokenError {
     #[error("invalid token format")]
     InvalidFormat,
