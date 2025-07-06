@@ -72,7 +72,6 @@ dependencies = [
  "deadpool-postgres",
  "dotenv",
  "prost",
- "prost-wkt-types",
  "rand",
  "serde",
  "sha2",

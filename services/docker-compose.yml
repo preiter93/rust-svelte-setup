@@ -18,6 +18,13 @@ services:
         SERVICE_NAME: gateway
     ports:
       - 3000:3000
+
+  auth:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      args:
+        SERVICE_NAME: auth
  
 volumes:
   pgdata:
