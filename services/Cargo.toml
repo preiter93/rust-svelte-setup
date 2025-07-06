@@ -1,5 +1,10 @@
 [workspace]
-members = ["gateway"]
+members = [
+    "auth", 
+    "gateway",
+    "user",
+]
+
 resolver = "2"
 
 [workspace.dependencies]
@@ -8,24 +13,10 @@ deadpool-postgres = "0.14"
 dotenv = "0.15"
 prost = "0.13"
 prost-wkt-types = "0.6"
+serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
+tokio = { version = "1.0", features = ["rt-multi-thread", "rt", "macros"] }
+tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
+tonic = { version = "0.13", features = ["tls-native-roots"] }
+uuid = { version = "1", features = ["v4"] }
 
-[workspace.dependencies.serde]
-version = "1.0"
-features = ["derive"]
-
-[workspace.dependencies.tokio]
-version = "1.0"
-features = ["rt-multi-thread", "rt", "macros"]
-
-[workspace.dependencies.tokio-postgres]
-version = "0.7"
-features = ["with-uuid-1", "with-chrono-0_4"]
-
-[workspace.dependencies.tonic]
-version = "0.13"
-features = ["tls-native-roots"]
-
-[workspace.dependencies.uuid]
-version = "1"
-features = ["v4"]
