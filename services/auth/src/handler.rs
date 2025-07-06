@@ -21,14 +21,14 @@ use crate::{
 const SESSION_EXPIRES_IN_SECONDS: i64 = 60 * 60 * 24; // 1 day
 
 #[derive(Clone)]
-pub struct Service {
+pub struct Handler {
     pub db: DBCLient,
 }
 
 type SessionToken = String;
 
 #[tonic::async_trait]
-impl ApiService for Service {
+impl ApiService for Handler {
     async fn create_session(
         &self,
         _: Request<CreateSessionReq>,
@@ -49,7 +49,7 @@ impl ApiService for Service {
     }
 }
 
-impl Service {
+impl Handler {
     /// Creates a new session.
     ///
     /// # Errors

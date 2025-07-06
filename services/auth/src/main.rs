@@ -1,8 +1,8 @@
 #![allow(dead_code)]
-use crate::{db::DBCLient, handler::Service, proto::api_service_server::ApiServiceServer};
+use crate::{db::DBCLient, handler::Handler, proto::api_service_server::ApiServiceServer};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
-use std::{error::Error, ops::DerefMut};
+use std::error::Error;
 
 mod db;
 mod handler;
@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pool = connect_to_db(&cfg)?;
     run_db_migrations(&pool).await?;
 
-    let server = Service {
+    let server = Handler {
         db: DBCLient::new(pool),
     };
 
@@ -37,11 +37,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-// let token = server.create_session().await?;
-// let session = server.validate_session_token(&token).await?;
-//
-// println!("{session:?}");
-//
 struct Config {
     pg_dbname: String,
     pg_password: String,
@@ -67,21 +62,15 @@ impl Config {
     }
 }
 
-impl From<&Config> for tokio_postgres::Config {
-    fn from(cfg: &Config) -> Self {
-        let mut pg_config = tokio_postgres::Config::new();
-        pg_config
-            .dbname(cfg.pg_dbname.clone())
-            .user(cfg.pg_user.clone())
-            .password(cfg.pg_password.clone())
-            .host(cfg.pg_host.clone())
-            .port(cfg.pg_port);
-        pg_config
-    }
-}
-
 fn connect_to_db(cfg: &Config) -> Result<Pool, Box<dyn Error>> {
-    let pg_config: tokio_postgres::Config = cfg.into();
+    let mut pg_config = tokio_postgres::Config::new();
+    pg_config
+        .dbname(cfg.pg_dbname.clone())
+        .user(cfg.pg_user.clone())
+        .password(cfg.pg_password.clone())
+        .host(cfg.pg_host.clone())
+        .port(cfg.pg_port);
+
     let manager = Manager::from_config(
         pg_config,
         tokio_postgres::NoTls,
@@ -89,12 +78,13 @@ fn connect_to_db(cfg: &Config) -> Result<Pool, Box<dyn Error>> {
             recycling_method: RecyclingMethod::Fast,
         },
     );
-    let pool = Pool::builder(manager).build()?;
 
-    Ok(pool)
+    Ok(Pool::builder(manager).build()?)
 }
 
 async fn run_db_migrations(pool: &Pool) -> std::result::Result<(), Box<dyn Error>> {
+    use std::ops::DerefMut;
+
     refinery::embed_migrations!("migrations");
     let mut conn = pool.get().await?;
     let client = conn.deref_mut().deref_mut();

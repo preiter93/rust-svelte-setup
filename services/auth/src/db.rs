@@ -31,7 +31,7 @@ impl DBCLient {
 
         client
             .execute(
-                "INSERT INTO session (id, secret_hash, created_at) VALUES ($1, $2, $3)",
+                "INSERT INTO sessions (id, secret_hash, created_at) VALUES ($1, $2, $3)",
                 &[&id, &secret_hash, &created_at],
             )
             .await?;
@@ -48,7 +48,7 @@ impl DBCLient {
         let client = self.pool.get().await?;
 
         let stmt = client
-            .prepare("SELECT id, secret_hash, created_at FROM session WHERE id = $1")
+            .prepare("SELECT id, secret_hash, created_at FROM sessions WHERE id = $1")
             .await?;
         let row = client.query_opt(&stmt, &[&id]).await?;
         let Some(row) = row else {
@@ -75,7 +75,7 @@ impl DBCLient {
         let client = self.pool.get().await?;
 
         client
-            .execute("DELETE FROM session WHERE id = $1", &[&id])
+            .execute("DELETE FROM sessions WHERE id = $1", &[&id])
             .await?;
 
         Ok(())
