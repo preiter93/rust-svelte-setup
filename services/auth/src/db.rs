@@ -96,3 +96,9 @@ pub enum DBError {
     #[error("conversion error: {0}")]
     Conversion(String),
 }
+
+impl From<DBError> for tonic::Status {
+    fn from(value: DBError) -> Self {
+        Self::internal(value.to_string())
+    }
+}

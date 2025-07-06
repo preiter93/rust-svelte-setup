@@ -10,10 +10,11 @@
 //! <https://lucia-auth.com/sessions/basic>
 use chrono::{DateTime, Duration, Utc};
 use thiserror::Error;
+use tonic::{Request, Response, Status};
 
 use crate::{
     db::{DBCLient, DBError},
-    proto::Session,
+    proto::{CreateSessionReq, CreateSessionResp, Session, api_service_server::ApiService},
     utils::{constant_time_equal, generate_secure_random_string, hash_secret},
 };
 
@@ -25,6 +26,28 @@ pub struct Service {
 }
 
 type SessionToken = String;
+
+#[tonic::async_trait]
+impl ApiService for Service {
+    async fn create_session(
+        &self,
+        _: Request<CreateSessionReq>,
+    ) -> Result<Response<CreateSessionResp>, Status> {
+        let now: DateTime<Utc> = Utc::now();
+
+        let id = generate_secure_random_string();
+        let secret = generate_secure_random_string();
+        let secret_hash = hash_secret(&secret);
+
+        self.db.insert_session(&id, &secret_hash, now).await?;
+
+        let resp = CreateSessionResp {
+            token: format!("{id}.{secret}"),
+        };
+
+        Ok(Response::new(resp))
+    }
+}
 
 impl Service {
     /// Creates a new session.

@@ -8,8 +8,11 @@ chrono = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tonic = { workspace = true }
 
 axum = { version = "0.8" }
 axum-macros = { version = "0.5" }
 serde_json = { version = "1.0" } 
 tower-http = { version = "0.6.1", features = ["cors"] }
+
+auth = { version = "0.1", path = "../auth" }

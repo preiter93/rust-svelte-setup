@@ -12,15 +12,6 @@ pub struct Session {
     pub created_at: DateTime<Utc>,
 }
 
-// impl From<Session> for crate::proto::Session {
-//     fn from(val: Session) -> crate::proto::Session {
-//         crate::proto::Session {
-//             id: val.id,
-//             created_at: Some(val.created_at.into()),
-//         }
-//     }
-// }
-
 /// Generates cryptographically secure random strings.
 ///
 /// [`Documentation`]: https://lucia-auth.com/sessions/basic
@@ -42,30 +33,6 @@ pub fn hash_secret(secret: &str) -> Vec<u8> {
     hasher.update(secret);
     hasher.finalize().to_vec()
 }
-
-// /// Converts `chrono::DateTime<Utc>` to `prost_types::Timestamp`
-// #[must_use]
-// pub fn datetime_to_prost(ts: DateTime<Utc>) -> Timestamp {
-//     Timestamp {
-//         seconds: ts.timestamp(),
-//         nanos: ts.timestamp_subsec_nanos() as i32,
-//     }
-// }
-//
-// /// Converts `prost_types::Timestamp` to `chrono::DateTime<Utc>`
-// ///
-// /// # Errors
-// /// - invalid timestamp
-// pub fn prost_to_datetime(ts: &Timestamp) -> Result<DateTime<Utc>, TimestampError> {
-//     Utc.timestamp_opt(ts.seconds, ts.nanos as u32)
-//         .single()
-//         .ok_or(TimestampError)
-// }
-//
-// /// An error indicating that a `prost_types::Timestamp` value is invalid.
-// #[derive(Debug, Error)]
-// #[error("invalid timestamp")]
-// pub struct TimestampError;
 
 /// Compares two byte slices for equality in constant time to prevent timing attacks.
 #[must_use]

@@ -1,20 +1,19 @@
 mod handler;
+mod utils;
+use handler::Handler;
 
-use crate::handler::get_session;
-use axum::{Router, routing::get};
+use crate::handler::create_session;
+use axum::{Router, routing::post};
 use std::error::Error;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
 
-#[derive(Clone)]
-struct Server {}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let server = Server {};
+    let handler = Handler::new().await?;
     let app = Router::new()
-        .route("/session", get(get_session))
-        .with_state(server)
+        .route("/session", post(create_session))
+        .with_state(handler)
         .layer(CorsLayer::very_permissive());
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();

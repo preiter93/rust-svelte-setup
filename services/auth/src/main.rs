@@ -1,13 +1,14 @@
-use crate::{db::DBCLient, handler::Service};
+#![allow(dead_code)]
+use crate::{db::DBCLient, handler::Service, proto::api_service_server::ApiServiceServer};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
 use std::error::Error;
 
-pub mod db;
-pub mod handler;
+mod db;
+mod handler;
 #[allow(clippy::all)]
 pub mod proto;
-pub mod utils;
+mod utils;
 
 const GRPC_PORT: &str = "50051";
 
@@ -21,23 +22,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let server = Service { db };
 
-    let token = server.create_session().await?;
-    let session = server.validate_session_token(&token).await?;
-
-    println!("{session:?}");
-
-    // let addr = format!("[::]:{GRPC_PORT}").parse()?;
-    // let svc = ApiServiceServer::new(server);
-    // println!("listening on :{GRPC_PORT}");
-    // tonic::transport::Server::builder()
-    //     .add_service(svc)
-    //     .serve(addr)
-    //     .await
-    //     .expect("Failed to run gRPC server");
+    let addr = format!("[::]:{GRPC_PORT}").parse()?;
+    let svc = ApiServiceServer::new(server);
+    println!("listening on :{GRPC_PORT}");
+    tonic::transport::Server::builder()
+        .add_service(svc)
+        .serve(addr)
+        .await
+        .expect("Failed to run gRPC server");
 
     Ok(())
 }
 
+// let token = server.create_session().await?;
+// let session = server.validate_session_token(&token).await?;
+//
+// println!("{session:?}");
+//
 struct Config {
     pg_dbname: String,
     pg_password: String,
