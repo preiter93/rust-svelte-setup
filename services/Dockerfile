@@ -17,7 +17,6 @@ RUN cargo chef prepare --recipe-path recipe.json --bin ${SERVICE_NAME}
 FROM chef as builder
 ARG SERVICE_NAME
 ENV SERVICE_NAME=${SERVICE_NAME}
-RUN cargo install cargo-chef
 COPY --from=planner /services/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json --bin ${SERVICE_NAME}
 
