@@ -49,7 +49,7 @@ struct Config {
 
 impl Config {
     fn must_get_env(key: &str) -> String {
-        std::env::var(key).expect("{key} must be set")
+        std::env::var(key).expect(&format!("{key} must be set"))
     }
 
     pub fn from_env() -> Self {
