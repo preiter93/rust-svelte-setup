@@ -18,6 +18,8 @@ services:
         SERVICE_NAME: gateway
     ports:
       - 3000:3000
+    depends_on:
+      - auth
 
   auth:
     env_file: .env
@@ -31,6 +33,8 @@ services:
         - PG_DBNAME=${PG_DBNAME}
       args:
         SERVICE_NAME: auth
+    depends_on:
+      - db
  
 volumes:
   pgdata:

@@ -2100,6 +2100,7 @@ dependencies = [
  "dotenv",
  "prost",
  "prost-wkt-types",
+ "refinery",
  "serde",
  "thiserror 2.0.12",
  "tokio",
