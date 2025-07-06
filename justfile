@@ -1,8 +1,11 @@
 [working-directory: 'services']
 generate-protos-rs:
-  for d in */;\
-    do echo "Generating protos in $d"; \
-    just -f $d/justfile generate-protos; \
+  #!/usr/bin/env sh
+  for d in */; do
+    if [ -f $d/*.proto ]; then
+      echo "Generating protos in $d";
+      just -f $d/justfile generate-protos;
+    fi
   done
 
 [working-directory: 'app']

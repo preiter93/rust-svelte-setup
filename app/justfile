@@ -1,3 +1,4 @@
+# TODO: Run npm install only if needed
 [working-directory: '../scripts/proto-gen-ts']
 generate-protos:
   npm install
