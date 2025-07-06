@@ -11,12 +11,12 @@ use crate::utils::grpc_to_http_status;
 
 #[derive(Clone)]
 pub(crate) struct Handler {
-    auth_client: Option<AuthServiceClient<tonic::transport::Channel>>,
+    auth_client: AuthServiceClient<tonic::transport::Channel>,
 }
 
 impl Handler {
     pub(crate) async fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let auth_client = AuthServiceClient::connect("http://auth:50051").await.ok();
+        let auth_client = AuthServiceClient::connect("http://auth:50051").await?;
         Ok(Self { auth_client })
     }
 }
@@ -24,12 +24,10 @@ impl Handler {
 #[debug_handler]
 pub async fn create_session(State(mut h): State<Handler>) -> Result<Json<String>, GatewayError> {
     let req = Request::new(CreateSessionReq {});
-    let mut auth_client = h.auth_client.unwrap();
-    let resp = auth_client.create_session(req).await?;
+    let resp = h.auth_client.create_session(req).await?;
 
     let resp_json = serde_json::to_string(&resp.into_inner())?;
     Ok(Json(resp_json))
-    // Ok(Json("hello world".to_string()))
 }
 
 #[derive(Debug, Error)]
