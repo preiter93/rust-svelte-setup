@@ -1,23 +1,29 @@
-# TODO: Use multistage build
-# TODO: Use slim image
-# TODO: Use prebuild image
-
-FROM rust:1.88.0-bookworm as dev
-RUN cargo install cargo-chef
-
 ARG SERVICE_NAME=gateway
-ENV SERVICE_NAME=${SERVICE_NAME}
 
+FROM lukemathwalker/cargo-chef:latest-rust-1.88-bookworm as chef
 WORKDIR /services
 
+# Prepare dependency graph
+FROM chef as planner
+ARG SERVICE_NAME
+ENV SERVICE_NAME=${SERVICE_NAME}
 COPY . .
+RUN cargo chef prepare --recipe-path recipe.json --bin ${SERVICE_NAME}
 
-RUN cargo chef prepare  --recipe-path recipe.json --bin ${SERVICE_NAME}
+# Build the dependencies
+FROM chef as builder
+ARG SERVICE_NAME
+ENV SERVICE_NAME=${SERVICE_NAME}
+RUN cargo install cargo-chef
+COPY --from=planner /services/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json --bin ${SERVICE_NAME}
+
+# Build the binary
+COPY . .
 RUN cargo build --release --bin ${SERVICE_NAME}
 
-# EXPOSE 3000
-
-# WORKDIR /services/${SERVICE_NAME}
-
-# CMD ./target/release/${SERVICE_NAME} 
+# Run the service
+FROM debian:bookworm-slim AS runtime
+ARG SERVICE_NAME
+COPY --from=builder /services/target/release/${SERVICE_NAME} /usr/local/bin/main
+ENTRYPOINT ["/usr/local/bin/main"]
