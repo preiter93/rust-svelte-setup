@@ -2,7 +2,7 @@
 use crate::{db::DBCLient, handler::Service, proto::api_service_server::ApiServiceServer};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
-use std::error::Error;
+use std::{error::Error, ops::DerefMut};
 
 mod db;
 mod handler;
@@ -17,10 +17,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
 
     let cfg = Config::from_env();
-    let pool = connect_to_db(&cfg)?;
-    let db = DBCLient::new(pool);
 
-    let server = Service { db };
+    let pool = connect_to_db(&cfg)?;
+    run_db_migrations(&pool).await?;
+
+    let server = Service {
+        db: DBCLient::new(pool),
+    };
 
     let addr = format!("0.0.0.0:{GRPC_PORT}").parse()?;
     let svc = ApiServiceServer::new(server);
@@ -64,14 +67,21 @@ impl Config {
     }
 }
 
+impl From<&Config> for tokio_postgres::Config {
+    fn from(cfg: &Config) -> Self {
+        let mut pg_config = tokio_postgres::Config::new();
+        pg_config
+            .dbname(cfg.pg_dbname.clone())
+            .user(cfg.pg_user.clone())
+            .password(cfg.pg_password.clone())
+            .host(cfg.pg_host.clone())
+            .port(cfg.pg_port);
+        pg_config
+    }
+}
+
 fn connect_to_db(cfg: &Config) -> Result<Pool, Box<dyn Error>> {
-    let mut pg_config = tokio_postgres::Config::new();
-    pg_config
-        .dbname(cfg.pg_dbname.clone())
-        .user(cfg.pg_user.clone())
-        .password(cfg.pg_password.clone())
-        .host(cfg.pg_host.clone())
-        .port(cfg.pg_port);
+    let pg_config: tokio_postgres::Config = cfg.into();
     let manager = Manager::from_config(
         pg_config,
         tokio_postgres::NoTls,
@@ -80,5 +90,23 @@ fn connect_to_db(cfg: &Config) -> Result<Pool, Box<dyn Error>> {
         },
     );
     let pool = Pool::builder(manager).build()?;
+
     Ok(pool)
+}
+
+async fn run_db_migrations(pool: &Pool) -> std::result::Result<(), Box<dyn Error>> {
+    refinery::embed_migrations!("migrations");
+    let mut conn = pool.get().await?;
+    let client = conn.deref_mut().deref_mut();
+    let migration_report = migrations::runner().run_async(client).await?;
+
+    for migration in migration_report.applied_migrations() {
+        println!(
+            "Migration Applied: V{}_{}",
+            migration.version(),
+            migration.name(),
+        );
+    }
+
+    Ok(())
 }
