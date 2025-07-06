@@ -1,14 +1,15 @@
-use std::error::Error;
-
 pub mod db;
 pub mod handler;
 #[allow(clippy::all)]
 pub mod proto;
 pub mod utils;
+
+use crate::handler::Handler;
 use db::DBCLient;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
 use proto::api_service_server::ApiServiceServer;
+use std::error::Error;
 
 const GRPC_PORT: &str = "50051";
 
@@ -17,12 +18,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
 
     let cfg = Config::from_env();
+
     let pool = connect_to_db(&cfg)?;
-    let db = DBCLient::new(pool);
+    run_db_migrations(&pool).await?;
 
-    let server = Server { db };
+    let server = Handler {
+        db: DBCLient::new(pool),
+    };
 
-    let addr = format!("[::]:{GRPC_PORT}").parse()?;
+    let addr = format!("0.0.0.0:{GRPC_PORT}").parse()?;
     let svc = ApiServiceServer::new(server);
     println!("listening on :{GRPC_PORT}");
     tonic::transport::Server::builder()
@@ -32,11 +36,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .expect("Failed to run gRPC server");
 
     Ok(())
-}
-
-#[derive(Clone)]
-struct Server {
-    pub db: DBCLient,
 }
 
 struct Config {
@@ -72,6 +71,7 @@ fn connect_to_db(cfg: &Config) -> Result<Pool, Box<dyn Error>> {
         .password(cfg.pg_password.clone())
         .host(cfg.pg_host.clone())
         .port(cfg.pg_port);
+
     let manager = Manager::from_config(
         pg_config,
         tokio_postgres::NoTls,
@@ -79,6 +79,25 @@ fn connect_to_db(cfg: &Config) -> Result<Pool, Box<dyn Error>> {
             recycling_method: RecyclingMethod::Fast,
         },
     );
-    let pool = Pool::builder(manager).build()?;
-    Ok(pool)
+
+    Ok(Pool::builder(manager).build()?)
+}
+
+async fn run_db_migrations(pool: &Pool) -> std::result::Result<(), Box<dyn Error>> {
+    use std::ops::DerefMut;
+
+    refinery::embed_migrations!("migrations");
+    let mut conn = pool.get().await?;
+    let client = conn.deref_mut().deref_mut();
+    let migration_report = migrations::runner().run_async(client).await?;
+
+    for migration in migration_report.applied_migrations() {
+        println!(
+            "Migration Applied: V{}_{}",
+            migration.version(),
+            migration.name(),
+        );
+    }
+
+    Ok(())
 }

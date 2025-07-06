@@ -4,8 +4,7 @@ use tonic::{Request, Response, Status};
 use uuid::Uuid;
 
 use crate::{
-    Server,
-    db::DBError,
+    db::{DBCLient, DBError},
     proto::{
         CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, ListUsersReq, ListUsersResp,
         api_service_server::ApiService,
@@ -13,8 +12,13 @@ use crate::{
     utils::internal,
 };
 
+#[derive(Clone)]
+pub(crate) struct Handler {
+    pub db: DBCLient,
+}
+
 #[tonic::async_trait]
-impl ApiService for Server {
+impl ApiService for Handler {
     /// Creates a new user.
     ///
     /// # Errors
