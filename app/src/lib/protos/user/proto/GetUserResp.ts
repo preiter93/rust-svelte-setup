@@ -1,4 +1,4 @@
-// Original file: /Users/philippreiter/Svelte/sveltekit-rust-base/services/user/api.proto
+// Original file: /Users/philippreiter/Svelte/sveltekit-rust-setup/services/user/api.proto
 
 import type { User as _proto_User, User__Output as _proto_User__Output } from '../proto/User';
 

@@ -1,1 +1,1 @@
-# sveltekit-rust-base
+# sveltekit-rust-setup
