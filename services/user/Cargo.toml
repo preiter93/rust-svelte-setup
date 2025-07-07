@@ -9,7 +9,7 @@ chrono = { workspace = true }
 deadpool-postgres = { workspace = true }
 dotenv = { workspace = true }
 prost = { workspace = true }
-prost-wkt-types = { workspace = true }
+# prost-wkt-types = { workspace = true }
 refinery = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
