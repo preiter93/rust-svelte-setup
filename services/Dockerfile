@@ -11,7 +11,7 @@ FROM chef as planner
 ARG SERVICE_NAME
 ENV SERVICE_NAME=${SERVICE_NAME}
 COPY . .
-RUN cargo chef prepare --recipe-path recipe.json --bin ${SERVICE_NAME}
+RUN cargo chef prepare --recipe-path recipe.json
 
 # Build the dependencies
 FROM chef as builder
@@ -19,7 +19,6 @@ ARG SERVICE_NAME
 ENV SERVICE_NAME=${SERVICE_NAME}
 COPY --from=planner /services/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json --bin ${SERVICE_NAME}
-
 # Build the binary
 COPY . .
 RUN cargo build --release --bin ${SERVICE_NAME}
