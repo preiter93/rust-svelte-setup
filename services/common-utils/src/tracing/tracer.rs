@@ -2,7 +2,7 @@ use std::error::Error;
 
 use opentelemetry::global;
 use opentelemetry::trace::TracerProvider;
-use opentelemetry_otlp::SpanExporter;
+use opentelemetry_otlp::{SpanExporter, WithExportConfig as _};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::{Resource, propagation::TraceContextPropagator};
 use tracing_subscriber::layer::SubscriberExt as _;
@@ -12,7 +12,15 @@ use tracing_subscriber::util::SubscriberInitExt as _;
 ///
 /// It allows tracing spans to be exported to backends like Jaeger.
 pub fn init_tracer(service_name: &'static str) -> Result<SdkTracerProvider, Box<dyn Error>> {
-    let span_exporter = SpanExporter::builder().with_tonic().build()?;
+    let endpoint_url = if std::env::var("LOCAL").unwrap_or_default() == "true" {
+        "http://localhost:4317"
+    } else {
+        "http://otel-collector:4317"
+    };
+    let span_exporter = SpanExporter::builder()
+        .with_tonic()
+        .with_endpoint(endpoint_url)
+        .build()?;
     let tracer_provider = SdkTracerProvider::builder()
         .with_resource(Resource::builder().with_service_name(service_name).build())
         .with_batch_exporter(span_exporter)

@@ -1,9 +1,12 @@
 #![allow(dead_code)]
 use crate::{db::DBCLient, handler::Handler, proto::api_service_server::ApiServiceServer};
-use common_utils::run_db_migrations;
+use common_utils::{
+    grpc::middleware::add_middleware, run_db_migrations, tracing::tracer::init_tracer,
+};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
 use std::error::Error;
+use tonic::transport::Server;
 
 mod db;
 mod handler;
@@ -12,10 +15,13 @@ pub mod proto;
 mod utils;
 
 const GRPC_PORT: &str = "50051";
+const SERVICE_NAME: &'static str = "auth";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
+
+    let tracer = init_tracer(SERVICE_NAME)?;
 
     let cfg = Config::from_env();
 
@@ -28,12 +34,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let addr = format!("0.0.0.0:{GRPC_PORT}").parse()?;
     let svc = ApiServiceServer::new(server);
+
     println!("listening on :{GRPC_PORT}");
-    tonic::transport::Server::builder()
+    let server = Server::builder();
+    let mut server = add_middleware(server);
+    server
         .add_service(svc)
         .serve(addr)
         .await
-        .expect("Failed to run gRPC server");
+        .expect("failed to run gRPC server");
+
+    tracer.shutdown()?;
 
     Ok(())
 }
