@@ -65,7 +65,7 @@ impl Config {
     pub fn from_env() -> Self {
         let pg_port_str = Self::must_get_env("PG_PORT");
         Self {
-            pg_dbname: Self::must_get_env("PG_DBNAME"),
+            pg_dbname: format!("{SERVICE_NAME}_db"),
             pg_password: Self::must_get_env("PG_PASSWORD"),
             pg_user: Self::must_get_env("PG_USER"),
             pg_host: if std::env::var("LOCAL").unwrap_or_default() == "true" {

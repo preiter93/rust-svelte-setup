@@ -23,3 +23,5 @@ compose-up:
 compose-down: 
   docker compose -f services/docker-compose.yml -f tracing/docker-compose.yml down -v
 
+create_network:
+  docker network create shared_network
