@@ -4,15 +4,19 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+axum = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
+tracing = { workspace = true }
 
-axum = { version = "0.8" }
 axum-macros = { version = "0.5" }
 serde_json = { version = "1.0" } 
 tower-http = { version = "0.6.1", features = ["cors"] }
 
 auth = { version = "0.1", path = "../auth" }
+user = { version = "0.1", path = "../user" }
+
+common-utils = { version = "0.1", path = "../common-utils" }

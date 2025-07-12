@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-
 chrono = { workspace = true }
 deadpool-postgres = { workspace = true }
 dotenv = { workspace = true }
+http = { workspace = true }
 prost = { workspace = true }
 # prost-wkt-types = { workspace = true }
 refinery = { workspace = true }
@@ -16,4 +16,10 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-postgres = { workspace = true }
 tonic = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
 uuid = { workspace = true }
+
+common-utils = { version = "0.1", path = "../common-utils" }
+tracing = {workspace = true }
+

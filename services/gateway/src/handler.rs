@@ -1,30 +1,49 @@
+use auth::AuthClient;
 use auth::proto::CreateSessionReq;
-use auth::proto::api_service_client::ApiServiceClient as AuthServiceClient;
 use axum::response::{IntoResponse, Response};
 use axum::{Json, extract::State, http::StatusCode};
 use axum_macros::debug_handler;
 use serde_json::json;
 use thiserror::Error;
 use tonic::{Request, Status};
+use tracing::instrument;
+use user::UserClient;
+use user::proto::ListUsersReq;
 
 use crate::utils::grpc_to_http_status;
 
 #[derive(Clone)]
 pub(crate) struct Handler {
-    auth_client: AuthServiceClient<tonic::transport::Channel>,
+    auth_client: AuthClient,
+    user_client: UserClient,
 }
 
 impl Handler {
     pub(crate) async fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let auth_client = AuthServiceClient::connect("http://auth:50051").await?;
-        Ok(Self { auth_client })
+        let auth_client = AuthClient::new().await?;
+        let user_client = UserClient::new().await?;
+        Ok(Self {
+            auth_client,
+            user_client,
+        })
     }
 }
 
 #[debug_handler]
+#[instrument(skip(h))]
 pub async fn create_session(State(mut h): State<Handler>) -> Result<Json<String>, GatewayError> {
     let req = Request::new(CreateSessionReq {});
     let resp = h.auth_client.create_session(req).await?;
+
+    let resp_json = serde_json::to_string(&resp.into_inner())?;
+    Ok(Json(resp_json))
+}
+
+#[debug_handler]
+#[instrument(skip(h))]
+pub async fn list_users(State(mut h): State<Handler>) -> Result<Json<String>, GatewayError> {
+    let req = Request::new(ListUsersReq {});
+    let resp = h.user_client.list_users(req).await?;
 
     let resp_json = serde_json::to_string(&resp.into_inner())?;
     Ok(Json(resp_json))

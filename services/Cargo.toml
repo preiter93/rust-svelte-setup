@@ -3,21 +3,41 @@ members = [
     "auth", 
     "gateway",
     "user",
+    "common-utils", 
 ]
 
 resolver = "2"
 
 [workspace.dependencies]
+# Miscellaneous
 chrono = "0.4"
-deadpool-postgres = "0.14"
 dotenv = "0.15"
-prost = "0.13"
-# prost-wkt-types = "0.6"
-refinery = { version = "0.8", features = ["tokio-postgres"] }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
-tokio = { version = "1.0", features = ["rt-multi-thread", "rt", "macros"] }
-tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
-tonic = { version = "0.13", features = ["tls-native-roots"] }
 uuid = { version = "1", features = ["v4"] }
 
+# Database
+deadpool-postgres = "0.14"
+refinery = { version = "0.8", features = ["tokio-postgres"] }
+tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
+
+# Http
+axum = { version = "0.8" }
+http = { version = "1.0" }
+tower = { version = "0.5" }
+tower-http = { version = "0.6", features = ["trace"] }
+
+# gRPC
+prost = "0.13"
+# prost-wkt-types = "0.6"
+tokio = { version = "1.0", features = ["rt-multi-thread", "rt", "macros"] }
+tonic = { version = "0.13", features = ["tls-native-roots"] }
+
+# Tracing
+opentelemetry = { version = "0.30" }
+opentelemetry-http = { version = "0.30" }
+opentelemetry-otlp = { version = "0.30", features = ["grpc-tonic"] }
+opentelemetry_sdk = { version = "0.30", features = ["rt-tokio"] }
+tracing = { version = "0.1" }
+tracing-opentelemetry = { version = "0.31" }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }

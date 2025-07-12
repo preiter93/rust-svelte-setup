@@ -58,3 +58,10 @@ code changes, which leads to optimized build times.
 
 Communication in the backend is done via `gRPC` which naturally uses `proto` file. `proto` files are compiled into
 rust and typescript code.Therefore the backend can share request/response models with the frontend.
+
+# Tracing
+
+## Further reads
+[Logging basics](https://heikoseeberger.de/2023-07-29-dist-tracing-1/)
+[Tracing within a single service]( https://heikoseeberger.de/2023-08-18-dist-tracing-2/ )
+[Inter service tracing]( https://heikoseeberger.de/2023-08-28-dist-tracing-3/ )

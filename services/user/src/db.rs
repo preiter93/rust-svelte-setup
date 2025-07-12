@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::proto::User;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DBCLient {
     pub pool: Pool,
 }
