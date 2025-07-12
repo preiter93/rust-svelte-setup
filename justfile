@@ -14,17 +14,21 @@ generate-protos-ts:
 
 generate-protos: generate-protos-rs generate-protos-ts
 
+create-network:
+  docker network create shared_network
+
 deploy:
   ./scripts/deploy.sh
 
-compose-build: 
-  docker compose -f services/docker-compose.yml -f tracing/docker-compose.yml build
+undeploy:
+  ./scripts/undeploy.sh
 
-compose-up: 
-  docker compose -f services/docker-compose.yml -f tracing/docker-compose.yml up
+build-services:
+  ./scripts/build-services.sh
 
-compose-down: 
-  docker compose -f services/docker-compose.yml -f tracing/docker-compose.yml down -v
+deploy-services:
+  ./scripts/deploy-services.sh
 
-create_network:
-  docker network create shared_network
+undeploy-services:
+  ./scripts/undeploy-services.sh
+

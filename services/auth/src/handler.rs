@@ -11,6 +11,7 @@
 use chrono::{DateTime, Duration, Utc};
 use thiserror::Error;
 use tonic::{Request, Response, Status};
+use tracing::instrument;
 
 use crate::{
     db::{DBCLient, DBError},
@@ -29,6 +30,7 @@ type SessionToken = String;
 
 #[tonic::async_trait]
 impl ApiService for Handler {
+    #[instrument(skip_all)]
     async fn create_session(
         &self,
         _: Request<CreateSessionReq>,
