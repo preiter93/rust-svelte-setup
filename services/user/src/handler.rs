@@ -24,7 +24,7 @@ impl ApiService for Handler {
     ///
     /// # Errors
     /// - internal error if the user cannot be inserted into the db
-    #[instrument]
+    #[instrument(skip_all)]
     async fn create_user(
         &self,
         _: Request<CreateUserReq>,
@@ -44,7 +44,7 @@ impl ApiService for Handler {
     ///
     /// # Errors
     /// - internal error if the user cannot be inserted into the db
-    #[instrument(skip(self, req))]
+    #[instrument(skip_all)]
     async fn get_user(&self, req: Request<GetUserReq>) -> Result<Response<GetUserResp>, Status> {
         let user_id = req.into_inner().id;
         if user_id.is_empty() {
@@ -65,7 +65,7 @@ impl ApiService for Handler {
     ///
     /// # Errors
     /// - internal error if the users cannot be retrieved from the db
-    #[instrument]
+    #[instrument(skip_all)]
     async fn list_users(
         &self,
         _: Request<ListUsersReq>,
