@@ -5,8 +5,8 @@ pub mod proto;
 pub mod utils;
 
 use crate::handler::Handler;
-use common_utils::grpc::middleware::add_middleware;
 use common_utils::tracing::tracer::init_tracer;
+use common_utils::{grpc::middleware::add_middleware, run_db_migrations};
 use db::DBCLient;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cfg = Config::from_env();
 
     let pool = connect_to_db(&cfg)?;
-    run_db_migrations(&pool).await?;
+    run_db_migrations!(pool, "./migrations");
 
     let server = Handler {
         db: DBCLient::new(pool),
@@ -97,23 +97,4 @@ fn connect_to_db(cfg: &Config) -> Result<Pool, Box<dyn Error>> {
     );
 
     Ok(Pool::builder(manager).build()?)
-}
-
-async fn run_db_migrations(pool: &Pool) -> std::result::Result<(), Box<dyn Error>> {
-    use std::ops::DerefMut;
-
-    refinery::embed_migrations!("migrations");
-    let mut conn = pool.get().await?;
-    let client = conn.deref_mut().deref_mut();
-    let migration_report = migrations::runner().run_async(client).await?;
-
-    for migration in migration_report.applied_migrations() {
-        println!(
-            "Migration Applied: V{}_{}",
-            migration.version(),
-            migration.name(),
-        );
-    }
-
-    Ok(())
 }

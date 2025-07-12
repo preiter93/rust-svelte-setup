@@ -243,11 +243,13 @@ name = "common-utils"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "deadpool-postgres",
  "http",
  "opentelemetry",
  "opentelemetry-http",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
+ "refinery",
  "tonic",
  "tower",
  "tower-http",

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::{db::DBCLient, handler::Handler, proto::api_service_server::ApiServiceServer};
+use common_utils::run_db_migrations;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
 use std::error::Error;
@@ -19,7 +20,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cfg = Config::from_env();
 
     let pool = connect_to_db(&cfg)?;
-    run_db_migrations(&pool).await?;
+    run_db_migrations!(pool, "./migrations");
 
     let server = Handler {
         db: DBCLient::new(pool),
@@ -84,23 +85,4 @@ fn connect_to_db(cfg: &Config) -> Result<Pool, Box<dyn Error>> {
     );
 
     Ok(Pool::builder(manager).build()?)
-}
-
-async fn run_db_migrations(pool: &Pool) -> std::result::Result<(), Box<dyn Error>> {
-    use std::ops::DerefMut;
-
-    refinery::embed_migrations!("migrations");
-    let mut conn = pool.get().await?;
-    let client = conn.deref_mut().deref_mut();
-    let migration_report = migrations::runner().run_async(client).await?;
-
-    for migration in migration_report.applied_migrations() {
-        println!(
-            "Migration Applied: V{}_{}",
-            migration.version(),
-            migration.name(),
-        );
-    }
-
-    Ok(())
 }
