@@ -1,24 +1,6 @@
 version: "3.9"
 
 services:
-  db:
-    image: postgres:latest
-    restart: always
-    environment:
-      POSTGRES_USER: ${PG_USER}
-      POSTGRES_PASSWORD: ${PG_PASSWORD}
-      PGPORT: ${PG_PORT}
-    volumes:
-      - pgdata:/var/lib/postgresql/data 
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${PG_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - shared_network
-
   gateway:
     build:
       context: .
@@ -45,9 +27,6 @@ services:
         - PG_DBNAME=auth_db
       args:
         SERVICE_NAME: auth
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - shared_network
 
@@ -63,14 +42,8 @@ services:
         - PG_DBNAME=user_db
       args:
         SERVICE_NAME: user
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - shared_network
- 
-volumes:
-  pgdata:
 
 networks:
   shared_network:

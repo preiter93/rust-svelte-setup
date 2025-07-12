@@ -14,6 +14,9 @@ generate-protos-ts:
 
 generate-protos: generate-protos-rs generate-protos-ts
 
+deploy:
+  ./scripts/deploy.sh
+
 compose-build: 
   docker compose -f services/docker-compose.yml -f tracing/docker-compose.yml build
 
