@@ -64,16 +64,15 @@ impl Config {
 
     pub fn from_env() -> Self {
         let pg_port_str = Self::must_get_env("PG_PORT");
-        let pg_host = if std::env::var("LOCAL").unwrap_or_default() == "true" {
-            "db"
-        } else {
-            "localhost"
-        };
         Self {
             pg_dbname: Self::must_get_env("PG_DBNAME"),
             pg_password: Self::must_get_env("PG_PASSWORD"),
             pg_user: Self::must_get_env("PG_USER"),
-            pg_host: pg_host.to_string(),
+            pg_host: if std::env::var("LOCAL").unwrap_or_default() == "true" {
+                Self::must_get_env("PG_HOST_LOCAL")
+            } else {
+                Self::must_get_env("PG_HOST_REMOTE")
+            },
             pg_port: pg_port_str.parse().expect("failed to parse PG_PORT"),
         }
     }

@@ -58,9 +58,9 @@ impl Config {
             pg_password: Self::must_get_env("PG_PASSWORD"),
             pg_user: Self::must_get_env("PG_USER"),
             pg_host: if std::env::var("LOCAL").unwrap_or_default() == "true" {
-                Self::must_get_env("DB_HOST_LOCAL")
+                Self::must_get_env("PG_HOST_LOCAL")
             } else {
-                Self::must_get_env("DB_HOST_REMOVE")
+                Self::must_get_env("PG_HOST_REMOTE")
             },
             pg_port: pg_port_str.parse().expect("failed to parse PG_PORT"),
         }
