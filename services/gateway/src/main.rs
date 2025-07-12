@@ -3,7 +3,7 @@ mod utils;
 use common_utils::{http::middleware::add_middleware, tracing::tracer::init_tracer};
 use handler::Handler;
 
-use crate::handler::{create_session, list_users};
+use crate::handler::{create_session, create_user, get_user, list_users};
 use axum::{
     Router,
     routing::{get, post},
@@ -22,6 +22,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut router = Router::new()
         .route("/session", post(create_session))
         .route("/user", get(list_users))
+        .route("/user/{id}", get(get_user))
+        .route("/user", post(create_user))
         .with_state(handler)
         .layer(CorsLayer::very_permissive());
     router = add_middleware(router);
