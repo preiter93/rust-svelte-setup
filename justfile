@@ -14,8 +14,8 @@ generate-protos-ts:
 
 generate-protos: generate-protos-rs generate-protos-ts
 
-build:
-  ./scripts/build.sh
+create_network:
+  docker network create shared_network
 
 deploy:
   ./scripts/deploy.sh
@@ -23,5 +23,12 @@ deploy:
 undeploy:
   ./scripts/undeploy.sh
 
-create_network:
-  docker network create shared_network
+build:
+  ./scripts/build.sh
+
+deploy-services:
+  ./scripts/deploy-services.sh
+
+undeploy-services:
+  ./scripts/undeploy-services.sh
+
