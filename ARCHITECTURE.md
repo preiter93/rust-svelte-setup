@@ -8,17 +8,25 @@ This project is an opinionated base setup for sveltekit apps with a rust based m
 
 # Services
 
-The backend is structured into microservices. A clients request always reaches the `gateway` service
-first in which the request is authenticated and then forwarded the the respective microservice.
-The gateway exposes a restful http server using `axum`. Within the backend, the communication is done
-via `grpc` using `tonic` and protos are compiled with `prost` to rust code.
+The backend consists of rust microservices. A clients request always reaches the `gateway` service
+where it is authenticated and forwarded to the respective microservice.
+The gateway exposes a restful http server (`axum`). Within the backend, the communication is done
+through `grpc` (`tonic`). Each microservices has its own protobuf file defining the service and
+models.
 
 ## Microservice structure
+Each microservice has a hexagonal architecture that decouples handler and repository (db) layer.
+If the complexity of the microservice grows it will make sense to split the handler into handler+service,
+where the service encapsulates the domain logic.
+
+A typical microservice will have the following files:
 - `main.rs`: setup (e.g. read env variables, open db connection) and run the service
 - `lib.rs`: expose service boundaries such as the `proto.rs` for other microservices (see `Microservice boundaries`)
 - `handler.rs`: implement the http/grpc endpoints
-- `db.rs`: the database layer
+- `db.rs`: the database/repository layer
 - `utils.rs`: shared methods between endpoints, models, etc.
+
+See also [Master hexagonal architecture in Rust](https://www.howtocodeit.com/articles/master-hexagonal-architecture-rust).
 
 ## Microservice boundaries (`lib.rs`)
 
@@ -61,7 +69,17 @@ rust and typescript code.Therefore the backend can share request/response models
 
 # Tracing
 
-## Further reads
-[Logging basics](https://heikoseeberger.de/2023-07-29-dist-tracing-1/)
-[Tracing within a single service]( https://heikoseeberger.de/2023-08-18-dist-tracing-2/ )
-[Inter service tracing]( https://heikoseeberger.de/2023-08-28-dist-tracing-3/ )
+I use **OpenTelemetry** to instrument and collect traces. The traces are sent to **Jaeger** by default, but this can
+be swapped with other **OpenTelemetry** compatible backends.
+
+## Inter-service tracing
+
+Traces are propagated between microservices
+- Sending: Interceptors inject/extract context and add a `trace_id`.
+- Receiving: Middleware picks up the context and records the `trace_id`.
+
+## Further Reading
+
+- [Logging basics](https://heikoseeberger.de/2023-07-29-dist-tracing-1/)
+- [Tracing in a single service](https://heikoseeberger.de/2023-08-18-dist-tracing-2/)
+- [Inter-service tracing](https://heikoseeberger.de/2023-08-28-dist-tracing-3/)
