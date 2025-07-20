@@ -47,7 +47,7 @@ impl Handler {
 // ----------------------------------------
 
 #[debug_handler]
-#[instrument(skip(h))]
+#[instrument(skip(h), err)]
 pub async fn create_session(
     State(mut h): State<Handler>,
     Json(payload): Json<CreateSessionReq>,
@@ -59,7 +59,7 @@ pub async fn create_session(
 }
 
 #[debug_handler]
-#[instrument(skip(h))]
+#[instrument(skip(h), err)]
 pub async fn create_user(
     State(mut h): State<Handler>,
     Json(payload): Json<CreateUserReq>,
@@ -71,7 +71,7 @@ pub async fn create_user(
 }
 
 #[debug_handler]
-#[instrument(skip(h))]
+#[instrument(skip(h), err)]
 pub async fn get_user_id_by_google_id(
     State(mut h): State<Handler>,
     Path(google_id): Path<String>,
@@ -87,7 +87,7 @@ pub async fn get_user_id_by_google_id(
 // ----------------------------------------
 
 #[debug_handler]
-#[instrument(skip(h))]
+#[instrument(skip(h), err)]
 pub async fn get_current_user(
     State(mut h): State<Handler>,
     TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,

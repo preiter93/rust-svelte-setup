@@ -23,7 +23,7 @@ impl ApiService for Handler {
     ///
     /// # Errors
     /// - internal error if the user cannot be inserted into the db
-    #[instrument(skip_all)]
+    #[instrument(skip_all, err)]
     async fn create_user(
         &self,
         req: Request<CreateUserReq>,
@@ -47,7 +47,7 @@ impl ApiService for Handler {
     ///
     /// # Errors
     /// - internal error if the user cannot be inserted into the db
-    #[instrument(field(req = req.into_inner()))]
+    #[instrument(field(req = req.into_inner()), err)]
     async fn get_user(&self, req: Request<GetUserReq>) -> Result<Response<GetUserResp>, Status> {
         let req = req.into_inner();
         if req.id.is_empty() {
@@ -68,7 +68,7 @@ impl ApiService for Handler {
     ///
     /// # Errors
     /// - internal error if the user cannot be inserted into the db
-    #[instrument(field(req = req.into_inner()))]
+    #[instrument(field(req = req.into_inner()), err)]
     async fn get_user_id_from_google_id(
         &self,
         req: Request<GetUserIdFromGoogleIdReq>,

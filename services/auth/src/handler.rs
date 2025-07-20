@@ -40,7 +40,7 @@ impl ApiService for Handler {
     ///
     /// # Further readings
     /// <https://lucia-auth.com/sessions/basic>
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     async fn create_session(
         &self,
         req: Request<CreateSessionReq>,
@@ -80,14 +80,14 @@ impl ApiService for Handler {
     ///
     /// # Further readings
     /// <https://lucia-auth.com/sessions/basic>
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     async fn validate_session(
         &self,
         req: Request<ValidateSessionReq>,
     ) -> Result<Response<ValidateSessionResp>, Status> {
         let token = req.into_inner().token;
         let token_parts: Vec<_> = token.split('.').collect();
-        if token_parts.len() != 2 {
+        if token_parts.len() != 3 {
             return Err(ValidateSessionErr::InvalidFormat.into());
         }
 
@@ -122,40 +122,6 @@ impl ApiService for Handler {
 
         Ok(Response::new(resp))
     }
-
-    // /// Returns the user id from the session token.
-    // ///
-    // /// # Errors
-    // /// - database error
-    // #[instrument(skip(self))]
-    // async fn get_user_id_from_session(
-    //     &self,
-    //     req: Request<GetUserIdFromSessionReq>,
-    // ) -> Result<Response<GetUserIdFromSessionResp>, Status> {
-    //     let req = req.into_inner();
-    //     if req.token.is_empty() {
-    //         return Err(CreateSessionErr::MissingUserUID.into());
-    //     }
-    //     let token = req.token;
-    //
-    //     let token_parts: Vec<_> = token.split('.').collect();
-    //     if token_parts.len() != 2 {
-    //         return Err(ValidateSessionErr::InvalidFormat.into());
-    //     }
-    //     let session_id = token_parts[0];
-    //
-    //     let session = self
-    //         .db
-    //         .get_session(&session_id)
-    //         .await
-    //         .map_err(GetUserIdFromSessionErr::Database)?;
-    //
-    //     let resp = GetUserIdFromSessionResp {
-    //         user_id: session.user_id,
-    //     };
-    //
-    //     Ok(Response::new(resp))
-    // }
 }
 
 #[derive(Debug, Error)]
