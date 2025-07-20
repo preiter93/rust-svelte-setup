@@ -19,13 +19,20 @@ impl DBCLient {
     /// # Errors
     /// - if the database connection cannot be established
     /// - if the database query fails
-    pub async fn insert_user(&self, id: Uuid, google_id: &str) -> Result<(), DBError> {
+    pub async fn insert_user(
+        &self,
+        id: Uuid,
+        name: &str,
+        email: &str,
+        picture: &str,
+        google_id: &str,
+    ) -> Result<(), DBError> {
         let client = self.pool.get().await?;
 
         client
             .execute(
-                "INSERT INTO users (id, google_id) VALUES ($1, $2)",
-                &[&id, &google_id],
+                "INSERT INTO users (id, name, email, picture, google_id) VALUES ($1, $2, $3, $4, $5)",
+                &[&id,&name, &email, &picture, &google_id],
             )
             .await?;
 
@@ -39,7 +46,9 @@ impl DBCLient {
     pub async fn get_user(&self, id: Uuid) -> Result<User, DBError> {
         let client = self.pool.get().await?;
 
-        let stmt = client.prepare("SELECT id FROM users WHERE id = $1").await?;
+        let stmt = client
+            .prepare("SELECT id, name, email, picture FROM users WHERE id = $1")
+            .await?;
         let row = client.query_opt(&stmt, &[&id]).await?;
         let Some(row) = row else {
             return Err(DBError::NotFound);
@@ -76,8 +85,16 @@ impl TryFrom<Row> for User {
 
     fn try_from(value: Row) -> Result<Self, DBError> {
         let id: Uuid = value.try_get("id")?;
+        let name: String = value.try_get("name")?;
+        let email: String = value.try_get("email")?;
+        let picture: String = value.try_get("picture")?;
 
-        Ok(User { id: id.to_string() })
+        Ok(User {
+            id: id.to_string(),
+            name,
+            email,
+            picture,
+        })
     }
 }
 

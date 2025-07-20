@@ -12,8 +12,15 @@ export class UserService extends BaseService {
 		super(fetch);
 	}
 
-	async createUser(google_id: string | undefined): Promise<CreateUserResp> {
+	async createUser(
+		name: string,
+		email: string,
+		picture: string | undefined,
+		google_id: string | undefined): Promise<CreateUserResp> {
 		const request: CreateUserReq = {
+			name: name,
+			email: email,
+			picture: picture,
 			google_id: google_id,
 		};
 		const response = await this.fetch(`${PUBLIC_API_URL}/user`, {

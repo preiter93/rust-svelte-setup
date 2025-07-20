@@ -3,8 +3,14 @@
 
 export interface User {
   'id'?: (string);
+  'name'?: (string);
+  'email'?: (string);
+  'picture'?: (string);
 }
 
 export interface User__Output {
   'id': (string);
+  'name': (string);
+  'email': (string);
+  'picture': (string);
 }

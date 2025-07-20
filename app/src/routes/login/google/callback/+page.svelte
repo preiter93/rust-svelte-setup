@@ -42,13 +42,29 @@
 
 			const claims = decodeIdToken(tokens.idToken()) as Partial<Claims>;
 			const googleId = claims.sub ?? undefined;
+			const name = claims.name ?? undefined;
+			const picture = claims.picture ?? undefined;
+			const email = claims.email ?? undefined;
 			if (googleId === undefined) {
 				console.error('Missing Google ID in token claims', claims);
 				return new Response('Missing Google ID. Please try again.', { status: 400 });
 			}
 
+			if (name === undefined) {
+				console.error('Missing name in token claims', claims);
+				return new Response('Missing Name. Please try again.', { status: 400 });
+			}
+
+			if (email === undefined) {
+				console.error('Missing email in token claims', claims);
+				return new Response('Missing Email. Please try again.', { status: 400 });
+			}
+
 			const existingUser = await userService.getUserIdFromGoogleId(googleId);
-			const userId = existingUser?.id ?? (await userService.createUser(googleId)).user?.id;
+			let userId = existingUser?.id;
+			if (!userId) {
+				userId = (await userService.createUser(name, email, picture, googleId)).user?.id;
+			}
 
 			if (!userId) {
 				console.error('User ID is missing');

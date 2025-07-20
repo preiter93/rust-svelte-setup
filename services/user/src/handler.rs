@@ -31,13 +31,31 @@ impl ApiService for Handler {
         let req = req.into_inner();
         let id = Uuid::new_v4();
 
+        let name = req.name;
+        if name.is_empty() {
+            return Err(CreateUserErr::MissingName.into());
+        }
+
+        let email = req.email;
+        if email.is_empty() {
+            return Err(CreateUserErr::MissingEmail.into());
+        }
+
+        let picture = req.picture;
+        let google_id = req.google_id;
+
         self.db
-            .insert_user(id, &req.google_id)
+            .insert_user(id, &name, &email, &picture, &google_id)
             .await
             .map_err(CreateUserErr::Database)?;
 
         let response = CreateUserResp {
-            user: Some(User { id: id.to_string() }),
+            user: Some(User {
+                id: id.to_string(),
+                name,
+                email,
+                picture,
+            }),
         };
 
         Ok(Response::new(response))
@@ -98,11 +116,18 @@ impl ApiService for Handler {
 pub enum CreateUserErr {
     #[error("database error: {0}")]
     Database(#[from] DBError),
+
+    #[error("missing email")]
+    MissingEmail,
+
+    #[error("missing email")]
+    MissingName,
 }
 
 impl From<CreateUserErr> for Status {
     fn from(err: CreateUserErr) -> Self {
         let code = match err {
+            CreateUserErr::MissingName | CreateUserErr::MissingEmail => Code::InvalidArgument,
             CreateUserErr::Database(_) => Code::Internal,
         };
         Status::new(code, err.to_string())

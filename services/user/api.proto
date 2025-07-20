@@ -11,7 +11,10 @@ service ApiService {
 }
 
 message CreateUserReq {
-    string google_id = 1;
+    string name = 1;
+    string email = 2;
+    string picture = 3;
+    string google_id = 4;
 }
 
 message CreateUserResp {
@@ -33,4 +36,7 @@ message GetUserIdFromGoogleIdResp {
 
 message User {
     string id = 1;
+    string name = 2;
+    string email = 3;
+    string picture = 4;
 }
