@@ -14,5 +14,5 @@ drop:
     psql -h localhost -U postgres -w -c "DROP DATABASE IF EXISTS user_db;"
     psql -h localhost -U postgres -w -c "DROP DATABASE IF EXISTS auth_db;"
 
-connect:
-    psql {{DATABASE_NAME}}
+# connect:
+#     psql {{DATABASE_NAME}}

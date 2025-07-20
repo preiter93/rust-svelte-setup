@@ -2,21 +2,30 @@
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Session {
-    /// string id = 1;
-    /// // bytes secret_hash = 2;
-    /// google.protobuf.Timestamp created_at = 3;
     #[prost(string, tag = "1")]
     pub token: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct CreateSessionReq {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CreateSessionReq {
+    #[prost(string, tag = "1")]
+    pub user_id: ::prost::alloc::string::String,
+}
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateSessionResp {
     #[prost(string, tag = "1")]
     pub token: ::prost::alloc::string::String,
 }
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ValidateSessionReq {
+    #[prost(string, tag = "1")]
+    pub token: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct ValidateSessionResp {}
 /// Generated client implementations.
 pub mod api_service_client {
     #![allow(
@@ -132,6 +141,30 @@ pub mod api_service_client {
                 .insert(GrpcMethod::new("proto.ApiService", "CreateSession"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn validate_session(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ValidateSessionReq>,
+        ) -> std::result::Result<
+            tonic::Response<super::ValidateSessionResp>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/proto.ApiService/ValidateSession",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("proto.ApiService", "ValidateSession"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -152,6 +185,13 @@ pub mod api_service_server {
             request: tonic::Request<super::CreateSessionReq>,
         ) -> std::result::Result<
             tonic::Response<super::CreateSessionResp>,
+            tonic::Status,
+        >;
+        async fn validate_session(
+            &self,
+            request: tonic::Request<super::ValidateSessionReq>,
+        ) -> std::result::Result<
+            tonic::Response<super::ValidateSessionResp>,
             tonic::Status,
         >;
     }
@@ -261,6 +301,51 @@ pub mod api_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = CreateSessionSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/proto.ApiService/ValidateSession" => {
+                    #[allow(non_camel_case_types)]
+                    struct ValidateSessionSvc<T: ApiService>(pub Arc<T>);
+                    impl<
+                        T: ApiService,
+                    > tonic::server::UnaryService<super::ValidateSessionReq>
+                    for ValidateSessionSvc<T> {
+                        type Response = super::ValidateSessionResp;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ValidateSessionReq>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ApiService>::validate_session(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ValidateSessionSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

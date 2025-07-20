@@ -3,7 +3,7 @@ mod utils;
 use shared::{http::middleware::add_middleware, tracing::tracer::init_tracer};
 use handler::Handler;
 
-use crate::handler::{create_session, create_user, get_user, list_users};
+use crate::handler::{create_session, create_user, get_user, get_user_by_google_id, list_users};
 use axum::{
     Router,
     routing::{get, post},
@@ -18,11 +18,14 @@ const SERVICE_NAME: &'static str = "gateway";
 async fn main() -> Result<(), Box<dyn Error>> {
     let tracer = init_tracer(SERVICE_NAME)?;
 
+    // TODO add middleware to validate token
+
     let handler = Handler::new().await?;
     let mut router = Router::new()
         .route("/session", post(create_session))
         .route("/user", get(list_users))
         .route("/user/{id}", get(get_user))
+        .route("/user/google/{id}", get(get_user_by_google_id))
         .route("/user", post(create_user))
         .with_state(handler)
         .layer(CorsLayer::very_permissive());

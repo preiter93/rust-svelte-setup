@@ -7,13 +7,18 @@ service ApiService {
     rpc ListUsers(ListUsersReq) returns (ListUsersResp) {}
 }
 
-message CreateUserReq {}
+message CreateUserReq {
+    string google_id = 1;
+}
 message CreateUserResp {
     string id = 1;
 }
 
 message GetUserReq {
+  oneof identifier {
     string id = 1;
+    string google_id = 2;
+  }
 }
 message GetUserResp {
     User user = 1;

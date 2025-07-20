@@ -8,6 +8,6 @@ echo "Stopping services..."
 docker-compose -f services/docker-compose.yml down
 
 echo "Stopping DB..."
-docker-compose -f infrastructure/db/docker-compose.yml down
+docker-compose -f infrastructure/db/docker-compose.yml down -v
 
 echo "Undeployment complete!"

@@ -1,6 +1,9 @@
 pub mod proto;
 
-use crate::proto::{CreateSessionReq, CreateSessionResp, api_service_client::ApiServiceClient};
+use crate::proto::{
+    CreateSessionReq, CreateSessionResp, ValidateSessionReq, ValidateSessionResp,
+    api_service_client::ApiServiceClient,
+};
 use shared::grpc::interceptors::GrpcServiceInterceptor;
 use std::{error::Error, str::FromStr as _};
 use tonic::{
@@ -30,5 +33,12 @@ impl AuthClient {
         req: Request<CreateSessionReq>,
     ) -> Result<Response<CreateSessionResp>, Status> {
         self.0.create_session(req).await
+    }
+
+    pub async fn validate_session(
+        &mut self,
+        req: Request<ValidateSessionReq>,
+    ) -> Result<Response<ValidateSessionResp>, Status> {
+        self.0.validate_session(req).await
     }
 }

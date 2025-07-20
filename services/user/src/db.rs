@@ -1,3 +1,4 @@
+use crate::proto::get_user_req;
 use deadpool_postgres::Pool;
 use thiserror::Error;
 use tokio_postgres::Row;
@@ -18,11 +19,15 @@ impl DBCLient {
 
     /// # Errors
     /// - if the database connection cannot be established
-    pub async fn insert_user(&self, id: Uuid) -> Result<(), DBError> {
+    /// - if the database query fails
+    pub async fn insert_user(&self, id: Uuid, google_id: &str) -> Result<(), DBError> {
         let client = self.pool.get().await?;
 
         client
-            .execute("INSERT INTO users (id) VALUES ($1)", &[&id])
+            .execute(
+                "INSERT INTO users (id, google_id) VALUES ($1, $2)",
+                &[&id, &google_id],
+            )
             .await?;
 
         Ok(())
@@ -30,12 +35,24 @@ impl DBCLient {
 
     /// # Errors
     /// - if the database connection cannot be established
+    /// - if the database query fails
     /// - If the user is not found
-    pub async fn get_user(&self, id: Uuid) -> Result<User, DBError> {
+    pub async fn get_user(&self, identifier: get_user_req::Identifier) -> Result<User, DBError> {
         let client = self.pool.get().await?;
 
-        let stmt = client.prepare("SELECT id FROM users WHERE id = $1").await?;
-        let row = client.query_opt(&stmt, &[&id]).await?;
+        let (stmt, param) = match identifier {
+            get_user_req::Identifier::Id(id) => (
+                client.prepare("SELECT id FROM users WHERE id = $1").await?,
+                id,
+            ),
+            get_user_req::Identifier::GoogleId(google_id) => (
+                client
+                    .prepare("SELECT id FROM users WHERE google_id = $1")
+                    .await?,
+                google_id,
+            ),
+        };
+        let row = client.query_opt(&stmt, &[&param]).await?;
         let Some(row) = row else {
             return Err(DBError::NotFound);
         };
@@ -47,6 +64,7 @@ impl DBCLient {
 
     /// # Errors
     /// - if the database connection cannot be established
+    /// - if the database query fails
     pub async fn list_users(&self) -> Result<Vec<User>, DBError> {
         let client = self.pool.get().await?;
 
@@ -74,8 +92,8 @@ impl TryFrom<Row> for User {
 
 #[derive(Debug, Error)]
 pub enum DBError {
-    #[error("Database connection failed: {0}")]
-    Connection(#[from] tokio_postgres::Error),
+    #[error("Database error: {0}")]
+    Error(#[from] tokio_postgres::Error),
 
     #[error("Connection pool error: {0}")]
     Pool(#[from] deadpool_postgres::PoolError),

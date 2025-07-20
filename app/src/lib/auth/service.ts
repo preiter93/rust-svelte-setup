@@ -1,19 +1,38 @@
+import type { CreateSessionReq } from "$lib/protos/auth/proto/CreateSessionReq";
+import type { CreateSessionResp } from "$lib/protos/auth/proto/CreateSessionResp";
 import { Google } from "arctic";
 // import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from "$env/static/private";
-// const serverUrl = 'http://127.0.0.1:3000';
+const serverUrl = 'http://0.0.0.0:3000';
 
 const GOOGLE_CLIENT_ID = "948143150752-gl142ug390d0im4fk34pj97k9o5amsl9.apps.googleusercontent.com"
 const GOOGLE_CLIENT_SECRET = "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"
 
 export const google = new Google(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, "http://localhost:5173/login/google/callback");
 
-// type FetchType = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
-// export class AuthService {
-// 	constructor(fetch: FetchType) {
-// 		this.fetch = fetch;
-// 	}
-//
-// 	fetch: FetchType;
+type FetchType = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
+export class AuthService {
+	constructor(fetch: FetchType) {
+		this.fetch = fetch;
+	}
+
+	fetch: FetchType;
+
+	async createSession(user_id: string | undefined): Promise<CreateSessionResp> {
+		const request: CreateSessionReq = {
+			user_id: user_id,
+		};
+		const response = await this.fetch(`${serverUrl}/session`, {
+			method: "POST",
+			body: JSON.stringify(request),
+			headers: { 'Content-Type': 'application/json' },
+		});
+		if (!response.ok) {
+			throw new Error(`failed to create session: ${response.statusText}`)
+		}
+		const data: CreateSessionResp = await response.json();
+		return data;
+	}
+}
 //
 // 	async loginGoogle(): Promise<ListProgramsResp> {
 // 		const response = await this.fetch(`${serverUrl}/programs`);

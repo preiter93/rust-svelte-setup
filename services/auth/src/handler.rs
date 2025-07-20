@@ -10,12 +10,15 @@
 //! <https://lucia-auth.com/sessions/basic>
 use chrono::{DateTime, Duration, Utc};
 use thiserror::Error;
-use tonic::{Request, Response, Status};
+use tonic::{Code, Request, Response, Status};
 use tracing::instrument;
 
 use crate::{
     db::{DBCLient, DBError},
-    proto::{CreateSessionReq, CreateSessionResp, Session, api_service_server::ApiService},
+    proto::{
+        CreateSessionReq, CreateSessionResp, ValidateSessionReq, ValidateSessionResp,
+        api_service_server::ApiService,
+    },
     utils::{constant_time_equal, generate_secure_random_string, hash_secret},
 };
 
@@ -30,28 +33,6 @@ type SessionToken = String;
 
 #[tonic::async_trait]
 impl ApiService for Handler {
-    #[instrument(skip_all)]
-    async fn create_session(
-        &self,
-        _: Request<CreateSessionReq>,
-    ) -> Result<Response<CreateSessionResp>, Status> {
-        let now: DateTime<Utc> = Utc::now();
-
-        let id = generate_secure_random_string();
-        let secret = generate_secure_random_string();
-        let secret_hash = hash_secret(&secret);
-
-        self.db.insert_session(&id, &secret_hash, now).await?;
-
-        let resp = CreateSessionResp {
-            token: format!("{id}.{secret}"),
-        };
-
-        Ok(Response::new(resp))
-    }
-}
-
-impl Handler {
     /// Creates a new session.
     ///
     /// # Errors
@@ -59,18 +40,32 @@ impl Handler {
     ///
     /// # Further readings
     /// <https://lucia-auth.com/sessions/basic>
-    pub async fn create_session(&self) -> Result<SessionToken, CreateSessionError> {
+    #[instrument(skip_all)]
+    async fn create_session(
+        &self,
+        req: Request<CreateSessionReq>,
+    ) -> Result<Response<CreateSessionResp>, Status> {
+        let req = req.into_inner();
+        if req.user_id.is_empty() {
+            return Err(CreateSessionErr::MissingUserUID.into());
+        }
+
         let now: DateTime<Utc> = Utc::now();
 
         let id = generate_secure_random_string();
         let secret = generate_secure_random_string();
         let secret_hash = hash_secret(&secret);
 
-        self.db.insert_session(&id, &secret_hash, now).await?;
+        self.db
+            .insert_session(&id, &secret_hash, &req.user_id, now)
+            .await
+            .map_err(CreateSessionErr::Database)?;
 
-        let token = format!("{id}.{secret}");
+        let resp = CreateSessionResp {
+            token: format!("{id}.{secret}"),
+        };
 
-        Ok(token)
+        Ok(Response::new(resp))
     }
 
     /// Validates a sessions token by parsing out the id and secret
@@ -85,49 +80,69 @@ impl Handler {
     ///
     /// # Further readings
     /// <https://lucia-auth.com/sessions/basic>
-    pub async fn validate_session_token(
+    async fn validate_session(
         &self,
-        token: &str,
-    ) -> Result<Session, ValidateSessionTokenError> {
+        req: Request<ValidateSessionReq>,
+    ) -> Result<Response<ValidateSessionResp>, Status> {
+        let token = req.into_inner().token;
         let token_parts: Vec<_> = token.split('.').collect();
         if token_parts.len() != 2 {
-            return Err(ValidateSessionTokenError::InvalidFormat);
+            return Err(ValidateSessionErr::InvalidFormat.into());
         }
 
         let session_id = token_parts[0];
-        println!("session id {session_id} token {token}");
         let session_secret = token_parts[1];
 
-        let session = self.db.get_session(session_id).await?;
+        let session = self
+            .db
+            .get_session(session_id)
+            .await
+            .map_err(ValidateSessionErr::Database)?;
 
         let is_expired = Utc::now().signed_duration_since(session.created_at)
             >= Duration::seconds(SESSION_EXPIRES_IN_SECONDS);
         if is_expired {
-            self.db.delete_session(&session.id).await?;
-            return Err(ValidateSessionTokenError::Expired);
+            self.db
+                .delete_session(&session.id)
+                .await
+                .map_err(ValidateSessionErr::Database)?;
+            return Err(ValidateSessionErr::Expired.into());
         }
 
         let token_secret_hash = hash_secret(session_secret);
         let valid_secret = constant_time_equal(&token_secret_hash, &session.secret_hash);
         if !valid_secret {
-            return Err(ValidateSessionTokenError::SecretMismatch);
+            return Err(ValidateSessionErr::SecretMismatch.into());
         }
 
-        Ok(Session {
-            token: token.to_owned(),
-        })
+        let resp = ValidateSessionResp {};
+
+        Ok(Response::new(resp))
     }
 }
 
 #[derive(Debug, Error)]
-pub enum CreateSessionError {
+pub enum CreateSessionErr {
+    #[error("missing user id")]
+    MissingUserUID,
+
     #[error("database error: {0}")]
     Database(#[from] DBError),
 }
 
+impl From<CreateSessionErr> for Status {
+    fn from(err: CreateSessionErr) -> Self {
+        let code = match err {
+            CreateSessionErr::MissingUserUID => Code::InvalidArgument,
+            CreateSessionErr::Database(_) => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
+}
+
 #[derive(Debug, Error)]
 #[non_exhaustive]
-pub enum ValidateSessionTokenError {
+pub enum ValidateSessionErr {
     #[error("invalid token format")]
     InvalidFormat,
 
@@ -139,4 +154,16 @@ pub enum ValidateSessionTokenError {
 
     #[error("database error: {0}")]
     Database(#[from] DBError),
+}
+
+impl From<ValidateSessionErr> for Status {
+    fn from(err: ValidateSessionErr) -> Self {
+        let code = match err {
+            ValidateSessionErr::InvalidFormat
+            | ValidateSessionErr::SecretMismatch
+            | ValidateSessionErr::Expired => Code::Unauthenticated,
+            ValidateSessionErr::Database(_) => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
 }

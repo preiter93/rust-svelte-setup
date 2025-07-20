@@ -25,14 +25,15 @@ impl DBCLient {
         &self,
         id: &str,
         secret_hash: &[u8],
+        user_id: &str,
         created_at: DateTime<Utc>,
     ) -> Result<(), DBError> {
         let client = self.pool.get().await?;
 
         client
             .execute(
-                "INSERT INTO sessions (id, secret_hash, created_at) VALUES ($1, $2, $3)",
-                &[&id, &secret_hash, &created_at],
+                "INSERT INTO sessions (id, secret_hash, user_id, created_at) VALUES ($1, $2, $3, $4)",
+                &[&id, &secret_hash, &user_id, &created_at],
             )
             .await?;
 
@@ -84,8 +85,8 @@ impl DBCLient {
 
 #[derive(Debug, Error)]
 pub enum DBError {
-    #[error("database connection failed: {0}")]
-    Connection(#[from] tokio_postgres::Error),
+    #[error("Database error: {0}")]
+    Error(#[from] tokio_postgres::Error),
 
     #[error("connection pool error: {0}")]
     Pool(#[from] deadpool_postgres::PoolError),
@@ -95,10 +96,4 @@ pub enum DBError {
 
     #[error("conversion error: {0}")]
     Conversion(String),
-}
-
-impl From<DBError> for tonic::Status {
-    fn from(value: DBError) -> Self {
-        Self::internal(value.to_string())
-    }
 }

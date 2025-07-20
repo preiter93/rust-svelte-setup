@@ -6,16 +6,21 @@ import "google/protobuf/timestamp.proto";
 
 service ApiService {
   rpc CreateSession(CreateSessionReq) returns (CreateSessionResp) {}
+  rpc ValidateSession(ValidateSessionReq) returns (ValidateSessionResp) {}
 }
 
 message Session {
   string token = 1;
-  // string id = 1;
-  // // bytes secret_hash = 2;
-  // google.protobuf.Timestamp created_at = 3;
 }
 
-message CreateSessionReq {}
+message CreateSessionReq {
+  string user_id = 1;
+}
 message CreateSessionResp {
     string token = 1;
 }
+
+message ValidateSessionReq {
+  string token = 1;
+}
+message ValidateSessionResp {}

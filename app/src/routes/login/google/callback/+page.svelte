@@ -2,9 +2,9 @@
 	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
 	import { decodeIdToken, type OAuth2Tokens } from 'arctic';
-	import { google } from '$lib/auth/service';
+	import { AuthService, google } from '$lib/auth/service';
 	import { goto } from '$app/navigation';
-
+	import { UserService } from '$lib/user/service';
 	let { data }: PageProps = $props();
 
 	type Claims = {
@@ -21,6 +21,9 @@
 		const state = data.state;
 
 		async function validateAuthorizationCode() {
+			let userService = new UserService(fetch);
+			let authService = new AuthService(fetch);
+
 			// TODO: Proper error handling.
 			if (storedState === null || codeVerifier === null || code === null || state === null) {
 				console.log('Please restart the process.');
@@ -41,36 +44,27 @@
 			}
 
 			const claims = decodeIdToken(tokens.idToken()) as Partial<Claims>;
+			const googleId = claims.sub ?? undefined;
 
-			const googleId = claims.sub ?? null;
-			const name = claims.name ?? null;
-			const picture = claims.picture ?? null;
-			const email = claims.email ?? null;
+			const existingUser = await userService.getUserByGoogleId(googleId);
+			const user = existingUser?.user ?? (await userService.createUser(googleId));
 
-			// TODO:
-			// const existingUser = getUserFromGoogleId(googleId);
-			// if (existingUser !== null) {
-			// 	const sessionToken = generateSessionToken();
-			// 	const session = createSession(sessionToken, existingUser.id);
-			// 	setSessionTokenCookie(event, sessionToken, session.expiresAt);
-			// 	return new Response(null, {
-			// 		status: 302,
-			// 		headers: {
-			// 			Location: '/'
-			// 		}
-			// 	});
-			// }
-			//
-			// const user = createUser(googleId, email, name, picture);
-			// const sessionToken = generateSessionToken();
-			// const session = createSession(sessionToken, user.id);
-			// setSessionTokenCookie(event, sessionToken, session.expiresAt);
+			if (!user.id) {
+				return;
+			}
+
+			const session = await authService.createSession(user.id);
+			if (session.token === undefined) {
+				return;
+			}
+			localStorage.setItem('sessionToken', session.token);
+
+			goto('/');
 		}
 
 		validateAuthorizationCode();
 
-		goto('/');
-		return () => console.log('destroyed');
+		return () => {};
 	});
 </script>
 

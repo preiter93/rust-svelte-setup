@@ -2,7 +2,6 @@ pub mod db;
 pub mod handler;
 #[allow(clippy::all)]
 pub mod proto;
-pub mod utils;
 
 use crate::handler::Handler;
 use shared::tracing::tracer::init_tracer;
