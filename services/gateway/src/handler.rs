@@ -1,17 +1,26 @@
 use auth::AuthClient;
-use auth::proto::{CreateSessionReq, CreateSessionResp};
-use axum::extract::Path;
-use axum::response::{IntoResponse, Response};
-use axum::{Json, extract::State, http::StatusCode};
+use auth::proto::{CreateSessionReq, CreateSessionResp, ValidateSessionReq};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
+use axum_extra::{
+    TypedHeader,
+    headers::{Authorization, authorization::Bearer},
+};
 use axum_macros::debug_handler;
 use serde_json::json;
 use thiserror::Error;
 use tonic::{Request, Status};
 use tracing::instrument;
-use user::UserClient;
-use user::proto::{
-    CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, ListUsersReq, ListUsersResp,
-    get_user_req,
+use user::{
+    UserClient,
+    proto::{
+        CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp,
+        GetUserReq, GetUserResp,
+    },
 };
 
 use crate::utils::grpc_to_http_status;
@@ -33,6 +42,10 @@ impl Handler {
     }
 }
 
+// ----------------------------------------
+//         UNAUTHENTICATED ENDPOINTS
+// ----------------------------------------
+
 #[debug_handler]
 #[instrument(skip(h))]
 pub async fn create_session(
@@ -41,28 +54,6 @@ pub async fn create_session(
 ) -> Result<Json<CreateSessionResp>, GatewayError> {
     let req = Request::new(payload);
     let resp = h.auth_client.create_session(req).await?;
-
-    Ok(Json(resp.into_inner()))
-}
-
-// #[debug_handler]
-// #[instrument(skip(h))]
-// pub async fn validate_session(
-//     State(mut h): State<Handler>,
-//     Json(payload): Json<ValidateSessionReq>,
-// ) -> Result<Json<String>, GatewayError> {
-//     let req = Request::new(payload);
-//     let resp = h.auth_client.validate_session(req).await?;
-//
-//     let resp_json = serde_json::to_string(&resp.into_inner())?;
-//     Ok(Json(resp_json))
-// }
-
-#[debug_handler]
-#[instrument(skip(h))]
-pub async fn list_users(State(mut h): State<Handler>) -> Result<Json<ListUsersResp>, GatewayError> {
-    let req = Request::new(ListUsersReq {});
-    let resp = h.user_client.list_users(req).await?;
 
     Ok(Json(resp.into_inner()))
 }
@@ -81,33 +72,38 @@ pub async fn create_user(
 
 #[debug_handler]
 #[instrument(skip(h))]
-pub async fn get_user(
+pub async fn get_user_id_by_google_id(
     State(mut h): State<Handler>,
-    Path(id): Path<String>,
-) -> Result<Json<GetUserResp>, GatewayError> {
-    let identifier = get_user_req::Identifier::Id(id);
-
-    let req = Request::new(GetUserReq {
-        identifier: Some(identifier),
-    });
-    let resp = h.user_client.get_user(req).await?;
+    Path(google_id): Path<String>,
+) -> Result<Json<GetUserIdFromGoogleIdResp>, GatewayError> {
+    let req = Request::new(GetUserIdFromGoogleIdReq { google_id });
+    let resp = h.user_client.get_user_id_from_google_id(req).await?;
 
     Ok(Json(resp.into_inner()))
 }
+
+// ----------------------------------------
+//         AUTHENTICATED ENDPOINTS
+// ----------------------------------------
+
 #[debug_handler]
 #[instrument(skip(h))]
-pub async fn get_user_by_google_id(
+pub async fn get_current_user(
     State(mut h): State<Handler>,
-    Path(google_id): Path<String>,
+    TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
 ) -> Result<Json<GetUserResp>, GatewayError> {
-    let identifier = get_user_req::Identifier::GoogleId(google_id);
-
-    let req = Request::new(GetUserReq {
-        identifier: Some(identifier),
+    let session_token = bearer.token().to_string();
+    let validate_ression_req = Request::new(ValidateSessionReq {
+        token: session_token,
     });
-    let resp = h.user_client.get_user(req).await?;
 
-    Ok(Json(resp.into_inner()))
+    let validate_ression_resp = h.auth_client.validate_session(validate_ression_req).await?;
+    let user_id = validate_ression_resp.into_inner().user_id;
+
+    let get_user_req = Request::new(GetUserReq { id: user_id });
+    let get_user_resp = h.user_client.get_user(get_user_req).await?;
+
+    Ok(Json(get_user_resp.into_inner()))
 }
 
 #[derive(Debug, Error)]

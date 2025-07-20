@@ -10,6 +10,7 @@ pub struct Session {
     pub id: String,
     pub secret_hash: Vec<u8>,
     pub created_at: DateTime<Utc>,
+    pub user_id: String,
 }
 
 /// Generates cryptographically secure random strings.

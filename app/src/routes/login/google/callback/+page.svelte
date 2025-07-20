@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
 	import { decodeIdToken, type OAuth2Tokens } from 'arctic';
 	import { AuthService, google } from '$lib/auth/service';
@@ -14,7 +13,7 @@
 		email: string;
 	};
 
-	onMount(() => {
+	$effect(() => {
 		const storedState = sessionStorage.getItem('oauth_state');
 		const codeVerifier = sessionStorage.getItem('oauth_code_verifier');
 		const code = data.code;
@@ -24,41 +23,46 @@
 			let userService = new UserService(fetch);
 			let authService = new AuthService(fetch);
 
-			// TODO: Proper error handling.
 			if (storedState === null || codeVerifier === null || code === null || state === null) {
-				console.log('Please restart the process.');
-				return;
+				console.error('Missing one of: storedState, codeVerifier, code, or state');
+				return new Response('Missing data. Please restart the login process.', { status: 400 });
 			}
 			if (storedState !== state) {
-				console.log('Please restart the process.');
-				return;
+				console.error('State mismatch.', { storedState, state });
+				return new Response('Invalid state. Please restart the login process.', { status: 400 });
 			}
 
 			let tokens: OAuth2Tokens;
 			try {
 				tokens = await google.validateAuthorizationCode(code, codeVerifier);
 			} catch (e) {
-				return new Response('Please restart the process.', {
-					status: 400
-				});
+				console.error('Failed to validate authorization code', e);
+				return new Response('Authorization failed. Please try again.', { status: 400 });
 			}
 
 			const claims = decodeIdToken(tokens.idToken()) as Partial<Claims>;
 			const googleId = claims.sub ?? undefined;
-
-			const existingUser = await userService.getUserByGoogleId(googleId);
-			const user = existingUser?.user ?? (await userService.createUser(googleId));
-
-			if (!user.id) {
-				return;
+			if (googleId === undefined) {
+				console.error('Missing Google ID in token claims', claims);
+				return new Response('Missing Google ID. Please try again.', { status: 400 });
 			}
 
-			const session = await authService.createSession(user.id);
-			if (session.token === undefined) {
-				return;
+			const existingUser = await userService.getUserIdFromGoogleId(googleId);
+			const userId = existingUser?.id ?? (await userService.createUser(googleId)).user?.id;
+
+			if (!userId) {
+				console.error('User ID is missing');
+				return new Response('User not available. Please try again.', { status: 500 });
 			}
+
+			const session = await authService.createSession(userId);
+			if (!session.token) {
+				console.error('Failed to create session');
+				return new Response('Session missing. Please try again.', { status: 500 });
+			}
+
+			// Store session and redirect
 			localStorage.setItem('sessionToken', session.token);
-
 			goto('/');
 		}
 
@@ -67,5 +71,3 @@
 		return () => {};
 	});
 </script>
-
-<p>callback</p>

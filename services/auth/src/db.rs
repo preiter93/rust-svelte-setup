@@ -49,7 +49,7 @@ impl DBCLient {
         let client = self.pool.get().await?;
 
         let stmt = client
-            .prepare("SELECT id, secret_hash, created_at FROM sessions WHERE id = $1")
+            .prepare("SELECT id, secret_hash, created_at, user_id FROM sessions WHERE id = $1")
             .await?;
         let row = client.query_opt(&stmt, &[&id]).await?;
         let Some(row) = row else {
@@ -59,11 +59,13 @@ impl DBCLient {
         let id: String = row.try_get("id")?;
         let secret_hash: Vec<u8> = row.try_get("secret_hash")?;
         let created_at: DateTime<Utc> = row.try_get("created_at")?;
+        let user_id: String = row.try_get("user_id")?;
 
         Ok(Session {
             id,
             secret_hash,
             created_at,
+            user_id,
         })
     }
 

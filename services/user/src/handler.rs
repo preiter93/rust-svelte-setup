@@ -1,8 +1,10 @@
+use std::str::FromStr;
+
 use crate::{
     db::{DBCLient, DBError},
     proto::{
-        CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, ListUsersReq, ListUsersResp,
-        api_service_server::ApiService, get_user_req,
+        CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp,
+        GetUserReq, GetUserResp, User, api_service_server::ApiService,
     },
 };
 use thiserror::Error;
@@ -27,41 +29,33 @@ impl ApiService for Handler {
         req: Request<CreateUserReq>,
     ) -> Result<Response<CreateUserResp>, Status> {
         let req = req.into_inner();
-        let user_id = Uuid::new_v4();
+        let id = Uuid::new_v4();
 
         self.db
-            .insert_user(user_id, &req.google_id)
+            .insert_user(id, &req.google_id)
             .await
             .map_err(CreateUserErr::Database)?;
 
         let response = CreateUserResp {
-            id: user_id.to_string(),
+            user: Some(User { id: id.to_string() }),
         };
 
         Ok(Response::new(response))
     }
 
-    /// Gets a user by id.
+    /// Gets a user by identifier.
     ///
     /// # Errors
     /// - internal error if the user cannot be inserted into the db
     #[instrument(field(req = req.into_inner()))]
     async fn get_user(&self, req: Request<GetUserReq>) -> Result<Response<GetUserResp>, Status> {
         let req = req.into_inner();
-        let Some(identifier) = req.identifier else {
-            return Err(GetUserErr::MissingIdentifier.into());
-        };
-        match identifier {
-            get_user_req::Identifier::Id(ref id) if id.is_empty() => {
-                return Err(GetUserErr::EmptyID.into());
-            }
-            get_user_req::Identifier::GoogleId(ref google_id) if google_id.is_empty() => {
-                return Err(GetUserErr::EmptyGoogleID.into());
-            }
-            _ => {}
+        if req.id.is_empty() {
+            return Err(GetUserErr::MissingUserId.into());
         }
+        let id = Uuid::from_str(&req.id).map_err(|_| GetUserErr::NotAUUID)?;
 
-        let user = self.db.get_user(identifier).await.map_err(|e| match e {
+        let user = self.db.get_user(id).await.map_err(|e| match e {
             DBError::NotFound => GetUserErr::NotFound,
             _ => GetUserErr::Database(e),
         })?;
@@ -70,18 +64,31 @@ impl ApiService for Handler {
         Ok(Response::new(response))
     }
 
-    /// Lists all users.
+    /// Gets a user id by google id.
     ///
     /// # Errors
-    /// - internal error if the users cannot be retrieved from the db
-    #[instrument(skip_all)]
-    async fn list_users(
+    /// - internal error if the user cannot be inserted into the db
+    #[instrument(field(req = req.into_inner()))]
+    async fn get_user_id_from_google_id(
         &self,
-        _: Request<ListUsersReq>,
-    ) -> Result<Response<ListUsersResp>, Status> {
-        let users = self.db.list_users().await.map_err(ListUsersErr::Database)?;
+        req: Request<GetUserIdFromGoogleIdReq>,
+    ) -> Result<Response<GetUserIdFromGoogleIdResp>, Status> {
+        let req = req.into_inner();
+        if req.google_id.is_empty() {
+            return Err(GetUserIdFromGoogleIdErr::MissingGoogleId.into());
+        }
+        let google_id = req.google_id;
 
-        let response = ListUsersResp { users };
+        let id = self
+            .db
+            .get_user_id_from_google_id(&google_id)
+            .await
+            .map_err(|e| match e {
+                DBError::NotFound => GetUserIdFromGoogleIdErr::NotFound,
+                _ => GetUserIdFromGoogleIdErr::Database(e),
+            })?;
+
+        let response = GetUserIdFromGoogleIdResp { id: id.to_string() };
         Ok(Response::new(response))
     }
 }
@@ -105,14 +112,11 @@ impl From<CreateUserErr> for Status {
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum GetUserErr {
-    #[error("missing identifier")]
-    MissingIdentifier,
+    #[error("missing user id")]
+    MissingUserId,
 
-    #[error("empty id")]
-    EmptyID,
-
-    #[error("empty google-id")]
-    EmptyGoogleID,
+    #[error("not a uuid")]
+    NotAUUID,
 
     #[error("user not found")]
     NotFound,
@@ -124,11 +128,33 @@ pub enum GetUserErr {
 impl From<GetUserErr> for Status {
     fn from(err: GetUserErr) -> Self {
         let code = match err {
-            GetUserErr::MissingIdentifier | GetUserErr::EmptyID | GetUserErr::EmptyGoogleID => {
-                Code::InvalidArgument
-            }
+            GetUserErr::MissingUserId | GetUserErr::NotAUUID => Code::InvalidArgument,
             GetUserErr::NotFound => Code::NotFound,
             GetUserErr::Database(_) => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
+}
+
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum GetUserIdFromGoogleIdErr {
+    #[error("missing google id")]
+    MissingGoogleId,
+
+    #[error("user not found")]
+    NotFound,
+
+    #[error("database error: {0}")]
+    Database(#[from] DBError),
+}
+
+impl From<GetUserIdFromGoogleIdErr> for Status {
+    fn from(err: GetUserIdFromGoogleIdErr) -> Self {
+        let code = match err {
+            GetUserIdFromGoogleIdErr::MissingGoogleId => Code::InvalidArgument,
+            GetUserIdFromGoogleIdErr::NotFound => Code::NotFound,
+            GetUserIdFromGoogleIdErr::Database(_) => Code::Internal,
         };
         Status::new(code, err.to_string())
     }

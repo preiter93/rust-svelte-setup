@@ -1,4 +1,3 @@
-use crate::proto::get_user_req;
 use deadpool_postgres::Pool;
 use thiserror::Error;
 use tokio_postgres::Row;
@@ -37,22 +36,11 @@ impl DBCLient {
     /// - if the database connection cannot be established
     /// - if the database query fails
     /// - If the user is not found
-    pub async fn get_user(&self, identifier: get_user_req::Identifier) -> Result<User, DBError> {
+    pub async fn get_user(&self, id: Uuid) -> Result<User, DBError> {
         let client = self.pool.get().await?;
 
-        let (stmt, param) = match identifier {
-            get_user_req::Identifier::Id(id) => (
-                client.prepare("SELECT id FROM users WHERE id = $1").await?,
-                id,
-            ),
-            get_user_req::Identifier::GoogleId(google_id) => (
-                client
-                    .prepare("SELECT id FROM users WHERE google_id = $1")
-                    .await?,
-                google_id,
-            ),
-        };
-        let row = client.query_opt(&stmt, &[&param]).await?;
+        let stmt = client.prepare("SELECT id FROM users WHERE id = $1").await?;
+        let row = client.query_opt(&stmt, &[&id]).await?;
         let Some(row) = row else {
             return Err(DBError::NotFound);
         };
@@ -65,18 +53,21 @@ impl DBCLient {
     /// # Errors
     /// - if the database connection cannot be established
     /// - if the database query fails
-    pub async fn list_users(&self) -> Result<Vec<User>, DBError> {
+    /// - If the user is not found
+    pub async fn get_user_id_from_google_id(&self, google_id: &str) -> Result<Uuid, DBError> {
         let client = self.pool.get().await?;
 
-        let stmt = client.prepare("SELECT id FROM users").await?;
-        let rows = client.query(&stmt, &[]).await?;
+        let stmt = client
+            .prepare("SELECT id FROM users WHERE google_id = $1")
+            .await?;
+        let row = client.query_opt(&stmt, &[&google_id]).await?;
+        let Some(row) = row else {
+            return Err(DBError::NotFound);
+        };
 
-        let users = rows
-            .into_iter()
-            .flat_map(|row| User::try_from(row))
-            .collect::<Vec<_>>();
+        let id: Uuid = row.try_get("id")?;
 
-        Ok(users)
+        Ok(id)
     }
 }
 

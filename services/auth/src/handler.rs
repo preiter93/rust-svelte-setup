@@ -40,7 +40,7 @@ impl ApiService for Handler {
     ///
     /// # Further readings
     /// <https://lucia-auth.com/sessions/basic>
-    #[instrument(skip_all)]
+    #[instrument(skip(self))]
     async fn create_session(
         &self,
         req: Request<CreateSessionReq>,
@@ -80,6 +80,7 @@ impl ApiService for Handler {
     ///
     /// # Further readings
     /// <https://lucia-auth.com/sessions/basic>
+    #[instrument(skip(self))]
     async fn validate_session(
         &self,
         req: Request<ValidateSessionReq>,
@@ -115,10 +116,46 @@ impl ApiService for Handler {
             return Err(ValidateSessionErr::SecretMismatch.into());
         }
 
-        let resp = ValidateSessionResp {};
+        let resp = ValidateSessionResp {
+            user_id: session.user_id,
+        };
 
         Ok(Response::new(resp))
     }
+
+    // /// Returns the user id from the session token.
+    // ///
+    // /// # Errors
+    // /// - database error
+    // #[instrument(skip(self))]
+    // async fn get_user_id_from_session(
+    //     &self,
+    //     req: Request<GetUserIdFromSessionReq>,
+    // ) -> Result<Response<GetUserIdFromSessionResp>, Status> {
+    //     let req = req.into_inner();
+    //     if req.token.is_empty() {
+    //         return Err(CreateSessionErr::MissingUserUID.into());
+    //     }
+    //     let token = req.token;
+    //
+    //     let token_parts: Vec<_> = token.split('.').collect();
+    //     if token_parts.len() != 2 {
+    //         return Err(ValidateSessionErr::InvalidFormat.into());
+    //     }
+    //     let session_id = token_parts[0];
+    //
+    //     let session = self
+    //         .db
+    //         .get_session(&session_id)
+    //         .await
+    //         .map_err(GetUserIdFromSessionErr::Database)?;
+    //
+    //     let resp = GetUserIdFromSessionResp {
+    //         user_id: session.user_id,
+    //     };
+    //
+    //     Ok(Response::new(resp))
+    // }
 }
 
 #[derive(Debug, Error)]
@@ -167,3 +204,27 @@ impl From<ValidateSessionErr> for Status {
         Status::new(code, err.to_string())
     }
 }
+
+// #[derive(Debug, Error)]
+// pub enum GetUserIdFromSessionErr {
+//     #[error("missing token")]
+//     MissingToken,
+//
+//     #[error("invalid token format")]
+//     InvalidFormat,
+//
+//     #[error("database error: {0}")]
+//     Database(#[from] DBError),
+// }
+//
+// impl From<GetUserIdFromSessionErr> for Status {
+//     fn from(err: GetUserIdFromSessionErr) -> Self {
+//         let code = match err {
+//             GetUserIdFromSessionErr::MissingToken | GetUserIdFromSessionErr::InvalidFormat => {
+//                 Code::InvalidArgument
+//             }
+//             GetUserIdFromSessionErr::Database(_) => Code::Internal,
+//         };
+//         Status::new(code, err.to_string())
+//     }
+// }

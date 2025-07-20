@@ -12,10 +12,10 @@ export interface ProtoGrpcType {
     ApiService: SubtypeConstructor<typeof grpc.Client, _proto_ApiServiceClient> & { service: _proto_ApiServiceDefinition }
     CreateUserReq: MessageTypeDefinition
     CreateUserResp: MessageTypeDefinition
+    GetUserIdFromGoogleIdReq: MessageTypeDefinition
+    GetUserIdFromGoogleIdResp: MessageTypeDefinition
     GetUserReq: MessageTypeDefinition
     GetUserResp: MessageTypeDefinition
-    ListUsersReq: MessageTypeDefinition
-    ListUsersResp: MessageTypeDefinition
     User: MessageTypeDefinition
   }
 }

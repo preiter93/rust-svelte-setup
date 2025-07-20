@@ -8,25 +8,14 @@ pub struct CreateUserReq {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateUserResp {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "1")]
+    pub user: ::core::option::Option<User>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetUserReq {
-    #[prost(oneof = "get_user_req::Identifier", tags = "1, 2")]
-    pub identifier: ::core::option::Option<get_user_req::Identifier>,
-}
-/// Nested message and enum types in `GetUserReq`.
-pub mod get_user_req {
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Identifier {
-        #[prost(string, tag = "1")]
-        Id(::prost::alloc::string::String),
-        #[prost(string, tag = "2")]
-        GoogleId(::prost::alloc::string::String),
-    }
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -35,13 +24,16 @@ pub struct GetUserResp {
     pub user: ::core::option::Option<User>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct ListUsersReq {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetUserIdFromGoogleIdReq {
+    #[prost(string, tag = "1")]
+    pub google_id: ::prost::alloc::string::String,
+}
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ListUsersResp {
-    #[prost(message, repeated, tag = "1")]
-    pub users: ::prost::alloc::vec::Vec<User>,
+pub struct GetUserIdFromGoogleIdResp {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -140,6 +132,7 @@ pub mod api_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
+        /// Creates a new user.
         pub async fn create_user(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateUserReq>,
@@ -161,6 +154,7 @@ pub mod api_service_client {
                 .insert(GrpcMethod::new("proto.ApiService", "CreateUser"));
             self.inner.unary(req, path, codec).await
         }
+        /// Resolves the user by its user id.
         pub async fn get_user(
             &mut self,
             request: impl tonic::IntoRequest<super::GetUserReq>,
@@ -179,10 +173,14 @@ pub mod api_service_client {
             req.extensions_mut().insert(GrpcMethod::new("proto.ApiService", "GetUser"));
             self.inner.unary(req, path, codec).await
         }
-        pub async fn list_users(
+        /// Resolves the user id from the google account id.
+        pub async fn get_user_id_from_google_id(
             &mut self,
-            request: impl tonic::IntoRequest<super::ListUsersReq>,
-        ) -> std::result::Result<tonic::Response<super::ListUsersResp>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::GetUserIdFromGoogleIdReq>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetUserIdFromGoogleIdResp>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -193,11 +191,11 @@ pub mod api_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/ListUsers",
+                "/proto.ApiService/GetUserIdFromGoogleId",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "ListUsers"));
+                .insert(GrpcMethod::new("proto.ApiService", "GetUserIdFromGoogleId"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -215,18 +213,24 @@ pub mod api_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with ApiServiceServer.
     #[async_trait]
     pub trait ApiService: std::marker::Send + std::marker::Sync + 'static {
+        /// Creates a new user.
         async fn create_user(
             &self,
             request: tonic::Request<super::CreateUserReq>,
         ) -> std::result::Result<tonic::Response<super::CreateUserResp>, tonic::Status>;
+        /// Resolves the user by its user id.
         async fn get_user(
             &self,
             request: tonic::Request<super::GetUserReq>,
         ) -> std::result::Result<tonic::Response<super::GetUserResp>, tonic::Status>;
-        async fn list_users(
+        /// Resolves the user id from the google account id.
+        async fn get_user_id_from_google_id(
             &self,
-            request: tonic::Request<super::ListUsersReq>,
-        ) -> std::result::Result<tonic::Response<super::ListUsersResp>, tonic::Status>;
+            request: tonic::Request<super::GetUserIdFromGoogleIdReq>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetUserIdFromGoogleIdResp>,
+            tonic::Status,
+        >;
     }
     #[derive(Debug)]
     pub struct ApiServiceServer<T> {
@@ -390,23 +394,29 @@ pub mod api_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/proto.ApiService/ListUsers" => {
+                "/proto.ApiService/GetUserIdFromGoogleId" => {
                     #[allow(non_camel_case_types)]
-                    struct ListUsersSvc<T: ApiService>(pub Arc<T>);
-                    impl<T: ApiService> tonic::server::UnaryService<super::ListUsersReq>
-                    for ListUsersSvc<T> {
-                        type Response = super::ListUsersResp;
+                    struct GetUserIdFromGoogleIdSvc<T: ApiService>(pub Arc<T>);
+                    impl<
+                        T: ApiService,
+                    > tonic::server::UnaryService<super::GetUserIdFromGoogleIdReq>
+                    for GetUserIdFromGoogleIdSvc<T> {
+                        type Response = super::GetUserIdFromGoogleIdResp;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::ListUsersReq>,
+                            request: tonic::Request<super::GetUserIdFromGoogleIdReq>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::list_users(&inner, request).await
+                                <T as ApiService>::get_user_id_from_google_id(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -417,7 +427,7 @@ pub mod api_service_server {
                     let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = ListUsersSvc(inner);
+                        let method = GetUserIdFromGoogleIdSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

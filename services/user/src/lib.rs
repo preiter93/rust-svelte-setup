@@ -1,8 +1,8 @@
 pub mod proto;
 
 use crate::proto::{
-    CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, ListUsersReq, ListUsersResp,
-    api_service_client::ApiServiceClient,
+    CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp, GetUserReq,
+    GetUserResp, api_service_client::ApiServiceClient,
 };
 use shared::grpc::interceptors::GrpcServiceInterceptor;
 use std::{error::Error, str::FromStr as _};
@@ -28,18 +28,18 @@ impl UserClient {
         Ok(Self(client))
     }
 
-    pub async fn list_users(
-        &mut self,
-        req: Request<ListUsersReq>,
-    ) -> Result<Response<ListUsersResp>, Status> {
-        self.0.list_users(req).await
-    }
-
     pub async fn get_user(
         &mut self,
         req: Request<GetUserReq>,
     ) -> Result<Response<GetUserResp>, Status> {
         self.0.get_user(req).await
+    }
+
+    pub async fn get_user_id_from_google_id(
+        &mut self,
+        req: Request<GetUserIdFromGoogleIdReq>,
+    ) -> Result<Response<GetUserIdFromGoogleIdResp>, Status> {
+        self.0.get_user_id_from_google_id(req).await
     }
 
     pub async fn create_user(

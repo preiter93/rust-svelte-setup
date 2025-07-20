@@ -24,8 +24,11 @@ pub struct ValidateSessionReq {
     pub token: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct ValidateSessionResp {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ValidateSessionResp {
+    #[prost(string, tag = "1")]
+    pub user_id: ::prost::alloc::string::String,
+}
 /// Generated client implementations.
 pub mod api_service_client {
     #![allow(

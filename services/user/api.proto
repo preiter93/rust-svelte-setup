@@ -2,31 +2,33 @@ syntax = "proto3";
 package proto;
 
 service ApiService {
+    // Creates a new user.
     rpc CreateUser(CreateUserReq) returns (CreateUserResp) {}
+    // Resolves the user by its user id.
     rpc GetUser(GetUserReq) returns (GetUserResp) {}
-    rpc ListUsers(ListUsersReq) returns (ListUsersResp) {}
+    // Resolves the user id from the google account id.
+    rpc GetUserIdFromGoogleId(GetUserIdFromGoogleIdReq) returns (GetUserIdFromGoogleIdResp);
 }
 
 message CreateUserReq {
     string google_id = 1;
 }
+
 message CreateUserResp {
-    string id = 1;
+    User user = 1;
 }
 
 message GetUserReq {
-  oneof identifier {
     string id = 1;
-    string google_id = 2;
-  }
 }
 message GetUserResp {
     User user = 1;
 }
-
-message ListUsersReq {}
-message ListUsersResp {
-    repeated User users = 1;
+message GetUserIdFromGoogleIdReq {
+  string google_id = 1;
+}
+message GetUserIdFromGoogleIdResp {
+  string id = 1;
 }
 
 message User {

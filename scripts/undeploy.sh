@@ -2,7 +2,7 @@
 set -e
 
 echo "Stopping Jaeger..."
-docker-compose -f infrastructure/jaeger/docker-compose.yml down
+docker-compose -f infrastructure/jaeger/docker-compose.yml down -v
 
 echo "Stopping services..."
 docker-compose -f services/docker-compose.yml down

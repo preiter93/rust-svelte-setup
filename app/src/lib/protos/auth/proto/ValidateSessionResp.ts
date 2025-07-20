@@ -2,7 +2,9 @@
 
 
 export interface ValidateSessionResp {
+  'user_id'?: (string);
 }
 
 export interface ValidateSessionResp__Output {
+  'user_id': (string);
 }
