@@ -4,17 +4,15 @@ import type { CreateSessionReq } from "$lib/protos/auth/proto/CreateSessionReq";
 import type { CreateSessionResp } from "$lib/protos/auth/proto/CreateSessionResp";
 import { Google } from "arctic";
 import { PUBLIC_GOOGLE_CLIENT_ID, PUBLIC_GOOGLE_CLIENT_SECRET } from "$env/static/public";
+import { BaseService, type FetchType } from "$lib/service";
 
 
 export const google = new Google(PUBLIC_GOOGLE_CLIENT_ID, PUBLIC_GOOGLE_CLIENT_SECRET, "http://localhost:5173/login/google/callback");
 
-type FetchType = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
-export class AuthService {
+export class AuthService extends BaseService {
 	constructor(fetch: FetchType) {
-		this.fetch = fetch;
+		super(fetch);
 	}
-
-	fetch: FetchType;
 
 	async createSession(user_id: string | undefined): Promise<CreateSessionResp> {
 		const request: CreateSessionReq = {
@@ -24,7 +22,7 @@ export class AuthService {
 			method: "POST",
 			body: JSON.stringify(request),
 			headers: { 'Content-Type': 'application/json' },
-		});
+		}, false);
 		if (!response.ok) {
 			throw new Error(`failed to create session: ${response.statusText}`)
 		}

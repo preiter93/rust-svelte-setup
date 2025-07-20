@@ -87,18 +87,17 @@ impl ApiService for Handler {
     ) -> Result<Response<ValidateSessionResp>, Status> {
         let token = req.into_inner().token;
         let token_parts: Vec<_> = token.split('.').collect();
-        if token_parts.len() != 3 {
+        if token_parts.len() != 2 {
             return Err(ValidateSessionErr::InvalidFormat.into());
         }
 
         let session_id = token_parts[0];
         let session_secret = token_parts[1];
 
-        let session = self
-            .db
-            .get_session(session_id)
-            .await
-            .map_err(ValidateSessionErr::Database)?;
+        let session = self.db.get_session(session_id).await.map_err(|e| match e {
+            DBError::NotFound => ValidateSessionErr::NotFound,
+            _ => ValidateSessionErr::Database(e),
+        })?;
 
         let is_expired = Utc::now().signed_duration_since(session.created_at)
             >= Duration::seconds(SESSION_EXPIRES_IN_SECONDS);
@@ -155,6 +154,9 @@ pub enum ValidateSessionErr {
     #[error("token expired")]
     Expired,
 
+    #[error("token not found")]
+    NotFound,
+
     #[error("database error: {0}")]
     Database(#[from] DBError),
 }
@@ -164,7 +166,8 @@ impl From<ValidateSessionErr> for Status {
         let code = match err {
             ValidateSessionErr::InvalidFormat
             | ValidateSessionErr::SecretMismatch
-            | ValidateSessionErr::Expired => Code::Unauthenticated,
+            | ValidateSessionErr::Expired
+            | ValidateSessionErr::NotFound => Code::Unauthenticated,
             ValidateSessionErr::Database(_) => Code::Internal,
         };
         Status::new(code, err.to_string())

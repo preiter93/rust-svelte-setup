@@ -1,18 +1,16 @@
 import { PUBLIC_API_URL } from "$env/static/public";
+import { HttpError } from "$lib/errors";
 import type { CreateUserResp } from "$lib/protos/user/proto/CreateUserResp";
 import type { CreateUserReq } from "$lib/protos/user/proto/CreateUserReq";
 import type { GetUserResp } from "$lib/protos/user/proto/GetUserResp";
 import type { GetUserIdFromGoogleIdResp } from "$lib/protos/user/proto/GetUserIdFromGoogleIdResp";
 import type { User } from "$lib/protos/user/proto/User";
+import { BaseService, type FetchType } from "$lib/service";
 
-type FetchType = (input: RequestInfo, init?: RequestInit) => Promise<Response>;
-
-export class UserService {
+export class UserService extends BaseService {
 	constructor(fetch: FetchType) {
-		this.fetch = fetch;
+		super(fetch);
 	}
-
-	fetch: FetchType;
 
 	async createUser(google_id: string | undefined): Promise<CreateUserResp> {
 		const request: CreateUserReq = {
@@ -22,7 +20,7 @@ export class UserService {
 			method: 'POST',
 			body: JSON.stringify(request),
 			headers: { 'Content-Type': 'application/json' },
-		});
+		}, false);
 		if (!response.ok) {
 			throw new Error(`failed to create user: ${response.statusText}`)
 		}
@@ -42,14 +40,14 @@ export class UserService {
 			return undefined;
 		}
 		if (!response.ok) {
-			throw new Error(`failed to get current user: ${response.statusText}`)
+			throw new HttpError(`failed to get current user: ${response.statusText}`, response.status);
 		}
 		const data: GetUserResp = await response.json();
 		return data.user ?? undefined;
 	}
 
 	async getUserIdFromGoogleId(google_id: string): Promise<GetUserIdFromGoogleIdResp | undefined> {
-		const response = await this.fetch(`${PUBLIC_API_URL}/user/google/${google_id}`);
+		const response = await this.fetch(`${PUBLIC_API_URL}/user/google/${google_id}`, {}, false);
 		if (response.status === 404) {
 			return undefined;
 		}

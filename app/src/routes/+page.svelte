@@ -5,7 +5,7 @@
 	let { data }: PageProps = $props();
 
 	function logout() {
-		// TODO: Delete session in backend.
+		// TODO: Invalidate session in backend.
 
 		localStorage.removeItem('sessionToken');
 		goto('/login');
