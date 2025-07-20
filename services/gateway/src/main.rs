@@ -1,6 +1,6 @@
 mod handler;
 mod utils;
-use common_utils::{http::middleware::add_middleware, tracing::tracer::init_tracer};
+use shared::{http::middleware::add_middleware, tracing::tracer::init_tracer};
 use handler::Handler;
 
 use crate::handler::{create_session, create_user, get_user, list_users};

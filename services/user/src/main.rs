@@ -5,8 +5,8 @@ pub mod proto;
 pub mod utils;
 
 use crate::handler::Handler;
-use common_utils::tracing::tracer::init_tracer;
-use common_utils::{grpc::middleware::add_middleware, run_db_migrations};
+use shared::tracing::tracer::init_tracer;
+use shared::{grpc::middleware::add_middleware, run_db_migrations};
 use db::DBCLient;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;

@@ -69,7 +69,6 @@ name = "auth"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "common-utils",
  "deadpool-postgres",
  "dotenv",
  "prost",
@@ -77,6 +76,7 @@ dependencies = [
  "refinery",
  "serde",
  "sha2",
+ "shared",
  "thiserror 2.0.12",
  "tokio",
  "tokio-postgres",
@@ -236,26 +236,6 @@ dependencies = [
  "num-traits",
  "wasm-bindgen",
  "windows-link",
-]
-
-[[package]]
-name = "common-utils"
-version = "0.1.0"
-dependencies = [
- "axum",
- "deadpool-postgres",
- "http",
- "opentelemetry",
- "opentelemetry-http",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "refinery",
- "tonic",
- "tower",
- "tower-http",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -478,9 +458,9 @@ dependencies = [
  "axum",
  "axum-macros",
  "chrono",
- "common-utils",
  "serde",
  "serde_json",
+ "shared",
  "thiserror 2.0.12",
  "tokio",
  "tonic",
@@ -1642,6 +1622,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "shared"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "deadpool-postgres",
+ "http",
+ "opentelemetry",
+ "opentelemetry-http",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "refinery",
+ "tonic",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2197,13 +2197,13 @@ name = "user"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "common-utils",
  "deadpool-postgres",
  "dotenv",
  "http",
  "prost",
  "refinery",
  "serde",
+ "shared",
  "thiserror 2.0.12",
  "tokio",
  "tokio-postgres",

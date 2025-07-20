@@ -3,7 +3,7 @@ members = [
     "auth", 
     "gateway",
     "user",
-    "common-utils", 
+    "shared", 
 ]
 
 resolver = "2"

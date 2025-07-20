@@ -16,6 +16,6 @@ tokio-postgres = { workspace = true }
 tonic = { workspace = true }
 tracing = {workspace = true }
 
-common-utils = { version = "0.1", path = "../common-utils" }
+shared = { version = "0.1", path = "../shared" }
 rand = { version = "0.9.1", features = ["std_rng"] }
 sha2 = "0.10"

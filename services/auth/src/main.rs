@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::{db::DBCLient, handler::Handler, proto::api_service_server::ApiServiceServer};
-use common_utils::{
+use shared::{
     grpc::middleware::add_middleware, run_db_migrations, tracing::tracer::init_tracer,
 };
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};

@@ -1,7 +1,7 @@
 pub mod proto;
 
 use crate::proto::{CreateSessionReq, CreateSessionResp, api_service_client::ApiServiceClient};
-use common_utils::grpc::interceptors::GrpcServiceInterceptor;
+use shared::grpc::interceptors::GrpcServiceInterceptor;
 use std::{error::Error, str::FromStr as _};
 use tonic::{
     Request, Response, Status,

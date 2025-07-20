@@ -19,4 +19,4 @@ tower-http = { version = "0.6.1", features = ["cors"] }
 auth = { version = "0.1", path = "../auth" }
 user = { version = "0.1", path = "../user" }
 
-common-utils = { version = "0.1", path = "../common-utils" }
+shared = { version = "0.1", path = "../shared" }

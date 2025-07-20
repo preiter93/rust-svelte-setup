@@ -4,7 +4,7 @@ use crate::proto::{
     CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, ListUsersReq, ListUsersResp,
     api_service_client::ApiServiceClient,
 };
-use common_utils::grpc::interceptors::GrpcServiceInterceptor;
+use shared::grpc::interceptors::GrpcServiceInterceptor;
 use std::{error::Error, str::FromStr as _};
 use tonic::{
     Request, Response, Status,
