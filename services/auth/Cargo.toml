@@ -19,3 +19,5 @@ tracing = {workspace = true }
 shared = { version = "0.1", path = "../shared" }
 rand = { version = "0.9.1", features = ["std_rng"] }
 sha2 = "0.10"
+base64 = { version = "0.22" }
+url = "2.5.4"

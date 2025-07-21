@@ -16,10 +16,11 @@ use tracing::instrument;
 use crate::{
     db::{DBCLient, DBError},
     proto::{
-        CreateSessionReq, CreateSessionResp, ValidateSessionReq, ValidateSessionResp,
+        CreateSessionReq, CreateSessionResp, HandleGoogleCallbackReq, HandleGoogleCallbackResp,
+        StartGoogleLoginReq, StartGoogleLoginResp, ValidateSessionReq, ValidateSessionResp,
         api_service_server::ApiService,
     },
-    utils::{constant_time_equal, generate_secure_random_string, hash_secret},
+    utils::{GoogleOAuth, OAuth, constant_time_equal, generate_secure_random_string, hash_secret},
 };
 
 const SESSION_EXPIRES_IN_SECONDS: i64 = 60 * 60 * 24; // 1 day
@@ -27,12 +28,39 @@ const SESSION_EXPIRES_IN_SECONDS: i64 = 60 * 60 * 24; // 1 day
 #[derive(Clone)]
 pub struct Handler {
     pub db: DBCLient,
+    pub google: GoogleOAuth,
 }
 
 type SessionToken = String;
 
 #[tonic::async_trait]
 impl ApiService for Handler {
+    #[instrument(skip(self), err)]
+    async fn start_google_login(
+        &self,
+        _: Request<StartGoogleLoginReq>,
+    ) -> Result<Response<StartGoogleLoginResp>, Status> {
+        let state = OAuth::generate_state();
+        let code_verifier = OAuth::generate_code_verifier();
+        let authorization_url = self
+            .google
+            .generate_authorization_url(&state, &code_verifier)
+            .map_err(|_| StartGoogleLoginErr::AuthorizationUrl)?;
+        let resp = StartGoogleLoginResp {
+            state,
+            code_verifier,
+            authorization_url,
+        };
+        Ok(Response::new(resp))
+    }
+
+    async fn handle_google_callback(
+        &self,
+        _req: Request<HandleGoogleCallbackReq>,
+    ) -> Result<Response<HandleGoogleCallbackResp>, Status> {
+        return Err(Status::new(Code::Internal, "test".to_string()));
+    }
+
     /// Creates a new session.
     ///
     /// # Errors
@@ -169,6 +197,22 @@ impl From<ValidateSessionErr> for Status {
             | ValidateSessionErr::Expired
             | ValidateSessionErr::NotFound => Code::Unauthenticated,
             ValidateSessionErr::Database(_) => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
+}
+
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum StartGoogleLoginErr {
+    #[error("failed to generate authorization url")]
+    AuthorizationUrl,
+}
+
+impl From<StartGoogleLoginErr> for Status {
+    fn from(err: StartGoogleLoginErr) -> Self {
+        let code = match err {
+            _ => Code::Internal,
         };
         Status::new(code, err.to_string())
     }

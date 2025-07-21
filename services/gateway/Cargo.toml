@@ -12,9 +12,10 @@ tokio = { workspace = true }
 tonic = { workspace = true }
 tracing = { workspace = true }
 
-axum-extra = { version = "0.10", features = ["typed-header"] }
+axum-extra = { version = "0.10", features = ["typed-header", "cookie"] }
 axum-macros = { version = "0.5" }
 serde_json = { version = "1.0" } 
+time = { version = "0.3" }
 tower-http = { version = "0.6.1", features = ["cors"] }
 
 auth = { version = "0.1", path = "../auth" }

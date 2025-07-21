@@ -7,12 +7,15 @@ import "google/protobuf/timestamp.proto";
 service ApiService {
   rpc CreateSession(CreateSessionReq) returns (CreateSessionResp) {}
   rpc ValidateSession(ValidateSessionReq) returns (ValidateSessionResp) {}
-  // rpc GetUserIdFromSession(GetUserIdFromSessionReq) returns (GetUserIdFromSessionResp);
+
+  rpc StartGoogleLogin(StartGoogleLoginReq) returns (StartGoogleLoginResp) {}
+  rpc HandleGoogleCallback(HandleGoogleCallbackReq) returns (HandleGoogleCallbackResp);
 }
 
 message Session {
   string token = 1;
 }
+
 
 message CreateSessionReq {
   string user_id = 1;
@@ -28,6 +31,22 @@ message ValidateSessionResp {
   string user_id = 1;
 }
 
+message StartGoogleLoginReq {
+}
+message StartGoogleLoginResp {
+  string state = 1;
+  string code_verifier = 2;
+  string authorization_url = 3;
+}
+
+message HandleGoogleCallbackReq {
+  string state = 1;
+  string code = 2;
+  string code_verifier = 3;
+}
+message HandleGoogleCallbackResp {
+  string token = 1;
+}
 // message GetUserIdFromSessionReq {
 //   string token = 1;
 // }

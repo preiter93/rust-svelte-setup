@@ -1,10 +1,10 @@
 #![allow(dead_code)]
-use crate::{db::DBCLient, handler::Handler, proto::api_service_server::ApiServiceServer};
-use shared::{
-    grpc::middleware::add_middleware, run_db_migrations, tracing::tracer::init_tracer,
+use crate::{
+    db::DBCLient, handler::Handler, proto::api_service_server::ApiServiceServer, utils::GoogleOAuth,
 };
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
+use shared::{grpc::middleware::add_middleware, run_db_migrations, tracing::tracer::init_tracer};
 use std::error::Error;
 use tonic::transport::Server;
 
@@ -30,6 +30,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let server = Handler {
         db: DBCLient::new(pool),
+        google: GoogleOAuth::new(
+            cfg.google_client_id,
+            cfg.google_client_secret,
+            cfg.google_redirect_uri,
+        ),
     };
 
     let addr = format!("0.0.0.0:{GRPC_PORT}").parse()?;
@@ -55,6 +60,9 @@ struct Config {
     pg_user: String,
     pg_host: String,
     pg_port: u16,
+    google_client_id: String,
+    google_client_secret: String,
+    google_redirect_uri: String,
 }
 
 impl Config {
@@ -74,6 +82,9 @@ impl Config {
                 Self::must_get_env("PG_HOST_REMOTE")
             },
             pg_port: pg_port_str.parse().expect("failed to parse PG_PORT"),
+            google_client_id: Self::must_get_env("GOOGLE_CLIENT_ID"),
+            google_client_secret: Self::must_get_env("GOOGLE_CLIENT_SECRET"),
+            google_redirect_uri: Self::must_get_env("GOOGLE_REDIRECT_URI"),
         }
     }
 }

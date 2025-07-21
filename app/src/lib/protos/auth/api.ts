@@ -17,7 +17,11 @@ export interface ProtoGrpcType {
     ApiService: SubtypeConstructor<typeof grpc.Client, _proto_ApiServiceClient> & { service: _proto_ApiServiceDefinition }
     CreateSessionReq: MessageTypeDefinition
     CreateSessionResp: MessageTypeDefinition
+    HandleGoogleCallbackReq: MessageTypeDefinition
+    HandleGoogleCallbackResp: MessageTypeDefinition
     Session: MessageTypeDefinition
+    StartGoogleLoginReq: MessageTypeDefinition
+    StartGoogleLoginResp: MessageTypeDefinition
     ValidateSessionReq: MessageTypeDefinition
     ValidateSessionResp: MessageTypeDefinition
   }

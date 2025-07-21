@@ -1,7 +1,8 @@
 pub mod proto;
 
 use crate::proto::{
-    CreateSessionReq, CreateSessionResp, ValidateSessionReq, ValidateSessionResp,
+    CreateSessionReq, CreateSessionResp, HandleGoogleCallbackReq, HandleGoogleCallbackResp,
+    StartGoogleLoginReq, StartGoogleLoginResp, ValidateSessionReq, ValidateSessionResp,
     api_service_client::ApiServiceClient,
 };
 use shared::grpc::interceptors::GrpcServiceInterceptor;
@@ -40,5 +41,19 @@ impl AuthClient {
         req: Request<ValidateSessionReq>,
     ) -> Result<Response<ValidateSessionResp>, Status> {
         self.0.validate_session(req).await
+    }
+
+    pub async fn start_google_login(
+        &mut self,
+        req: Request<StartGoogleLoginReq>,
+    ) -> Result<Response<StartGoogleLoginResp>, Status> {
+        self.0.start_google_login(req).await
+    }
+
+    pub async fn handle_google_callback(
+        &mut self,
+        req: Request<HandleGoogleCallbackReq>,
+    ) -> Result<Response<HandleGoogleCallbackResp>, Status> {
+        self.0.handle_google_callback(req).await
     }
 }

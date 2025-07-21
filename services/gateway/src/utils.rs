@@ -1,4 +1,9 @@
 use axum::http::StatusCode;
+use axum_extra::extract::{
+    CookieJar,
+    cookie::{Cookie, SameSite},
+};
+use thiserror::Error;
 use tonic::Code;
 
 /// Maps grpc codes to http status codes.
@@ -22,4 +27,26 @@ pub(crate) fn grpc_to_http_status(code: Code) -> StatusCode {
         Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
+}
+
+pub(crate) fn secure_cookie(name: String, value: String) -> Cookie<'static> {
+    Cookie::build((name, value))
+        .http_only(true) // FOR TESTING
+        .secure(false) // TODO: secure on PROD
+        .max_age(time::Duration::seconds(60 * 10))
+        .path("/")
+        .same_site(SameSite::Lax)
+        .build()
+}
+
+pub(crate) fn get_cookie_value(jar: &CookieJar, name: &str) -> Result<String, CookieError> {
+    jar.get(name)
+        .map(|cookie| cookie.value().to_string())
+        .ok_or_else(|| CookieError::Missing(name.to_string()))
+}
+
+#[derive(Debug, Error)]
+pub(crate) enum CookieError {
+    #[error("missing cookie: {0}")]
+    Missing(String),
 }
