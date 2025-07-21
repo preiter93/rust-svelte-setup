@@ -5,6 +5,7 @@ use opentelemetry::trace::TracerProvider;
 use opentelemetry_otlp::{SpanExporter, WithExportConfig as _};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::{Resource, propagation::TraceContextPropagator};
+use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::util::SubscriberInitExt as _;
 
@@ -29,9 +30,15 @@ pub fn init_tracer(service_name: &'static str) -> Result<SdkTracerProvider, Box<
     global::set_text_map_propagator(TraceContextPropagator::new());
     global::set_tracer_provider(tracer_provider.clone());
 
+    let env_filter = EnvFilter::new("trace,h2=error,tonic=error,tower=error,tower_http=error");
+
     let tracer = tracer_provider.tracer(service_name);
-    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
-    tracing_subscriber::registry().with(telemetry).init();
+    let otel_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+
+    tracing_subscriber::registry()
+        .with(env_filter)
+        .with(otel_layer)
+        .init();
 
     Ok(tracer_provider)
 }
