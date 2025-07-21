@@ -40,18 +40,18 @@ impl ApiService for Handler {
         &self,
         _: Request<StartGoogleLoginReq>,
     ) -> Result<Response<StartGoogleLoginResp>, Status> {
-        let state = OAuth::generate_state();
-        let code_verifier = OAuth::generate_code_verifier();
+        let (state, code_verifier) = (OAuth::generate_state(), OAuth::generate_code_verifier());
+
         let authorization_url = self
             .google
             .generate_authorization_url(&state, &code_verifier)
             .map_err(|_| StartGoogleLoginErr::AuthorizationUrl)?;
-        let resp = StartGoogleLoginResp {
+
+        Ok(Response::new(StartGoogleLoginResp {
             state,
             code_verifier,
             authorization_url,
-        };
-        Ok(Response::new(resp))
+        }))
     }
 
     async fn handle_google_callback(
@@ -89,11 +89,9 @@ impl ApiService for Handler {
             .await
             .map_err(CreateSessionErr::Database)?;
 
-        let resp = CreateSessionResp {
+        Ok(Response::new(CreateSessionResp {
             token: format!("{id}.{secret}"),
-        };
-
-        Ok(Response::new(resp))
+        }))
     }
 
     /// Validates a sessions token by parsing out the id and secret
@@ -143,11 +141,9 @@ impl ApiService for Handler {
             return Err(ValidateSessionErr::SecretMismatch.into());
         }
 
-        let resp = ValidateSessionResp {
+        Ok(Response::new(ValidateSessionResp {
             user_id: session.user_id,
-        };
-
-        Ok(Response::new(resp))
+        }))
     }
 }
 

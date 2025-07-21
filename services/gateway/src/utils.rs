@@ -29,8 +29,12 @@ pub(crate) fn grpc_to_http_status(code: Code) -> StatusCode {
     }
 }
 
-pub(crate) fn secure_cookie(name: String, value: String) -> Cookie<'static> {
-    Cookie::build((name, value))
+pub(crate) fn set_oauth_cookie<S, T>(name: S, value: T) -> Cookie<'static>
+where
+    S: Into<String>,
+    T: Into<String>,
+{
+    Cookie::build((name.into(), value.into()))
         .http_only(true) // FOR TESTING
         .secure(false) // TODO: secure on PROD
         .max_age(time::Duration::seconds(60 * 10))
@@ -39,7 +43,7 @@ pub(crate) fn secure_cookie(name: String, value: String) -> Cookie<'static> {
         .build()
 }
 
-pub(crate) fn get_cookie_value(jar: &CookieJar, name: &str) -> Result<String, CookieError> {
+pub(crate) fn extract_cookie(jar: &CookieJar, name: &str) -> Result<String, CookieError> {
     jar.get(name)
         .map(|cookie| cookie.value().to_string())
         .ok_or_else(|| CookieError::Missing(name.to_string()))

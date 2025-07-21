@@ -31,7 +31,7 @@ use user::{
     },
 };
 
-use crate::utils::{CookieError, get_cookie_value, grpc_to_http_status, secure_cookie};
+use crate::utils::{CookieError, extract_cookie, grpc_to_http_status, set_oauth_cookie};
 
 #[derive(Clone)]
 pub(crate) struct Handler {
@@ -90,26 +90,33 @@ pub async fn get_user_id_by_google_id(
     Ok(Json(resp.into_inner()))
 }
 
+// ----------------------------------------
+//                OAUTH
+// ----------------------------------------
+
 #[debug_handler]
 #[instrument(skip(h), err)]
 pub async fn start_google_login(
     State(mut h): State<Handler>,
     jar: CookieJar,
 ) -> Result<Response, GatewayError> {
-    let req = Request::new(StartGoogleLoginReq {});
-    let resp = h.auth_client.start_google_login(req).await?.into_inner();
+    let resp = h
+        .auth_client
+        .start_google_login(Request::new(StartGoogleLoginReq {}))
+        .await?
+        .into_inner();
 
-    let state_cookie = secure_cookie("google_state".to_string(), resp.state);
-    let code_cookie = secure_cookie("google_code_verifier".to_string(), resp.code_verifier);
-    let jar = jar.add(state_cookie).add(code_cookie);
+    let jar = jar
+        .add(set_oauth_cookie("google_state", resp.state))
+        .add(set_oauth_cookie("google_code_verifier", resp.code_verifier));
 
-    let resp = Json(StartGoogleLoginResp {
-        state: String::new(),
-        code_verifier: String::new(),
+    let response_body = Json(StartGoogleLoginResp {
+        state: String::new(),         // intentionally blank; stored in cookie
+        code_verifier: String::new(), // same
         authorization_url: resp.authorization_url,
     });
 
-    Ok((jar, resp).into_response())
+    Ok((jar, response_body).into_response())
 }
 
 #[derive(Deserialize)]
@@ -125,10 +132,8 @@ pub async fn handle_google_callback(
     Query(query): Query<GoogleCallbackQuery>,
     jar: CookieJar,
 ) -> Result<Redirect, OAuthError> {
-    let stored_state =
-        get_cookie_value(&jar, "google_state").map_err(OAuthError::ReadCookieError)?;
-    let code_verifier =
-        get_cookie_value(&jar, "google_code_verifier").map_err(OAuthError::ReadCookieError)?;
+    let stored_state = extract_cookie(&jar, "google_state")?;
+    let code_verifier = extract_cookie(&jar, "google_code_verifier")?;
 
     if query.state != stored_state {
         return Err(OAuthError::StateMismatch);
@@ -139,6 +144,7 @@ pub async fn handle_google_callback(
         code: query.code,
         code_verifier,
     });
+
     h.auth_client.handle_google_callback(req).await?;
 
     Ok(Redirect::to("/"))
