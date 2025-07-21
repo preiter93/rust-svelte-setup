@@ -1,16 +1,19 @@
 <script>
+	import { PUBLIC_API_URL } from '$env/static/public';
 	import { AuthService, google } from '$lib/auth/service';
 	import { generateCodeVerifier, generateState } from 'arctic';
 	// TODO: Move this to the backend.
 	async function loginWithGoogle() {
-		const authService = new AuthService(fetch);
-		const resp = await authService.startGoogleLogin();
-		const authorization_url = resp?.authorization_url;
-		if (!authorization_url) {
-			console.error('got undefined authorization url');
-			return;
-		}
-		window.location.assign(authorization_url);
+		// const authService = new AuthService(fetch);
+		// const resp = await authService.startGoogleLogin();
+		// const authorization_url = resp?.authorization_url;
+		// if (!authorization_url) {
+		// 	console.error('got undefined authorization url');
+		// 	return;
+		// }
+		// window.location.assign(authorization_url);
+		window.location.assign(`${PUBLIC_API_URL}/auth/google/login`);
+
 		// // export function generateState() {
 		// // 	const randomValues = new Uint8Array(32);
 		// // 	crypto.getRandomValues(randomValues);

@@ -110,13 +110,9 @@ pub async fn start_google_login(
         .add(set_oauth_cookie("google_state", resp.state))
         .add(set_oauth_cookie("google_code_verifier", resp.code_verifier));
 
-    let response_body = Json(StartGoogleLoginResp {
-        state: String::new(),         // intentionally blank; stored in cookie
-        code_verifier: String::new(), // same
-        authorization_url: resp.authorization_url,
-    });
+    let redirect = Redirect::temporary(&resp.authorization_url);
 
-    Ok((jar, response_body).into_response())
+    Ok((jar, redirect).into_response())
 }
 
 #[derive(Deserialize)]
