@@ -56,7 +56,13 @@ pub struct HandleGoogleCallbackReq {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HandleGoogleCallbackResp {
     #[prost(string, tag = "1")]
-    pub token: ::prost::alloc::string::String,
+    pub google_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub email: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub picture: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
 pub mod api_service_client {

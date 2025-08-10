@@ -56,9 +56,27 @@ impl ApiService for Handler {
 
     async fn handle_google_callback(
         &self,
-        _req: Request<HandleGoogleCallbackReq>,
+        req: Request<HandleGoogleCallbackReq>,
     ) -> Result<Response<HandleGoogleCallbackResp>, Status> {
-        return Err(Status::new(Code::Internal, "test".to_string()));
+        let req = req.into_inner();
+        let tokens = self
+            .google
+            .validate_authorization_code(&req.code, &req.code_verifier)
+            .await
+            .map_err(|_| HandleGoogleCallbackErr::ValidateAuthorizationCode)?;
+
+        let claims = self
+            .google
+            .decode_id_token(&tokens.id_token)
+            .await
+            .map_err(|_| HandleGoogleCallbackErr::DecodeIdToken)?;
+
+        return Ok(Response::new(HandleGoogleCallbackResp {
+            google_id: claims.sub,
+            name: claims.name,
+            email: claims.email,
+            picture: claims.picture,
+        }));
     }
 
     /// Creates a new session.
@@ -207,6 +225,25 @@ pub enum StartGoogleLoginErr {
 
 impl From<StartGoogleLoginErr> for Status {
     fn from(err: StartGoogleLoginErr) -> Self {
+        let code = match err {
+            _ => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
+}
+
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum HandleGoogleCallbackErr {
+    #[error("failed to validate authorization code")]
+    ValidateAuthorizationCode,
+
+    #[error("failed to decode id token")]
+    DecodeIdToken,
+}
+
+impl From<HandleGoogleCallbackErr> for Status {
+    fn from(err: HandleGoogleCallbackErr) -> Self {
         let code = match err {
             _ => Code::Internal,
         };

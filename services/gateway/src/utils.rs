@@ -4,7 +4,10 @@ use axum_extra::extract::{
     cookie::{Cookie, SameSite},
 };
 use thiserror::Error;
+use time::Duration;
 use tonic::Code;
+
+pub const SESSION_TOKEN_KEY: &'static str = "session_token";
 
 /// Maps grpc codes to http status codes.
 ///
@@ -29,28 +32,48 @@ pub(crate) fn grpc_to_http_status(code: Code) -> StatusCode {
     }
 }
 
-pub(crate) fn set_oauth_cookie<S, T>(name: S, value: T) -> Cookie<'static>
+#[derive(Debug, Error)]
+pub(crate) enum CookieError {
+    #[error("missing cookie: {0}")]
+    Missing(String),
+}
+
+/// Creates a generic OAuth cookie with configurable name and value.
+/// Sets common security attributes and a default 10-minute expiration.
+pub fn set_oauth_cookie<S, T>(name: S, value: T) -> Cookie<'static>
 where
     S: Into<String>,
     T: Into<String>,
 {
     Cookie::build((name.into(), value.into()))
-        .http_only(true) // FOR TESTING
-        .secure(false) // TODO: secure on PROD
-        .max_age(time::Duration::seconds(60 * 10))
+        .http_only(true)
+        .secure(false) // TODO: Enable in production
+        .max_age(Duration::seconds(60 * 10)) // 10 minutes
         .path("/")
         .same_site(SameSite::Lax)
         .build()
 }
 
-pub(crate) fn extract_cookie(jar: &CookieJar, name: &str) -> Result<String, CookieError> {
+/// Creates a session token cookie with 7-day expiration.
+pub fn set_session_token_cookie<T>(token: T) -> Cookie<'static>
+where
+    T: Into<String>,
+{
+    const SESSION_TOKEN_KEY: &str = "session_token";
+
+    Cookie::build((SESSION_TOKEN_KEY, token.into()))
+        .http_only(true)
+        .secure(false) // TODO: Enable in production
+        .max_age(Duration::seconds(60 * 60 * 24 * 7)) // 7 days
+        .path("/")
+        .same_site(SameSite::Lax)
+        .build()
+}
+
+/// Extracts a cookie value from the given jar by name.
+/// Returns error if cookie is missing.
+pub fn extract_cookie(jar: &CookieJar, name: &str) -> Result<String, CookieError> {
     jar.get(name)
         .map(|cookie| cookie.value().to_string())
         .ok_or_else(|| CookieError::Missing(name.to_string()))
-}
-
-#[derive(Debug, Error)]
-pub(crate) enum CookieError {
-    #[error("missing cookie: {0}")]
-    Missing(String),
 }

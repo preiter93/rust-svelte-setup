@@ -44,8 +44,12 @@ message HandleGoogleCallbackReq {
   string code = 2;
   string code_verifier = 3;
 }
+
 message HandleGoogleCallbackResp {
-  string token = 1;
+  string google_id = 1;
+  string email = 2;
+  string name = 3;
+  string picture = 4;
 }
 // message GetUserIdFromSessionReq {
 //   string token = 1;

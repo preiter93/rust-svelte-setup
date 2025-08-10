@@ -36,10 +36,8 @@ export class UserService extends BaseService {
 	}
 
 	async getCurrentUser(): Promise<User | undefined> {
-		const token = localStorage.getItem('sessionToken');
 		const response = await this.fetch(`${PUBLIC_API_URL}/user/me`, {
 			headers: {
-				'Authorization': `Bearer ${token}`,
 				'Content-Type': 'application/json',
 			},
 		});

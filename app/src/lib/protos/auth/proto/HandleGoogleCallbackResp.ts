@@ -2,9 +2,15 @@
 
 
 export interface HandleGoogleCallbackResp {
-  'token'?: (string);
+  'google_id'?: (string);
+  'email'?: (string);
+  'name'?: (string);
+  'picture'?: (string);
 }
 
 export interface HandleGoogleCallbackResp__Output {
-  'token': (string);
+  'google_id': (string);
+  'email': (string);
+  'name': (string);
+  'picture': (string);
 }

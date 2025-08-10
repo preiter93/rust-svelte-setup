@@ -7,9 +7,9 @@ import { PUBLIC_GOOGLE_CLIENT_ID, PUBLIC_GOOGLE_CLIENT_SECRET } from "$env/stati
 import { BaseService, type FetchType } from "$lib/service";
 import type { StartGoogleLoginReq } from "$lib/protos/auth/proto/StartGoogleLoginReq";
 import type { StartGoogleLoginResp } from "$lib/protos/auth/proto/StartGoogleLoginResp";
+import type { HandleGoogleCallbackResp } from "$lib/protos/auth/proto/HandleGoogleCallbackResp";
 
 
-export const google = new Google(PUBLIC_GOOGLE_CLIENT_ID, PUBLIC_GOOGLE_CLIENT_SECRET, "http://localhost:5173/login/google/callback");
 
 export class AuthService extends BaseService {
 	constructor(fetch: FetchType) {
@@ -33,9 +33,7 @@ export class AuthService extends BaseService {
 	}
 
 	async startGoogleLogin(): Promise<StartGoogleLoginResp> {
-		const response = await this.fetch(`${PUBLIC_API_URL}/auth/google/login`, {
-			credentials: 'include',
-		}, false);
+		const response = await this.fetch(`${PUBLIC_API_URL}/auth/google/login`);
 		if (!response.ok) {
 			throw new Error(`failed to start google login: ${response.statusText}`)
 		}
@@ -43,14 +41,10 @@ export class AuthService extends BaseService {
 		return data;
 	}
 
-	async handleGoogleCallback(state: string, code: string): Promise<StartGoogleLoginResp> {
-		const response = await this.fetch(`${PUBLIC_API_URL}/auth/google/callback?state=${state}&code=${code}`, {
-			credentials: 'include',
-		}, false);
+	async handleGoogleCallback(state: string, code: string): Promise<void> {
+		const response = await this.fetch(`${PUBLIC_API_URL}/auth/google/callback?state=${state}&code=${code}`);
 		if (!response.ok) {
 			throw new Error(`failed to handle google callback: ${response.statusText}`)
 		}
-		const data: StartGoogleLoginResp = await response.json();
-		return data;
 	}
 }

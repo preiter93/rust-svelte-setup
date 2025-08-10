@@ -1,7 +1,6 @@
 use auth::AuthClient;
 use auth::proto::{
     CreateSessionReq, CreateSessionResp, HandleGoogleCallbackReq, StartGoogleLoginReq,
-    StartGoogleLoginResp, ValidateSessionReq,
 };
 use axum::extract::Query;
 use axum::response::Redirect;
@@ -12,16 +11,16 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-use axum_extra::extract::CookieJar;
-use axum_extra::{
-    TypedHeader,
-    headers::{Authorization, authorization::Bearer},
+use crate::service::{create_user_if_not_found, validate_session_from_cookie};
+use crate::utils::{
+    CookieError, extract_cookie, grpc_to_http_status, set_oauth_cookie, set_session_token_cookie,
 };
+use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
 use serde::Deserialize;
 use serde_json::json;
 use thiserror::Error;
-use tonic::{Request, Status};
+use tonic::{Code, Request, Status};
 use tracing::instrument;
 use user::{
     UserClient,
@@ -30,8 +29,6 @@ use user::{
         GetUserReq, GetUserResp,
     },
 };
-
-use crate::utils::{CookieError, extract_cookie, grpc_to_http_status, set_oauth_cookie};
 
 #[derive(Clone)]
 pub(crate) struct Handler {
@@ -127,7 +124,7 @@ pub async fn handle_google_callback(
     State(mut h): State<Handler>,
     Query(query): Query<GoogleCallbackQuery>,
     jar: CookieJar,
-) -> Result<Redirect, OAuthError> {
+) -> Result<Response, OAuthError> {
     let stored_state = extract_cookie(&jar, "google_state")?;
     let code_verifier = extract_cookie(&jar, "google_code_verifier")?;
 
@@ -135,15 +132,38 @@ pub async fn handle_google_callback(
         return Err(OAuthError::StateMismatch);
     }
 
-    let req = Request::new(HandleGoogleCallbackReq {
+    let callback_req = Request::new(HandleGoogleCallbackReq {
         state: query.state,
         code: query.code,
         code_verifier,
     });
+    let callback_resp = h.auth_client.handle_google_callback(callback_req).await?;
+    let callback_data = callback_resp.into_inner();
 
-    h.auth_client.handle_google_callback(req).await?;
+    let google_id = callback_data.google_id.to_string();
+    let name = callback_data.name.to_string();
+    let email = callback_data.email.to_string();
+    let picture = callback_data.picture.to_string();
 
-    Ok(Redirect::to("/"))
+    let user_req = Request::new(GetUserIdFromGoogleIdReq {
+        google_id: google_id.clone(),
+    });
+    let user_resp = h.user_client.get_user_id_from_google_id(user_req).await;
+    let user_id = match user_resp {
+        Ok(resp) => resp.into_inner().id,
+        Err(ref status) if status.code() == Code::NotFound => {
+            create_user_if_not_found(&mut h.user_client, google_id, name, email, picture).await?
+        }
+        Err(err) => return Err(OAuthError::RequestError(err)),
+    };
+
+    let session_req = Request::new(CreateSessionReq { user_id });
+    let session_resp = h.auth_client.create_session(session_req).await?;
+    let session_token = session_resp.into_inner().token;
+
+    let jar = jar.add(set_session_token_cookie(session_token));
+
+    Ok(jar.into_response())
 }
 
 // ----------------------------------------
@@ -154,15 +174,9 @@ pub async fn handle_google_callback(
 #[instrument(skip(h), err)]
 pub async fn get_current_user(
     State(mut h): State<Handler>,
-    TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
+    jar: CookieJar,
 ) -> Result<Json<GetUserResp>, GatewayError> {
-    let session_token = bearer.token().to_string();
-    let validate_ression_req = Request::new(ValidateSessionReq {
-        token: session_token,
-    });
-
-    let validate_ression_resp = h.auth_client.validate_session(validate_ression_req).await?;
-    let user_id = validate_ression_resp.into_inner().user_id;
+    let user_id = validate_session_from_cookie(&mut h.auth_client, &jar).await?;
 
     let get_user_req = Request::new(GetUserReq { id: user_id });
     let get_user_resp = h.user_client.get_user(get_user_req).await?;
@@ -172,6 +186,8 @@ pub async fn get_current_user(
 
 #[derive(Debug, Error)]
 pub enum GatewayError {
+    #[error("unauthenticated:")]
+    Unauthenticated,
     #[error("gRPC request failed: {0}")]
     RequestError(#[from] Status),
     #[error("failed to serialize response: {0}")]
@@ -181,6 +197,7 @@ pub enum GatewayError {
 impl IntoResponse for GatewayError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
+            Self::Unauthenticated => (StatusCode::UNAUTHORIZED, "unauthenticated".to_string()),
             Self::RequestError(e) => (
                 grpc_to_http_status(e.code()),
                 Self::RequestError(e).to_string(),

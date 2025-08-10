@@ -7,7 +7,6 @@
 	function logout() {
 		// TODO: Invalidate session in backend.
 
-		localStorage.removeItem('sessionToken');
 		goto('/login');
 	}
 </script>

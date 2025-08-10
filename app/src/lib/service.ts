@@ -6,21 +6,16 @@ export class BaseService {
 	protected fetch: (input: RequestInfo, init?: RequestInit, auth?: boolean) => Promise<Response>;
 
 	constructor(baseFetch: FetchType) {
-		this.fetch = async (input: RequestInfo, init: RequestInit = {}, auth = true) => {
-			const token = localStorage.getItem('sessionToken');
+		this.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
 			const headers = new Headers(init.headers ?? {});
-
-			if (auth && token) {
-				headers.set('Authorization', `Bearer ${token}`);
-			}
 
 			const response = await baseFetch(input, {
 				...init,
 				headers,
+				credentials: 'include',
 			});
 
-			if (auth && response.status === 401) {
-				localStorage.removeItem('sessionToken');
+			if (response.status === 401) {
 				goto('/login');
 			}
 

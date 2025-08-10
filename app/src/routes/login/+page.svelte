@@ -1,49 +1,8 @@
 <script>
 	import { PUBLIC_API_URL } from '$env/static/public';
-	import { AuthService, google } from '$lib/auth/service';
-	import { generateCodeVerifier, generateState } from 'arctic';
-	// TODO: Move this to the backend.
-	async function loginWithGoogle() {
-		// const authService = new AuthService(fetch);
-		// const resp = await authService.startGoogleLogin();
-		// const authorization_url = resp?.authorization_url;
-		// if (!authorization_url) {
-		// 	console.error('got undefined authorization url');
-		// 	return;
-		// }
-		// window.location.assign(authorization_url);
-		window.location.assign(`${PUBLIC_API_URL}/auth/google/login`);
 
-		// // export function generateState() {
-		// // 	const randomValues = new Uint8Array(32);
-		// // 	crypto.getRandomValues(randomValues);
-		// // 	return encoding.encodeBase64urlNoPadding(randomValues);
-		// // }
-		// const state = generateState();
-		//
-		// // export function generateCodeVerifier() {
-		// // 	const randomValues = new Uint8Array(32);
-		// // 	crypto.getRandomValues(randomValues);
-		// // 	return encoding.encodeBase64urlNoPadding(randomValues);
-		// // }
-		// const codeVerifier = generateCodeVerifier();
-		//
-		// sessionStorage.setItem('oauth_state', state);
-		// sessionStorage.setItem('oauth_code_verifier', codeVerifier);
-		//
-		// // const url = new URL(authorizationEndpoint);
-		// // url.searchParams.set("response_type", "code");
-		// // url.searchParams.set("client_id", this.clientId);
-		// // if (this.redirectURI !== null) {
-		// //     url.searchParams.set("redirect_uri", this.redirectURI);
-		// // }
-		// // url.searchParams.set("state", state);
-		// // if (scopes.length > 0) {
-		// //     url.searchParams.set("scope", scopes.join(" "));
-		// // }
-		// const url = google.createAuthorizationURL(state, codeVerifier, ['openid', 'profile', 'email']);
-		// console.log(url.toString());
-		// window.location.assign(url);
+	async function loginWithGoogle() {
+		window.location.assign(`${PUBLIC_API_URL}/auth/google/login`);
 	}
 </script>
 
