@@ -8,23 +8,36 @@ use tower::{
     util::MapRequestLayer,
 };
 use tower_http::trace::{GrpcMakeClassifier, TraceLayer};
-use tracing::Span;
+use tracing::{Span, field, info_span};
 use tracing_opentelemetry::OpenTelemetrySpanExt as _;
 
-type TracerStack = Stack<TraceLayer<GrpcMakeClassifier>, Identity>;
 type MiddlewareFn<B> = fn(Request<B>) -> Request<B>;
+type MakeSpanFn<B> = fn(&Request<B>) -> Span;
 
 type MiddlewareStack<B> = ServiceBuilder<
-    Stack<MapRequestLayer<MiddlewareFn<B>>, Stack<MapRequestLayer<MiddlewareFn<B>>, TracerStack>>,
+    Stack<
+        MapRequestLayer<MiddlewareFn<B>>, // record trace id
+        Stack<
+            MapRequestLayer<MiddlewareFn<B>>, // accept trace
+            Stack<
+                TraceLayer<GrpcMakeClassifier, MakeSpanFn<B>>, // trace layer
+                Identity,
+            >,
+        >,
+    >,
 >;
 
 pub fn add_middleware<B, L>(router: Server<L>) -> Server<Stack<MiddlewareStack<B>, L>> {
     let service_builder: MiddlewareStack<B> = ServiceBuilder::new()
-        .layer(TraceLayer::new_for_grpc())
-        .map_request(accept_trace::<B> as fn(Request<B>) -> Request<B>)
-        .map_request(record_trace_id::<B> as fn(Request<B>) -> Request<B>);
-    let router = router.layer(service_builder);
-    router
+        .layer(TraceLayer::new_for_grpc().make_span_with(new_request_span as MakeSpanFn<B>))
+        .map_request(accept_trace::<B> as MiddlewareFn<B>)
+        .map_request(record_trace_id::<B> as MiddlewareFn<B>);
+    router.layer(service_builder)
+}
+
+/// Creates a new tracing span for an incoming request.
+fn new_request_span<B>(_: &http::Request<B>) -> Span {
+    info_span!("request", trace_id = field::Empty)
 }
 
 /// Propagates trace context between service boundaries.
