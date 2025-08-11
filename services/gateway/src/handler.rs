@@ -52,7 +52,7 @@ impl Handler {
 }
 
 // ----------------------------------------
-//         UNAUTHENTICATED ENDPOINTS
+//         SESSION ENDPOINTS
 // ----------------------------------------
 
 #[debug_handler]
@@ -84,6 +84,12 @@ pub async fn delete_session(
     Ok(jar.into_response())
 }
 
+// ----------------------------------------
+//         USER ENDPOINTS
+// ----------------------------------------
+
+/// Creates a new user.
+/// Does not require authentication.
 #[debug_handler]
 #[instrument(skip(h), err)]
 pub async fn create_user(
@@ -96,6 +102,8 @@ pub async fn create_user(
     Ok(Json(resp.into_inner()))
 }
 
+/// Retrieves a user ID by Google ID.
+/// Does not require authentication.
 #[debug_handler]
 #[instrument(skip(h), err)]
 pub async fn get_user_id_by_google_id(
@@ -108,10 +116,27 @@ pub async fn get_user_id_by_google_id(
     Ok(Json(resp.into_inner()))
 }
 
+/// Gets the current authenticated user.
+#[debug_handler]
+#[instrument(skip(h), err)]
+pub async fn get_current_user(
+    State(mut h): State<Handler>,
+    jar: CookieJar,
+) -> Result<Json<GetUserResp>, GatewayError> {
+    let user_id = validate_session_from_cookie(&mut h.auth_client, &jar).await?;
+
+    let get_user_req = Request::new(GetUserReq { id: user_id });
+    let get_user_resp = h.user_client.get_user(get_user_req).await?;
+
+    Ok(Json(get_user_resp.into_inner()))
+}
+
 // ----------------------------------------
-//                OAUTH
+//           OAUTH ENDPOINTS
 // ----------------------------------------
 
+/// Initiates the Google OAuth login flow
+/// Does not require authentication.
 #[debug_handler]
 #[instrument(skip(h), err)]
 pub async fn start_google_login(
@@ -142,6 +167,8 @@ pub struct GoogleCallbackQuery {
     code: String,
 }
 
+/// Handles the Google OAuth callback, creates a session and logs the user in.
+/// Does not require authentication.
 #[debug_handler]
 #[instrument(skip(h, query), err)]
 pub async fn handle_google_callback(
@@ -194,24 +221,6 @@ pub async fn handle_google_callback(
     Ok(jar.into_response())
 }
 
-// ----------------------------------------
-//         AUTHENTICATED ENDPOINTS
-// ----------------------------------------
-
-#[debug_handler]
-#[instrument(skip(h), err)]
-pub async fn get_current_user(
-    State(mut h): State<Handler>,
-    jar: CookieJar,
-) -> Result<Json<GetUserResp>, GatewayError> {
-    let user_id = validate_session_from_cookie(&mut h.auth_client, &jar).await?;
-
-    let get_user_req = Request::new(GetUserReq { id: user_id });
-    let get_user_resp = h.user_client.get_user(get_user_req).await?;
-
-    Ok(Json(get_user_resp.into_inner()))
-}
-
 #[derive(Debug, Error)]
 pub enum GatewayError {
     #[error("unauthenticated:")]
@@ -247,8 +256,8 @@ pub enum OAuthError {
     RequestError(#[from] Status),
     #[error("state mismatch in oauth flow")]
     StateMismatch,
-    #[error("read cookie error: {0}")]
-    ReadCookieError(#[from] CookieError),
+    #[error("internal error: {0}")]
+    InternalError(String),
 }
 
 impl IntoResponse for OAuthError {
@@ -259,13 +268,19 @@ impl IntoResponse for OAuthError {
                 Self::RequestError(e).to_string(),
             ),
             Self::StateMismatch => (StatusCode::UNAUTHORIZED, Self::StateMismatch.to_string()),
-            Self::ReadCookieError(e) => (
+            Self::InternalError(e) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Self::ReadCookieError(e).to_string(),
+                Self::InternalError(e).to_string(),
             ),
         };
 
         let body = Json(json!({ "error": error_message }));
         (status, body).into_response()
+    }
+}
+
+impl From<CookieError> for OAuthError {
+    fn from(value: CookieError) -> Self {
+        Self::InternalError(value.to_string())
     }
 }
