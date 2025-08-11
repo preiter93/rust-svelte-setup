@@ -70,8 +70,6 @@ pub struct HandleGoogleCallbackResp {
     pub email: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub name: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub picture: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
 pub mod api_service_client {

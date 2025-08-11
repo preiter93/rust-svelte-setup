@@ -95,7 +95,6 @@ pub struct Oauth2TokenClaims {
     pub sub: String,
     pub email: String,
     pub name: String,
-    pub picture: String,
     pub exp: usize,
 }
 

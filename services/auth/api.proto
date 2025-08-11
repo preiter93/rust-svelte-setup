@@ -58,5 +58,4 @@ message HandleGoogleCallbackResp {
   string google_id = 1;
   string email = 2;
   string name = 3;
-  string picture = 4;
 }

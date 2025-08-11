@@ -14,14 +14,7 @@
 </script>
 
 <div style="display: flex; flex-direction: column; height: 100vh; position: relative;">
-	<div class="absolute top-4 right-4 flex items-center gap-4">
-		{#if data.user?.picture}
-			<img
-				src={data.user.picture}
-				alt="Profile"
-				class="h-10 w-10 rounded-full object-cover shadow-md"
-			/>
-		{/if}
+	<div class="absolute right-4 top-4 flex items-center gap-4">
 		<button
 			onclick={logout}
 			class="rounded-md bg-blue-500 px-4 py-2 text-white shadow transition hover:bg-blue-600"

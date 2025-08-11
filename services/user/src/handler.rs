@@ -41,11 +41,10 @@ impl ApiService for Handler {
             return Err(CreateUserErr::MissingEmail.into());
         }
 
-        let picture = req.picture;
         let google_id = req.google_id;
 
         self.db
-            .insert_user(id, &name, &email, &picture, &google_id)
+            .insert_user(id, &name, &email, &google_id)
             .await
             .map_err(CreateUserErr::Database)?;
 
@@ -54,7 +53,6 @@ impl ApiService for Handler {
                 id: id.to_string(),
                 name,
                 email,
-                picture,
             }),
         };
 

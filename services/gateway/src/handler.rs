@@ -194,7 +194,6 @@ pub async fn handle_google_callback(
     let google_id = callback_data.google_id.to_string();
     let name = callback_data.name.to_string();
     let email = callback_data.email.to_string();
-    let picture = callback_data.picture.to_string();
 
     let user_req = Request::new(GetUserIdFromGoogleIdReq {
         google_id: google_id.clone(),
@@ -203,7 +202,7 @@ pub async fn handle_google_callback(
     let user_id = match user_resp {
         Ok(resp) => resp.into_inner().id,
         Err(ref status) if status.code() == Code::NotFound => {
-            create_user_if_not_found(&mut h.user_client, google_id, name, email, picture).await?
+            create_user_if_not_found(&mut h.user_client, google_id, name, email).await?
         }
         Err(err) => return Err(OAuthError::RequestError(err)),
     };

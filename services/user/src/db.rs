@@ -24,15 +24,14 @@ impl DBCLient {
         id: Uuid,
         name: &str,
         email: &str,
-        picture: &str,
         google_id: &str,
     ) -> Result<(), DBError> {
         let client = self.pool.get().await?;
 
         client
             .execute(
-                "INSERT INTO users (id, name, email, picture, google_id) VALUES ($1, $2, $3, $4, $5)",
-                &[&id,&name, &email, &picture, &google_id],
+                "INSERT INTO users (id, name, email, google_id) VALUES ($1, $2, $3, $4)",
+                &[&id, &name, &email, &google_id],
             )
             .await?;
 
@@ -47,7 +46,7 @@ impl DBCLient {
         let client = self.pool.get().await?;
 
         let stmt = client
-            .prepare("SELECT id, name, email, picture FROM users WHERE id = $1")
+            .prepare("SELECT id, name, email FROM users WHERE id = $1")
             .await?;
         let row = client.query_opt(&stmt, &[&id]).await?;
         let Some(row) = row else {
@@ -87,13 +86,11 @@ impl TryFrom<Row> for User {
         let id: Uuid = value.try_get("id")?;
         let name: String = value.try_get("name")?;
         let email: String = value.try_get("email")?;
-        let picture: String = value.try_get("picture")?;
 
         Ok(User {
             id: id.to_string(),
             name,
             email,
-            picture,
         })
     }
 }

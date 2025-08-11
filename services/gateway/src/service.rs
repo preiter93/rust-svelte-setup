@@ -14,13 +14,11 @@ pub(crate) async fn create_user_if_not_found(
     google_id: String,
     name: String,
     email: String,
-    picture: String,
 ) -> Result<String, OAuthError> {
     let req = Request::new(CreateUserReq {
         google_id,
         name,
         email,
-        picture,
     });
     let resp = user_client.create_user(req).await?;
     let user = resp

@@ -76,7 +76,6 @@ impl ApiService for Handler {
             google_id: claims.sub,
             name: claims.name,
             email: claims.email,
-            picture: claims.picture,
         }));
     }
 
