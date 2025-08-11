@@ -1,6 +1,7 @@
 use auth::AuthClient;
 use auth::proto::{
-    CreateSessionReq, CreateSessionResp, HandleGoogleCallbackReq, StartGoogleLoginReq,
+    CreateSessionReq, CreateSessionResp, DeleteSessionReq, HandleGoogleCallbackReq,
+    StartGoogleLoginReq,
 };
 use axum::extract::Query;
 use axum::response::Redirect;
@@ -11,9 +12,12 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-use crate::service::{create_user_if_not_found, validate_session_from_cookie};
+use crate::service::{
+    create_user_if_not_found, get_session_token_from_cookie, validate_session_from_cookie,
+};
 use crate::utils::{
-    CookieError, extract_cookie, grpc_to_http_status, set_oauth_cookie, set_session_token_cookie,
+    CookieError, build_oauth_cookie, build_session_token_cookie, extract_cookie,
+    grpc_to_http_status,
 };
 use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
@@ -65,6 +69,23 @@ pub async fn create_session(
 
 #[debug_handler]
 #[instrument(skip(h), err)]
+pub async fn delete_session(
+    State(mut h): State<Handler>,
+    jar: CookieJar,
+) -> Result<Response, GatewayError> {
+    let token = get_session_token_from_cookie(&jar)?;
+    let req = Request::new(DeleteSessionReq {
+        token: token.clone(),
+    });
+    h.auth_client.delete_session(req).await?;
+
+    let jar = jar.remove(build_session_token_cookie(token));
+
+    Ok(jar.into_response())
+}
+
+#[debug_handler]
+#[instrument(skip(h), err)]
 pub async fn create_user(
     State(mut h): State<Handler>,
     Json(payload): Json<CreateUserReq>,
@@ -104,8 +125,11 @@ pub async fn start_google_login(
         .into_inner();
 
     let jar = jar
-        .add(set_oauth_cookie("google_state", resp.state))
-        .add(set_oauth_cookie("google_code_verifier", resp.code_verifier));
+        .add(build_oauth_cookie("google_state", resp.state))
+        .add(build_oauth_cookie(
+            "google_code_verifier",
+            resp.code_verifier,
+        ));
 
     let redirect = Redirect::temporary(&resp.authorization_url);
 
@@ -135,7 +159,7 @@ pub async fn handle_google_callback(
     let callback_req = Request::new(HandleGoogleCallbackReq {
         state: query.state,
         code: query.code,
-        code_verifier,
+        code_verifier: code_verifier.clone(),
     });
     let callback_resp = h.auth_client.handle_google_callback(callback_req).await?;
     let callback_data = callback_resp.into_inner();
@@ -161,7 +185,11 @@ pub async fn handle_google_callback(
     let session_resp = h.auth_client.create_session(session_req).await?;
     let session_token = session_resp.into_inner().token;
 
-    let jar = jar.add(set_session_token_cookie(session_token));
+    let jar = jar.add(build_session_token_cookie(session_token));
+
+    let jar = jar
+        .remove(build_oauth_cookie("google_state", stored_state))
+        .remove(build_oauth_cookie("google_code_verifier", code_verifier));
 
     Ok(jar.into_response())
 }

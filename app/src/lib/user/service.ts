@@ -27,7 +27,7 @@ export class UserService extends BaseService {
 			method: 'POST',
 			body: JSON.stringify(request),
 			headers: { 'Content-Type': 'application/json' },
-		}, false);
+		});
 		if (!response.ok) {
 			throw new Error(`failed to create user: ${response.statusText}`)
 		}
@@ -52,7 +52,7 @@ export class UserService extends BaseService {
 	}
 
 	async getUserIdFromGoogleId(google_id: string): Promise<GetUserIdFromGoogleIdResp | undefined> {
-		const response = await this.fetch(`${PUBLIC_API_URL}/user/google/${google_id}`, {}, false);
+		const response = await this.fetch(`${PUBLIC_API_URL}/user/google/${google_id}`, {});
 		if (response.status === 404) {
 			return undefined;
 		}

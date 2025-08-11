@@ -5,7 +5,7 @@ use handler::Handler;
 use shared::{http::middleware::add_middleware, tracing::tracer::init_tracer};
 
 use crate::handler::{
-    create_session, create_user, get_current_user, get_user_id_by_google_id,
+    create_session, create_user, delete_session, get_current_user, get_user_id_by_google_id,
     handle_google_callback, start_google_login,
 };
 use axum::{
@@ -14,7 +14,7 @@ use axum::{
         HeaderValue, Method,
         header::{AUTHORIZATION, CONTENT_TYPE},
     },
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use std::error::Error;
 use tokio::net::TcpListener;
@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cors = CorsLayer::new()
         .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
         .allow_credentials(true)
-        .allow_methods([Method::GET, Method::POST])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE]);
 
     // TODO add middleware to validate token
@@ -37,6 +37,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let handler = Handler::new().await?;
     let mut router = Router::new()
         .route("/session", post(create_session))
+        .route("/session", delete(delete_session))
         .route("/user", post(create_user))
         .route("/user/me", get(get_current_user))
         .route("/user/google/{id}", get(get_user_id_by_google_id))

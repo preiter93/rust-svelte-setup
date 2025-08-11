@@ -16,8 +16,9 @@ use tracing::instrument;
 use crate::{
     db::{DBCLient, DBError},
     proto::{
-        CreateSessionReq, CreateSessionResp, HandleGoogleCallbackReq, HandleGoogleCallbackResp,
-        StartGoogleLoginReq, StartGoogleLoginResp, ValidateSessionReq, ValidateSessionResp,
+        CreateSessionReq, CreateSessionResp, DeleteSessionReq, DeleteSessionResp,
+        HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq,
+        StartGoogleLoginResp, ValidateSessionReq, ValidateSessionResp,
         api_service_server::ApiService,
     },
     utils::{GoogleOAuth, OAuth, constant_time_equal, generate_secure_random_string, hash_secret},
@@ -163,6 +164,35 @@ impl ApiService for Handler {
             user_id: session.user_id,
         }))
     }
+
+    /// Deletes a session.
+    ///
+    /// # Errors
+    /// - token is malformed
+    /// - database error
+    ///
+    /// # Further readings
+    /// <https://lucia-auth.com/sessions/basic>
+    #[instrument(skip(self), err)]
+    async fn delete_session(
+        &self,
+        req: Request<DeleteSessionReq>,
+    ) -> Result<Response<DeleteSessionResp>, Status> {
+        let token = req.into_inner().token;
+        let token_parts: Vec<_> = token.split('.').collect();
+        if token_parts.len() != 2 {
+            return Err(ValidateSessionErr::InvalidFormat.into());
+        }
+
+        let session_id = token_parts[0];
+
+        self.db
+            .delete_session(session_id)
+            .await
+            .map_err(CreateSessionErr::Database)?;
+
+        Ok(Response::new(DeleteSessionResp {}))
+    }
 }
 
 #[derive(Debug, Error)]
@@ -211,6 +241,26 @@ impl From<ValidateSessionErr> for Status {
             | ValidateSessionErr::Expired
             | ValidateSessionErr::NotFound => Code::Unauthenticated,
             ValidateSessionErr::Database(_) => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
+}
+
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum DeleteSessionErr {
+    #[error("invalid token format")]
+    InvalidFormat,
+
+    #[error("database error: {0}")]
+    Database(#[from] DBError),
+}
+
+impl From<DeleteSessionErr> for Status {
+    fn from(err: DeleteSessionErr) -> Self {
+        let code = match err {
+            DeleteSessionErr::InvalidFormat => Code::Unauthenticated,
+            DeleteSessionErr::Database(_) => Code::Internal,
         };
         Status::new(code, err.to_string())
     }

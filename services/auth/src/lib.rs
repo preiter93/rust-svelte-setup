@@ -1,9 +1,9 @@
 pub mod proto;
 
 use crate::proto::{
-    CreateSessionReq, CreateSessionResp, HandleGoogleCallbackReq, HandleGoogleCallbackResp,
-    StartGoogleLoginReq, StartGoogleLoginResp, ValidateSessionReq, ValidateSessionResp,
-    api_service_client::ApiServiceClient,
+    CreateSessionReq, CreateSessionResp, DeleteSessionReq, DeleteSessionResp,
+    HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq, StartGoogleLoginResp,
+    ValidateSessionReq, ValidateSessionResp, api_service_client::ApiServiceClient,
 };
 use shared::grpc::interceptors::GrpcServiceInterceptor;
 use std::{error::Error, str::FromStr as _};
@@ -34,6 +34,13 @@ impl AuthClient {
         req: Request<CreateSessionReq>,
     ) -> Result<Response<CreateSessionResp>, Status> {
         self.0.create_session(req).await
+    }
+
+    pub async fn delete_session(
+        &mut self,
+        req: Request<DeleteSessionReq>,
+    ) -> Result<Response<DeleteSessionResp>, Status> {
+        self.0.delete_session(req).await
     }
 
     pub async fn validate_session(

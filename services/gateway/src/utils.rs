@@ -38,9 +38,17 @@ pub(crate) enum CookieError {
     Missing(String),
 }
 
+/// Extracts a cookie value from the given jar by name.
+/// Returns error if cookie is missing.
+pub fn extract_cookie(jar: &CookieJar, name: &str) -> Result<String, CookieError> {
+    jar.get(name)
+        .map(|cookie| cookie.value().to_string())
+        .ok_or_else(|| CookieError::Missing(name.to_string()))
+}
+
 /// Creates a generic OAuth cookie with configurable name and value.
 /// Sets common security attributes and a default 10-minute expiration.
-pub fn set_oauth_cookie<S, T>(name: S, value: T) -> Cookie<'static>
+pub fn build_oauth_cookie<S, T>(name: S, value: T) -> Cookie<'static>
 where
     S: Into<String>,
     T: Into<String>,
@@ -55,7 +63,7 @@ where
 }
 
 /// Creates a session token cookie with 7-day expiration.
-pub fn set_session_token_cookie<T>(token: T) -> Cookie<'static>
+pub fn build_session_token_cookie<T>(token: T) -> Cookie<'static>
 where
     T: Into<String>,
 {
@@ -68,12 +76,4 @@ where
         .path("/")
         .same_site(SameSite::Lax)
         .build()
-}
-
-/// Extracts a cookie value from the given jar by name.
-/// Returns error if cookie is missing.
-pub fn extract_cookie(jar: &CookieJar, name: &str) -> Result<String, CookieError> {
-    jar.get(name)
-        .map(|cookie| cookie.value().to_string())
-        .ok_or_else(|| CookieError::Missing(name.to_string()))
 }

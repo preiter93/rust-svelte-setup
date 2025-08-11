@@ -2,12 +2,8 @@ import { PUBLIC_API_URL } from "$env/static/public";
 
 import type { CreateSessionReq } from "$lib/protos/auth/proto/CreateSessionReq";
 import type { CreateSessionResp } from "$lib/protos/auth/proto/CreateSessionResp";
-import { Google } from "arctic";
-import { PUBLIC_GOOGLE_CLIENT_ID, PUBLIC_GOOGLE_CLIENT_SECRET } from "$env/static/public";
 import { BaseService, type FetchType } from "$lib/service";
-import type { StartGoogleLoginReq } from "$lib/protos/auth/proto/StartGoogleLoginReq";
 import type { StartGoogleLoginResp } from "$lib/protos/auth/proto/StartGoogleLoginResp";
-import type { HandleGoogleCallbackResp } from "$lib/protos/auth/proto/HandleGoogleCallbackResp";
 
 
 
@@ -24,12 +20,21 @@ export class AuthService extends BaseService {
 			method: "POST",
 			body: JSON.stringify(request),
 			headers: { 'Content-Type': 'application/json' },
-		}, false);
+		});
 		if (!response.ok) {
 			throw new Error(`failed to create session: ${response.statusText}`)
 		}
 		const data: CreateSessionResp = await response.json();
 		return data;
+	}
+
+	async deleteSession(): Promise<void> {
+		const response = await this.fetch(`${PUBLIC_API_URL}/session`, {
+			method: "DELETE",
+		});
+		if (!response.ok) {
+			throw new Error(`failed to delete session: ${response.statusText}`)
+		}
 	}
 
 	async startGoogleLogin(): Promise<StartGoogleLoginResp> {

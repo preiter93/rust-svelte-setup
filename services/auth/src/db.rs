@@ -69,7 +69,7 @@ impl DBCLient {
         })
     }
 
-    /// Deletes a session into the database.
+    /// Deletes a session from the database.
     ///
     /// # Errors
     /// - database connection cannot be established

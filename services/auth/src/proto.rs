@@ -30,6 +30,15 @@ pub struct ValidateSessionResp {
     pub user_id: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteSessionReq {
+    #[prost(string, tag = "1")]
+    pub token: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct DeleteSessionResp {}
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct StartGoogleLoginReq {}
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -203,6 +212,30 @@ pub mod api_service_client {
                 .insert(GrpcMethod::new("proto.ApiService", "ValidateSession"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn delete_session(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DeleteSessionReq>,
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteSessionResp>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/proto.ApiService/DeleteSession",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("proto.ApiService", "DeleteSession"));
+            self.inner.unary(req, path, codec).await
+        }
         pub async fn start_google_login(
             &mut self,
             request: impl tonic::IntoRequest<super::StartGoogleLoginReq>,
@@ -278,6 +311,13 @@ pub mod api_service_server {
             request: tonic::Request<super::ValidateSessionReq>,
         ) -> std::result::Result<
             tonic::Response<super::ValidateSessionResp>,
+            tonic::Status,
+        >;
+        async fn delete_session(
+            &self,
+            request: tonic::Request<super::DeleteSessionReq>,
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteSessionResp>,
             tonic::Status,
         >;
         async fn start_google_login(
@@ -446,6 +486,51 @@ pub mod api_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = ValidateSessionSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/proto.ApiService/DeleteSession" => {
+                    #[allow(non_camel_case_types)]
+                    struct DeleteSessionSvc<T: ApiService>(pub Arc<T>);
+                    impl<
+                        T: ApiService,
+                    > tonic::server::UnaryService<super::DeleteSessionReq>
+                    for DeleteSessionSvc<T> {
+                        type Response = super::DeleteSessionResp;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DeleteSessionReq>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ApiService>::delete_session(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = DeleteSessionSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

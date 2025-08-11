@@ -55,3 +55,10 @@ pub(crate) async fn validate_session_from_cookie(
 
     Ok(validate_resp.into_inner().user_id)
 }
+
+/// Returns the session token from the cookie.
+pub(crate) fn get_session_token_from_cookie(jar: &CookieJar) -> Result<String, GatewayError> {
+    jar.get(SESSION_TOKEN_KEY)
+        .map(|cookie| cookie.value().to_string())
+        .ok_or(GatewayError::Unauthenticated)
+}

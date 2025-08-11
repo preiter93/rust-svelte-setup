@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { AuthService } from '$lib/auth/service';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	function logout() {
-		// TODO: Invalidate session in backend.
+	async function logout() {
+		let authService = new AuthService(fetch);
+		await authService.deleteSession();
 
 		goto('/login');
 	}

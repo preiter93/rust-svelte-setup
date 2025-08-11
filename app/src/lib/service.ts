@@ -3,7 +3,7 @@ import { goto } from '$app/navigation';
 export type FetchType = typeof fetch;
 
 export class BaseService {
-	protected fetch: (input: RequestInfo, init?: RequestInit, auth?: boolean) => Promise<Response>;
+	protected fetch: (input: RequestInfo, init?: RequestInit) => Promise<Response>;
 
 	constructor(baseFetch: FetchType) {
 		this.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
