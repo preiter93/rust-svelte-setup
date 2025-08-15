@@ -1,14 +1,14 @@
 use std::str::FromStr;
 
 use crate::{
-    db::{DBCLient, DBError},
+    db::DBCLient,
+    error::{CreateUserErr, DBError, GetUserErr, GetUserIdFromGoogleIdErr},
     proto::{
         CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp,
         GetUserReq, GetUserResp, User, api_service_server::ApiService,
     },
 };
-use thiserror::Error;
-use tonic::{Code, Request, Response, Status};
+use tonic::{Request, Response, Status};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -106,95 +106,5 @@ impl ApiService for Handler {
 
         let response = GetUserIdFromGoogleIdResp { id: id.to_string() };
         Ok(Response::new(response))
-    }
-}
-
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum CreateUserErr {
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
-
-    #[error("missing email")]
-    MissingEmail,
-
-    #[error("missing email")]
-    MissingName,
-}
-
-impl From<CreateUserErr> for Status {
-    fn from(err: CreateUserErr) -> Self {
-        let code = match err {
-            CreateUserErr::MissingName | CreateUserErr::MissingEmail => Code::InvalidArgument,
-            CreateUserErr::Database(_) => Code::Internal,
-        };
-        Status::new(code, err.to_string())
-    }
-}
-
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum GetUserErr {
-    #[error("missing user id")]
-    MissingUserId,
-
-    #[error("not a uuid")]
-    NotAUUID,
-
-    #[error("user not found")]
-    NotFound,
-
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
-}
-
-impl From<GetUserErr> for Status {
-    fn from(err: GetUserErr) -> Self {
-        let code = match err {
-            GetUserErr::MissingUserId | GetUserErr::NotAUUID => Code::InvalidArgument,
-            GetUserErr::NotFound => Code::NotFound,
-            GetUserErr::Database(_) => Code::Internal,
-        };
-        Status::new(code, err.to_string())
-    }
-}
-
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum GetUserIdFromGoogleIdErr {
-    #[error("missing google id")]
-    MissingGoogleId,
-
-    #[error("user not found")]
-    NotFound,
-
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
-}
-
-impl From<GetUserIdFromGoogleIdErr> for Status {
-    fn from(err: GetUserIdFromGoogleIdErr) -> Self {
-        let code = match err {
-            GetUserIdFromGoogleIdErr::MissingGoogleId => Code::InvalidArgument,
-            GetUserIdFromGoogleIdErr::NotFound => Code::NotFound,
-            GetUserIdFromGoogleIdErr::Database(_) => Code::Internal,
-        };
-        Status::new(code, err.to_string())
-    }
-}
-
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum ListUsersErr {
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
-}
-
-impl From<ListUsersErr> for Status {
-    fn from(err: ListUsersErr) -> Self {
-        let code = match err {
-            ListUsersErr::Database(_) => Code::Internal,
-        };
-        Status::new(code, err.to_string())
     }
 }

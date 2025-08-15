@@ -1,4 +1,5 @@
 pub mod db;
+pub mod error;
 pub mod handler;
 #[allow(clippy::all)]
 pub mod proto;

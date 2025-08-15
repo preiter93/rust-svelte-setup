@@ -1,5 +1,5 @@
+use crate::error::DBError;
 use deadpool_postgres::Pool;
-use thiserror::Error;
 use tokio_postgres::Row;
 use uuid::Uuid;
 
@@ -93,19 +93,4 @@ impl TryFrom<Row> for User {
             email,
         })
     }
-}
-
-#[derive(Debug, Error)]
-pub enum DBError {
-    #[error("Database error: {0}")]
-    Error(#[from] tokio_postgres::Error),
-
-    #[error("Connection pool error: {0}")]
-    Pool(#[from] deadpool_postgres::PoolError),
-
-    #[error("Entity not found")]
-    NotFound,
-
-    #[error("Conversion error: {0}")]
-    Conversion(String),
 }
