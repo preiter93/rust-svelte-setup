@@ -3,6 +3,7 @@ use auth::AuthClient;
 use auth::proto::{
     CreateSessionReq, DeleteSessionReq, HandleGoogleCallbackReq, StartGoogleLoginReq,
 };
+use axum::Extension;
 use axum::extract::Query;
 use axum::response::Redirect;
 use axum::{
@@ -10,11 +11,10 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
+use shared::id::UserId;
 
 use crate::error::OAuthError;
-use crate::service::{
-    create_user_if_not_found, get_session_token_from_cookie, validate_session_from_cookie,
-};
+use crate::service::{create_user_if_not_found, get_session_token_from_cookie};
 use crate::utils::{build_oauth_cookie, build_session_token_cookie, extract_cookie};
 use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
@@ -52,14 +52,11 @@ impl Handler {
 #[instrument(skip(h), err)]
 pub async fn get_current_user(
     State(mut h): State<Handler>,
-    jar: CookieJar,
+    Extension(UserId(user_id)): Extension<UserId>,
 ) -> Result<Json<GetUserResp>, ApiError> {
-    let user_id = validate_session_from_cookie(&mut h.auth_client, &jar).await?;
-
-    let get_user_req = Request::new(GetUserReq { id: user_id });
-    let get_user_resp = h.user_client.get_user(get_user_req).await?;
-
-    Ok(Json(get_user_resp.into_inner()))
+    let req = Request::new(GetUserReq { id: user_id });
+    let resp = h.user_client.get_user(req).await?;
+    Ok(Json(resp.into_inner()))
 }
 
 /// Logs the current authenticated user out.

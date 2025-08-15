@@ -2,8 +2,12 @@ mod error;
 mod handler;
 mod service;
 mod utils;
+use auth::AuthClient;
 use handler::Handler;
-use shared::{http::middleware::add_middleware, tracing::tracer::init_tracer};
+use shared::{
+    http::middleware::add_middleware, middleware::AuthMiddleware, tracing::tracer::init_tracer,
+};
+use tower::ServiceBuilder;
 
 use crate::handler::{get_current_user, handle_google_callback, logout_user, start_google_login};
 use axum::{
@@ -30,7 +34,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE]);
 
-    // TODO add middleware to validate token
+    let auth_client = AuthClient::new().await?;
+    let auth_layer = move |inner| AuthMiddleware {
+        inner,
+        session_validator: auth_client.clone(),
+    };
 
     let handler = Handler::new().await?;
     let mut router = Router::new()
@@ -40,6 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .route("/auth/google/callback", get(handle_google_callback))
         .with_state(handler)
         .layer(cors);
+    router = router.layer(ServiceBuilder::new().layer_fn(auth_layer));
     router = add_middleware(router);
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();

@@ -11,6 +11,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
 tracing = { workspace = true }
+tower = { workspace = true }
 
 axum-extra = { version = "0.10", features = ["typed-header", "cookie"] }
 axum-macros = { version = "0.5" }

@@ -2,7 +2,6 @@ use crate::{
     error::{ApiError, OAuthError},
     utils::SESSION_TOKEN_KEY,
 };
-use auth::{AuthClient, proto::ValidateSessionReq};
 use axum_extra::extract::CookieJar;
 use tonic::{Code, Request, Status};
 use user::{UserClient, proto::CreateUserReq};
@@ -27,31 +26,31 @@ pub(crate) async fn create_user_if_not_found(
     Ok(user.id)
 }
 
-/// Validates the sessoin token from the cookie.
-///
-/// Returns unauthenticated if
-/// - there is no session token in the cookie jar
-/// - the session token isn not valid
-pub(crate) async fn validate_session_from_cookie(
-    auth_client: &mut AuthClient,
-    jar: &CookieJar,
-) -> Result<String, ApiError> {
-    let session_token = jar
-        .get(SESSION_TOKEN_KEY)
-        .map(|cookie| cookie.value().to_string())
-        .ok_or_else(|| ApiError::Unauthenticated)?;
-
-    let validate_req = Request::new(ValidateSessionReq {
-        token: session_token,
-    });
-
-    let validate_resp = auth_client
-        .validate_session(validate_req)
-        .await
-        .map_err(|_| ApiError::Unauthenticated)?;
-
-    Ok(validate_resp.into_inner().user_id)
-}
+// /// Validates the sessoin token from the cookie.
+// ///
+// /// Returns unauthenticated if
+// /// - there is no session token in the cookie jar
+// /// - the session token isn not valid
+// pub(crate) async fn validate_session_from_cookie(
+//     auth_client: &mut AuthClient,
+//     jar: &CookieJar,
+// ) -> Result<String, ApiError> {
+//     let session_token = jar
+//         .get(SESSION_TOKEN_KEY)
+//         .map(|cookie| cookie.value().to_string())
+//         .ok_or_else(|| ApiError::Unauthenticated)?;
+//
+//     let validate_req = Request::new(ValidateSessionReq {
+//         token: session_token,
+//     });
+//
+//     let validate_resp = auth_client
+//         .validate_session(validate_req)
+//         .await
+//         .map_err(|_| ApiError::Unauthenticated)?;
+//
+//     Ok(validate_resp.into_inner().user_id)
+// }
 
 /// Returns the session token from the cookie.
 pub(crate) fn get_session_token_from_cookie(jar: &CookieJar) -> Result<String, ApiError> {
