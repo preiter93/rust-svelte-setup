@@ -12,31 +12,6 @@ export class AuthService extends BaseService {
 		super(fetch);
 	}
 
-	async createSession(user_id: string | undefined): Promise<CreateSessionResp> {
-		const request: CreateSessionReq = {
-			user_id: user_id,
-		};
-		const response = await this.fetch(`${PUBLIC_API_URL}/session`, {
-			method: "POST",
-			body: JSON.stringify(request),
-			headers: { 'Content-Type': 'application/json' },
-		});
-		if (!response.ok) {
-			throw new Error(`failed to create session: ${response.statusText}`)
-		}
-		const data: CreateSessionResp = await response.json();
-		return data;
-	}
-
-	async deleteSession(): Promise<void> {
-		const response = await this.fetch(`${PUBLIC_API_URL}/session`, {
-			method: "DELETE",
-		});
-		if (!response.ok) {
-			throw new Error(`failed to delete session: ${response.statusText}`)
-		}
-	}
-
 	async startGoogleLogin(): Promise<StartGoogleLoginResp> {
 		const response = await this.fetch(`${PUBLIC_API_URL}/auth/google/login`);
 		if (!response.ok) {

@@ -1,20 +1,20 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { AuthService } from '$lib/auth/service';
+	import { UserService } from '$lib/user/service';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	async function logout() {
-		let authService = new AuthService(fetch);
-		await authService.deleteSession();
+		let userService = new UserService(fetch);
+		await userService.logoutUser();
 
 		goto('/login');
 	}
 </script>
 
 <div style="display: flex; flex-direction: column; height: 100vh; position: relative;">
-	<div class="absolute right-4 top-4 flex items-center gap-4">
+	<div class="absolute top-4 right-4 flex items-center gap-4">
 		<button
 			onclick={logout}
 			class="rounded-md bg-blue-500 px-4 py-2 text-white shadow transition hover:bg-blue-600"
