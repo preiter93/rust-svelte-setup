@@ -9,6 +9,7 @@ use std::error::Error;
 use tonic::transport::Server;
 
 mod db;
+mod error;
 mod handler;
 #[allow(clippy::all)]
 pub mod proto;

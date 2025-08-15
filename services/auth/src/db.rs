@@ -1,8 +1,6 @@
+use crate::{error::DBError, utils::Session};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
-use thiserror::Error;
-
-use crate::utils::Session;
 
 #[derive(Clone)]
 pub struct DBCLient {
@@ -83,19 +81,4 @@ impl DBCLient {
 
         Ok(())
     }
-}
-
-#[derive(Debug, Error)]
-pub enum DBError {
-    #[error("Database error: {0}")]
-    Error(#[from] tokio_postgres::Error),
-
-    #[error("connection pool error: {0}")]
-    Pool(#[from] deadpool_postgres::PoolError),
-
-    #[error("entity not found")]
-    NotFound,
-
-    #[error("conversion error: {0}")]
-    Conversion(String),
 }

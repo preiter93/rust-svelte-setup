@@ -9,12 +9,14 @@
 //! # Further readings
 //! <https://lucia-auth.com/sessions/basic>
 use chrono::{DateTime, Duration, Utc};
-use thiserror::Error;
-use tonic::{Code, Request, Response, Status};
+use tonic::{Request, Response, Status};
 use tracing::instrument;
 
 use crate::{
-    db::{DBCLient, DBError},
+    db::DBCLient,
+    error::{
+        CreateSessionErr, DBError, HandleGoogleCallbackErr, StartGoogleLoginErr, ValidateSessionErr,
+    },
     proto::{
         CreateSessionReq, CreateSessionResp, DeleteSessionReq, DeleteSessionResp,
         HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq,
@@ -36,49 +38,6 @@ type SessionToken = String;
 
 #[tonic::async_trait]
 impl ApiService for Handler {
-    #[instrument(skip(self), err)]
-    async fn start_google_login(
-        &self,
-        _: Request<StartGoogleLoginReq>,
-    ) -> Result<Response<StartGoogleLoginResp>, Status> {
-        let (state, code_verifier) = (OAuth::generate_state(), OAuth::generate_code_verifier());
-
-        let authorization_url = self
-            .google
-            .generate_authorization_url(&state, &code_verifier)
-            .map_err(|_| StartGoogleLoginErr::AuthorizationUrl)?;
-
-        Ok(Response::new(StartGoogleLoginResp {
-            state,
-            code_verifier,
-            authorization_url,
-        }))
-    }
-
-    async fn handle_google_callback(
-        &self,
-        req: Request<HandleGoogleCallbackReq>,
-    ) -> Result<Response<HandleGoogleCallbackResp>, Status> {
-        let req = req.into_inner();
-        let tokens = self
-            .google
-            .validate_authorization_code(&req.code, &req.code_verifier)
-            .await
-            .map_err(|_| HandleGoogleCallbackErr::ValidateAuthorizationCode)?;
-
-        let claims = self
-            .google
-            .decode_id_token(&tokens.id_token)
-            .await
-            .map_err(|_| HandleGoogleCallbackErr::DecodeIdToken)?;
-
-        return Ok(Response::new(HandleGoogleCallbackResp {
-            google_id: claims.sub,
-            name: claims.name,
-            email: claims.email,
-        }));
-    }
-
     /// Creates a new session.
     ///
     /// # Errors
@@ -192,134 +151,56 @@ impl ApiService for Handler {
 
         Ok(Response::new(DeleteSessionResp {}))
     }
-}
 
-#[derive(Debug, Error)]
-pub enum CreateSessionErr {
-    #[error("missing user id")]
-    MissingUserUID,
+    /// Starts a google login.
+    ///
+    /// # Errors
+    /// - generating authorization url
+    #[instrument(skip(self), err)]
+    async fn start_google_login(
+        &self,
+        _: Request<StartGoogleLoginReq>,
+    ) -> Result<Response<StartGoogleLoginResp>, Status> {
+        let (state, code_verifier) = (OAuth::generate_state(), OAuth::generate_code_verifier());
 
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
-}
+        let authorization_url = self
+            .google
+            .generate_authorization_url(&state, &code_verifier)
+            .map_err(|_| StartGoogleLoginErr::AuthorizationUrl)?;
 
-impl From<CreateSessionErr> for Status {
-    fn from(err: CreateSessionErr) -> Self {
-        let code = match err {
-            CreateSessionErr::MissingUserUID => Code::InvalidArgument,
-            CreateSessionErr::Database(_) => Code::Internal,
-        };
-        Status::new(code, err.to_string())
+        Ok(Response::new(StartGoogleLoginResp {
+            state,
+            code_verifier,
+            authorization_url,
+        }))
+    }
+
+    /// Handles a google login callback
+    ///
+    /// # Errors
+    /// - validating authorization code
+    /// - decoding the id token
+    async fn handle_google_callback(
+        &self,
+        req: Request<HandleGoogleCallbackReq>,
+    ) -> Result<Response<HandleGoogleCallbackResp>, Status> {
+        let req = req.into_inner();
+        let tokens = self
+            .google
+            .validate_authorization_code(&req.code, &req.code_verifier)
+            .await
+            .map_err(|_| HandleGoogleCallbackErr::ValidateAuthorizationCode)?;
+
+        let claims = self
+            .google
+            .decode_id_token(&tokens.id_token)
+            .await
+            .map_err(|_| HandleGoogleCallbackErr::DecodeIdToken)?;
+
+        return Ok(Response::new(HandleGoogleCallbackResp {
+            google_id: claims.sub,
+            name: claims.name,
+            email: claims.email,
+        }));
     }
 }
-
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum ValidateSessionErr {
-    #[error("invalid token format")]
-    InvalidFormat,
-
-    #[error("token secret mismatch")]
-    SecretMismatch,
-
-    #[error("token expired")]
-    Expired,
-
-    #[error("token not found")]
-    NotFound,
-
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
-}
-
-impl From<ValidateSessionErr> for Status {
-    fn from(err: ValidateSessionErr) -> Self {
-        let code = match err {
-            ValidateSessionErr::InvalidFormat
-            | ValidateSessionErr::SecretMismatch
-            | ValidateSessionErr::Expired
-            | ValidateSessionErr::NotFound => Code::Unauthenticated,
-            ValidateSessionErr::Database(_) => Code::Internal,
-        };
-        Status::new(code, err.to_string())
-    }
-}
-
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum DeleteSessionErr {
-    #[error("invalid token format")]
-    InvalidFormat,
-
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
-}
-
-impl From<DeleteSessionErr> for Status {
-    fn from(err: DeleteSessionErr) -> Self {
-        let code = match err {
-            DeleteSessionErr::InvalidFormat => Code::Unauthenticated,
-            DeleteSessionErr::Database(_) => Code::Internal,
-        };
-        Status::new(code, err.to_string())
-    }
-}
-
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum StartGoogleLoginErr {
-    #[error("failed to generate authorization url")]
-    AuthorizationUrl,
-}
-
-impl From<StartGoogleLoginErr> for Status {
-    fn from(err: StartGoogleLoginErr) -> Self {
-        let code = match err {
-            _ => Code::Internal,
-        };
-        Status::new(code, err.to_string())
-    }
-}
-
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum HandleGoogleCallbackErr {
-    #[error("failed to validate authorization code")]
-    ValidateAuthorizationCode,
-
-    #[error("failed to decode id token")]
-    DecodeIdToken,
-}
-
-impl From<HandleGoogleCallbackErr> for Status {
-    fn from(err: HandleGoogleCallbackErr) -> Self {
-        let code = match err {
-            _ => Code::Internal,
-        };
-        Status::new(code, err.to_string())
-    }
-}
-
-// #[derive(Debug, Error)]
-// pub enum GetUserIdFromSessionErr {
-//     #[error("missing token")]
-//     MissingToken,
-//
-//     #[error("invalid token format")]
-//     InvalidFormat,
-//
-//     #[error("database error: {0}")]
-//     Database(#[from] DBError),
-// }
-//
-// impl From<GetUserIdFromSessionErr> for Status {
-//     fn from(err: GetUserIdFromSessionErr) -> Self {
-//         let code = match err {
-//             GetUserIdFromSessionErr::MissingToken | GetUserIdFromSessionErr::InvalidFormat => {
-//                 Code::InvalidArgument
-//             }
-//             GetUserIdFromSessionErr::Database(_) => Code::Internal,
-//         };
-//         Status::new(code, err.to_string())
-//     }
-// }
