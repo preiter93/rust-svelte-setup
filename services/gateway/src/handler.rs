@@ -1,37 +1,29 @@
+use crate::error::ApiError;
 use auth::AuthClient;
 use auth::proto::{
-    CreateSessionReq, CreateSessionResp, DeleteSessionReq, HandleGoogleCallbackReq,
-    StartGoogleLoginReq,
+    CreateSessionReq, DeleteSessionReq, HandleGoogleCallbackReq, StartGoogleLoginReq,
 };
 use axum::extract::Query;
 use axum::response::Redirect;
 use axum::{
     Json,
-    extract::{Path, State},
-    http::StatusCode,
+    extract::State,
     response::{IntoResponse, Response},
 };
 
+use crate::error::OAuthError;
 use crate::service::{
     create_user_if_not_found, get_session_token_from_cookie, validate_session_from_cookie,
 };
-use crate::utils::{
-    CookieError, build_oauth_cookie, build_session_token_cookie, extract_cookie,
-    grpc_to_http_status,
-};
+use crate::utils::{build_oauth_cookie, build_session_token_cookie, extract_cookie};
 use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
 use serde::Deserialize;
-use serde_json::json;
-use thiserror::Error;
-use tonic::{Code, Request, Status};
+use tonic::{Code, Request};
 use tracing::instrument;
 use user::{
     UserClient,
-    proto::{
-        CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp,
-        GetUserReq, GetUserResp,
-    },
+    proto::{GetUserIdFromGoogleIdReq, GetUserReq, GetUserResp},
 };
 
 #[derive(Clone)]
@@ -52,27 +44,31 @@ impl Handler {
 }
 
 // ----------------------------------------
-//         SESSION ENDPOINTS
+//         USER ENDPOINTS
 // ----------------------------------------
 
+/// Gets the current authenticated user.
 #[debug_handler]
 #[instrument(skip(h), err)]
-pub async fn create_session(
-    State(mut h): State<Handler>,
-    Json(payload): Json<CreateSessionReq>,
-) -> Result<Json<CreateSessionResp>, GatewayError> {
-    let req = Request::new(payload);
-    let resp = h.auth_client.create_session(req).await?;
-
-    Ok(Json(resp.into_inner()))
-}
-
-#[debug_handler]
-#[instrument(skip(h), err)]
-pub async fn delete_session(
+pub async fn get_current_user(
     State(mut h): State<Handler>,
     jar: CookieJar,
-) -> Result<Response, GatewayError> {
+) -> Result<Json<GetUserResp>, ApiError> {
+    let user_id = validate_session_from_cookie(&mut h.auth_client, &jar).await?;
+
+    let get_user_req = Request::new(GetUserReq { id: user_id });
+    let get_user_resp = h.user_client.get_user(get_user_req).await?;
+
+    Ok(Json(get_user_resp.into_inner()))
+}
+
+/// Logs the current authenticated user out.
+#[debug_handler]
+#[instrument(skip(h), err)]
+pub async fn logout_user(
+    State(mut h): State<Handler>,
+    jar: CookieJar,
+) -> Result<Response, ApiError> {
     let token = get_session_token_from_cookie(&jar)?;
     let req = Request::new(DeleteSessionReq {
         token: token.clone(),
@@ -82,53 +78,6 @@ pub async fn delete_session(
     let jar = jar.remove(build_session_token_cookie(token));
 
     Ok(jar.into_response())
-}
-
-// ----------------------------------------
-//         USER ENDPOINTS
-// ----------------------------------------
-
-/// Creates a new user.
-/// Does not require authentication.
-#[debug_handler]
-#[instrument(skip(h), err)]
-pub async fn create_user(
-    State(mut h): State<Handler>,
-    Json(payload): Json<CreateUserReq>,
-) -> Result<Json<CreateUserResp>, GatewayError> {
-    let req = Request::new(payload);
-    let resp = h.user_client.create_user(req).await?;
-
-    Ok(Json(resp.into_inner()))
-}
-
-/// Retrieves a user ID by Google ID.
-/// Does not require authentication.
-#[debug_handler]
-#[instrument(skip(h), err)]
-pub async fn get_user_id_by_google_id(
-    State(mut h): State<Handler>,
-    Path(google_id): Path<String>,
-) -> Result<Json<GetUserIdFromGoogleIdResp>, GatewayError> {
-    let req = Request::new(GetUserIdFromGoogleIdReq { google_id });
-    let resp = h.user_client.get_user_id_from_google_id(req).await?;
-
-    Ok(Json(resp.into_inner()))
-}
-
-/// Gets the current authenticated user.
-#[debug_handler]
-#[instrument(skip(h), err)]
-pub async fn get_current_user(
-    State(mut h): State<Handler>,
-    jar: CookieJar,
-) -> Result<Json<GetUserResp>, GatewayError> {
-    let user_id = validate_session_from_cookie(&mut h.auth_client, &jar).await?;
-
-    let get_user_req = Request::new(GetUserReq { id: user_id });
-    let get_user_resp = h.user_client.get_user(get_user_req).await?;
-
-    Ok(Json(get_user_resp.into_inner()))
 }
 
 // ----------------------------------------
@@ -142,7 +91,7 @@ pub async fn get_current_user(
 pub async fn start_google_login(
     State(mut h): State<Handler>,
     jar: CookieJar,
-) -> Result<Response, GatewayError> {
+) -> Result<Response, ApiError> {
     let resp = h
         .auth_client
         .start_google_login(Request::new(StartGoogleLoginReq {}))
@@ -218,68 +167,4 @@ pub async fn handle_google_callback(
         .remove(build_oauth_cookie("google_code_verifier", code_verifier));
 
     Ok(jar.into_response())
-}
-
-#[derive(Debug, Error)]
-pub enum GatewayError {
-    #[error("unauthenticated:")]
-    Unauthenticated,
-    #[error("gRPC request failed: {0}")]
-    RequestError(#[from] Status),
-    #[error("failed to serialize response: {0}")]
-    SerializationError(#[from] serde_json::Error),
-}
-
-impl IntoResponse for GatewayError {
-    fn into_response(self) -> Response {
-        let (status, error_message) = match self {
-            Self::Unauthenticated => (StatusCode::UNAUTHORIZED, "unauthenticated".to_string()),
-            Self::RequestError(e) => (
-                grpc_to_http_status(e.code()),
-                Self::RequestError(e).to_string(),
-            ),
-            Self::SerializationError(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Self::SerializationError(e).to_string(),
-            ),
-        };
-
-        let body = Json(json!({ "error": error_message }));
-        (status, body).into_response()
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum OAuthError {
-    #[error("gRPC request failed: {0}")]
-    RequestError(#[from] Status),
-    #[error("state mismatch in oauth flow")]
-    StateMismatch,
-    #[error("internal error: {0}")]
-    InternalError(String),
-}
-
-impl IntoResponse for OAuthError {
-    fn into_response(self) -> Response {
-        let (status, error_message) = match self {
-            Self::RequestError(e) => (
-                grpc_to_http_status(e.code()),
-                Self::RequestError(e).to_string(),
-            ),
-            Self::StateMismatch => (StatusCode::UNAUTHORIZED, Self::StateMismatch.to_string()),
-            Self::InternalError(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Self::InternalError(e).to_string(),
-            ),
-        };
-
-        let body = Json(json!({ "error": error_message }));
-        (status, body).into_response()
-    }
-}
-
-impl From<CookieError> for OAuthError {
-    fn from(value: CookieError) -> Self {
-        Self::InternalError(value.to_string())
-    }
 }

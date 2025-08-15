@@ -1,9 +1,9 @@
+use crate::error::CookieError;
 use axum::http::StatusCode;
 use axum_extra::extract::{
     CookieJar,
     cookie::{Cookie, SameSite},
 };
-use thiserror::Error;
 use time::Duration;
 use tonic::Code;
 
@@ -30,12 +30,6 @@ pub(crate) fn grpc_to_http_status(code: Code) -> StatusCode {
         Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
-}
-
-#[derive(Debug, Error)]
-pub(crate) enum CookieError {
-    #[error("missing cookie: {0}")]
-    Missing(String),
 }
 
 /// Extracts a cookie value from the given jar by name.

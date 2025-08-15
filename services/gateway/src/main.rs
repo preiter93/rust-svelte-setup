@@ -1,20 +1,18 @@
+mod error;
 mod handler;
 mod service;
 mod utils;
 use handler::Handler;
 use shared::{http::middleware::add_middleware, tracing::tracer::init_tracer};
 
-use crate::handler::{
-    create_session, create_user, delete_session, get_current_user, get_user_id_by_google_id,
-    handle_google_callback, start_google_login,
-};
+use crate::handler::{get_current_user, handle_google_callback, logout_user, start_google_login};
 use axum::{
     Router,
     http::{
         HeaderValue, Method,
         header::{AUTHORIZATION, CONTENT_TYPE},
     },
-    routing::{delete, get, post},
+    routing::{get, post},
 };
 use std::error::Error;
 use tokio::net::TcpListener;
@@ -36,11 +34,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let handler = Handler::new().await?;
     let mut router = Router::new()
-        .route("/session", post(create_session))
-        .route("/session", delete(delete_session))
-        .route("/user", post(create_user))
+        .route("/logout", post(logout_user))
         .route("/user/me", get(get_current_user))
-        .route("/user/google/{id}", get(get_user_id_by_google_id))
         .route("/auth/google/login", get(start_google_login))
         .route("/auth/google/callback", get(handle_google_callback))
         .with_state(handler)
