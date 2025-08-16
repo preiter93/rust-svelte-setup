@@ -5,7 +5,7 @@ use std::task::{Context, Poll};
 use tonic::async_trait;
 use tower::Service;
 
-use crate::id::UserId;
+use crate::session::SessionState;
 
 /// Middleware that performs authentication by validating
 /// a session token from incoming requests.  
@@ -26,7 +26,7 @@ pub trait SessionValidator: Send + Sync {
     /// # Returns
     /// - Some(UserId) if the token is valid.
     /// - None if the token is invalid or expired.
-    async fn validate_session(&mut self, token: String) -> Option<UserId>;
+    async fn validate_session(&mut self, token: String) -> Option<SessionState>;
 }
 
 impl<S, B, V> Service<Request<B>> for AuthMiddleware<S, V>

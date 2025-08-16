@@ -5,7 +5,7 @@ use crate::proto::{
     HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq, StartGoogleLoginResp,
     ValidateSessionReq, ValidateSessionResp, api_service_client::ApiServiceClient,
 };
-use shared::id::UserId;
+use shared::session::SessionState;
 use shared::{grpc::interceptors::GrpcServiceInterceptor, middleware::SessionValidator};
 use std::error::Error;
 use std::str::FromStr;
@@ -70,9 +70,9 @@ impl AuthClient {
 
 #[async_trait]
 impl SessionValidator for AuthClient {
-    async fn validate_session(&mut self, token: String) -> Option<UserId> {
+    async fn validate_session(&mut self, token: String) -> Option<SessionState> {
         let req = tonic::Request::new(ValidateSessionReq { token });
         let resp = self.validate_session(req).await.ok()?;
-        Some(UserId(resp.into_inner().user_id))
+        Some(SessionState::new(resp.into_inner().user_id))
     }
 }

@@ -11,7 +11,7 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
-use shared::id::UserId;
+use shared::session::SessionState;
 
 use crate::error::OAuthError;
 use crate::service::{create_user_if_not_found, get_session_token_from_cookie};
@@ -52,7 +52,7 @@ impl Handler {
 #[instrument(skip(h), err)]
 pub async fn get_current_user(
     State(mut h): State<Handler>,
-    Extension(UserId(user_id)): Extension<UserId>,
+    Extension(SessionState { user_id }): Extension<SessionState>,
 ) -> Result<Json<GetUserResp>, ApiError> {
     let req = Request::new(GetUserReq { id: user_id });
     let resp = h.user_client.get_user(req).await?;
