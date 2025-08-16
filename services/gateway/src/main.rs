@@ -5,7 +5,8 @@ mod utils;
 use auth::AuthClient;
 use handler::Handler;
 use shared::{
-    http::middleware::add_middleware, middleware::AuthMiddleware, tracing::tracer::init_tracer,
+    middleware::AuthMiddleware, middleware::add_tracing_middleware_for_http,
+    tracing::tracer::init_tracer,
 };
 use tower::ServiceBuilder;
 
@@ -49,7 +50,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_state(handler)
         .layer(cors);
     router = router.layer(ServiceBuilder::new().layer_fn(auth_layer));
-    router = add_middleware(router);
+    router = add_tracing_middleware_for_http(router);
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("listening on {}", listener.local_addr().unwrap());

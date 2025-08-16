@@ -5,8 +5,8 @@ use crate::proto::{
     HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq, StartGoogleLoginResp,
     ValidateSessionReq, ValidateSessionResp, api_service_client::ApiServiceClient,
 };
-use shared::session::SessionState;
-use shared::{grpc::interceptors::GrpcServiceInterceptor, middleware::SessionValidator};
+use shared::models::SessionState;
+use shared::{middleware::GrpcServiceInterceptor, middleware::SessionValidator};
 use std::error::Error;
 use std::str::FromStr;
 use tonic::async_trait;

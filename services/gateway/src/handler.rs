@@ -11,7 +11,7 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
-use shared::session::SessionState;
+use shared::models::SessionState;
 
 use crate::error::OAuthError;
 use crate::service::{create_user_if_not_found, get_session_token_from_cookie};

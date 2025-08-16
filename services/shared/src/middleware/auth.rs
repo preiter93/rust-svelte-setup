@@ -5,7 +5,7 @@ use std::task::{Context, Poll};
 use tonic::async_trait;
 use tower::Service;
 
-use crate::session::SessionState;
+use crate::models::SessionState;
 
 /// Middleware that performs authentication by validating
 /// a session token from incoming requests.  
