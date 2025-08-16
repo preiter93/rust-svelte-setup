@@ -118,6 +118,8 @@ where
                 return unauthorized_response("missing session token");
             };
 
+            // TODO: Check session cookie expiry and extend if needed
+
             // Validate token and store session state in request extensions
             match validator.validate_session(token).await {
                 Ok(user_id) => {

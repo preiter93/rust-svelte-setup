@@ -111,6 +111,8 @@ impl ApiService for Handler {
             return Err(ValidateSessionErr::Expired.into());
         }
 
+        // TODO: Update session expiry if it is almost expired
+
         let token_secret_hash = hash_secret(session_secret);
         let valid_secret = constant_time_equal(&token_secret_hash, &session.secret_hash);
         if !valid_secret {
