@@ -4,10 +4,9 @@ use axum_extra::extract::{
     CookieJar,
     cookie::{Cookie, SameSite},
 };
+use shared::session::SESSION_TOKEN_COOKIE_KEY;
 use time::Duration;
 use tonic::Code;
-
-pub const SESSION_TOKEN_KEY: &'static str = "session_token";
 
 /// Maps grpc codes to http status codes.
 ///
@@ -61,9 +60,7 @@ pub fn build_session_token_cookie<T>(token: T) -> Cookie<'static>
 where
     T: Into<String>,
 {
-    const SESSION_TOKEN_KEY: &str = "session_token";
-
-    Cookie::build((SESSION_TOKEN_KEY, token.into()))
+    Cookie::build((SESSION_TOKEN_COOKIE_KEY, token.into()))
         .http_only(true)
         .secure(false) // TODO: Enable in production
         .max_age(Duration::seconds(60 * 60 * 24 * 7)) // 7 days

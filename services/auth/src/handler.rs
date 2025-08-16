@@ -9,6 +9,7 @@
 //! # Further readings
 //! <https://lucia-auth.com/sessions/basic>
 use chrono::{DateTime, Duration, Utc};
+use shared::session::SESSION_TOKEN_EXPIRY_TIME;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
@@ -25,8 +26,6 @@ use crate::{
     },
     utils::{GoogleOAuth, OAuth, constant_time_equal, generate_secure_random_string, hash_secret},
 };
-
-const SESSION_EXPIRES_IN_SECONDS: i64 = 60 * 60 * 24; // 1 day
 
 #[derive(Clone)]
 pub struct Handler {
@@ -103,7 +102,7 @@ impl ApiService for Handler {
         })?;
 
         let is_expired = Utc::now().signed_duration_since(session.created_at)
-            >= Duration::seconds(SESSION_EXPIRES_IN_SECONDS);
+            >= Duration::seconds(SESSION_TOKEN_EXPIRY_TIME);
         if is_expired {
             self.db
                 .delete_session(&session.id)

@@ -1,4 +1,7 @@
 use crate::error::ApiError;
+use crate::error::OAuthError;
+use crate::service::{create_user_if_not_found, get_session_token_from_cookie};
+use crate::utils::{build_oauth_cookie, build_session_token_cookie, extract_cookie};
 use auth::AuthClient;
 use auth::proto::{
     CreateSessionReq, DeleteSessionReq, HandleGoogleCallbackReq, StartGoogleLoginReq,
@@ -11,14 +14,10 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
-use shared::models::SessionState;
-
-use crate::error::OAuthError;
-use crate::service::{create_user_if_not_found, get_session_token_from_cookie};
-use crate::utils::{build_oauth_cookie, build_session_token_cookie, extract_cookie};
 use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
 use serde::Deserialize;
+use shared::session::SessionState;
 use tonic::{Code, Request};
 use tracing::instrument;
 use user::{

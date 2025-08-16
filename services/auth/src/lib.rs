@@ -5,13 +5,13 @@ use crate::proto::{
     HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq, StartGoogleLoginResp,
     ValidateSessionReq, ValidateSessionResp, api_service_client::ApiServiceClient,
 };
-use shared::models::SessionState;
-use shared::{middleware::GrpcServiceInterceptor, middleware::SessionValidator};
-use std::error::Error;
-use std::str::FromStr;
-use tonic::async_trait;
+use shared::{
+    middleware::{GrpcServiceInterceptor, SessionValidator, auth::ValidateSessionErr},
+    session::SessionState,
+};
+use std::{error::Error, str::FromStr};
 use tonic::{
-    Request, Response, Status,
+    Code, Request, Response, Status, async_trait,
     service::interceptor::InterceptedService,
     transport::{Channel, Endpoint},
 };
@@ -20,6 +20,7 @@ use tonic::{
 pub struct AuthClient(ApiServiceClient<InterceptedService<Channel, GrpcServiceInterceptor>>);
 
 impl AuthClient {
+    /// Creates a new [`AuthClient`].
     pub async fn new() -> Result<Self, Box<dyn Error>> {
         let endpoint_url = if std::env::var("LOCAL").unwrap_or_default() == "true" {
             "http://localhost:50051"
@@ -32,6 +33,7 @@ impl AuthClient {
         Ok(Self(client))
     }
 
+    /// Creates a new user session.
     pub async fn create_session(
         &mut self,
         req: Request<CreateSessionReq>,
@@ -39,6 +41,7 @@ impl AuthClient {
         self.0.create_session(req).await
     }
 
+    /// Deletes a user session.
     pub async fn delete_session(
         &mut self,
         req: Request<DeleteSessionReq>,
@@ -46,6 +49,7 @@ impl AuthClient {
         self.0.delete_session(req).await
     }
 
+    /// Validates a session token and returns the session state.
     pub async fn validate_session(
         &mut self,
         req: Request<ValidateSessionReq>,
@@ -53,6 +57,7 @@ impl AuthClient {
         self.0.validate_session(req).await
     }
 
+    /// Starts a google login flow and returns the redirect URL.
     pub async fn start_google_login(
         &mut self,
         req: Request<StartGoogleLoginReq>,
@@ -60,6 +65,7 @@ impl AuthClient {
         self.0.start_google_login(req).await
     }
 
+    /// Handles google's OAuth callback and finalizes login.
     pub async fn handle_google_callback(
         &mut self,
         req: Request<HandleGoogleCallbackReq>,
@@ -70,9 +76,19 @@ impl AuthClient {
 
 #[async_trait]
 impl SessionValidator for AuthClient {
-    async fn validate_session(&mut self, token: String) -> Option<SessionState> {
-        let req = tonic::Request::new(ValidateSessionReq { token });
-        let resp = self.validate_session(req).await.ok()?;
-        Some(SessionState::new(resp.into_inner().user_id))
+    async fn validate_session(
+        &mut self,
+        token: String,
+    ) -> Result<SessionState, ValidateSessionErr> {
+        let req = Request::new(ValidateSessionReq { token });
+        let resp = self
+            .validate_session(req)
+            .await
+            .map_err(|e| match e.code() {
+                Code::Internal => ValidateSessionErr::Internal,
+                _ => ValidateSessionErr::Unauthenticated,
+            })?;
+
+        Ok(SessionState::new(resp.into_inner().user_id))
     }
 }
