@@ -2,7 +2,7 @@ use crate::{
     cookie::{extract_session_token_cookie, set_session_token_cookie},
     session::SessionState,
 };
-use axum::{body::Body, response::IntoResponse};
+use axum::body::Body;
 use core::pin::Pin;
 use http::{Method, Request, Response, StatusCode, header::COOKIE};
 use std::task::{Context, Poll};
@@ -31,6 +31,29 @@ impl<V> SessionAuthLayer<V> {
             no_auth_endpoints,
         }
     }
+}
+
+/// Trait for types that can validate a session token and return a user id.
+#[async_trait]
+pub trait SessionValidator: Send + Sync {
+    /// Validates a session token.
+    ///
+    /// # Returns
+    /// - `Ok(ValidSession)` if the token is valid.
+    /// - `Err(ValidateSessionErr::Unauthenticated)` if the session is missing,
+    ///   the token is invalid, or expired.
+    /// - `Err(ValidateSessionErr::Internal(_))` if an internal error occurred
+    ///   (e.g., connecting to a database).
+    async fn validate_session(&mut self, token: &str) -> Result<ValidSession, ValidateSessionErr>;
+}
+
+/// The result of a successful session validation.
+#[derive(Debug, Clone, Default)]
+pub struct ValidSession {
+    /// The current state of the session.
+    pub session_state: SessionState,
+    /// Whether the session cookie should be refreshed.
+    pub should_refresh_cookie: bool,
 }
 
 /// Service produced by [`SessionAuthLayer`] that authenticates request with a session token.
@@ -94,10 +117,16 @@ where
         Box::pin(async move {
             // Extract session token from cookies
             let Some(cookie) = request.headers().get(COOKIE) else {
-                return Ok(Unauthorized("missing cookies").into_response());
+                return Ok(Response::builder()
+                    .status(StatusCode::UNAUTHORIZED)
+                    .body(Body::from("missing cookies"))
+                    .unwrap());
             };
             let Some(token) = extract_session_token_cookie(cookie) else {
-                return Ok(Unauthorized("missing session token").into_response());
+                return Ok(Response::builder()
+                    .status(StatusCode::UNAUTHORIZED)
+                    .body(Body::from("missing session token"))
+                    .unwrap());
             };
 
             // Validate token and store session state in request extensions
@@ -113,44 +142,12 @@ where
 
                     return Ok(resp);
                 }
-                Err(err) => Ok(Unauthorized(&err.to_string()).into_response()),
+                Err(err) => Ok(Response::builder()
+                    .status(StatusCode::UNAUTHORIZED)
+                    .body(Body::from(err.to_string()))
+                    .unwrap()),
             }
         })
-    }
-}
-
-/// Trait for types that can validate a session token and return a user id.
-#[async_trait]
-pub trait SessionValidator: Send + Sync {
-    /// Validates a session token.
-    ///
-    /// # Returns
-    /// - `Ok(ValidSession)` if the token is valid.
-    /// - `Err(ValidateSessionErr::Unauthenticated)` if the session is missing,
-    ///   the token is invalid, or expired.
-    /// - `Err(ValidateSessionErr::Internal(_))` if an internal error occurred
-    ///   (e.g., connecting to a database).
-    async fn validate_session(&mut self, token: &str) -> Result<ValidSession, ValidateSessionErr>;
-}
-
-/// The result of a successful session validation.
-#[derive(Debug, Clone, Default)]
-pub struct ValidSession {
-    /// The current state of the session.
-    pub session_state: SessionState,
-    /// Whether the session cookie should be refreshed.
-    pub should_refresh_cookie: bool,
-}
-
-struct Unauthorized<Msg>(Msg);
-
-impl<S: Into<String>> IntoResponse for Unauthorized<S> {
-    fn into_response(self) -> Response<Body> {
-        let body = Body::from(self.0.into());
-        Response::builder()
-            .status(StatusCode::UNAUTHORIZED)
-            .body(body)
-            .expect("failed to build response")
     }
 }
 

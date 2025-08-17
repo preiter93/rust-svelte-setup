@@ -19,7 +19,7 @@ impl DBCLient {
     ///
     /// # Errors
     /// - database connection cannot be established
-    /// - inserting row into the database fails
+    /// - executing database statement fails
     pub async fn insert_session(
         &self,
         id: &str,
@@ -43,8 +43,9 @@ impl DBCLient {
     /// Returns a session from the database.
     ///
     /// # Errors
+    /// - not found
     /// - database connection cannot be established
-    /// - fetching row from the database fails
+    /// - executing database statement fails
     pub async fn get_session(&self, id: &str) -> Result<Session, DBError> {
         let client = self.pool.get().await?;
 
@@ -75,7 +76,7 @@ impl DBCLient {
     ///
     /// # Errors
     /// - database connection cannot be established
-    /// - deleting row from the database fails
+    /// - executing database statement fails
     pub async fn delete_session(&self, id: &str) -> Result<(), DBError> {
         let client = self.pool.get().await?;
 
@@ -90,7 +91,7 @@ impl DBCLient {
     ///
     /// # Errors
     /// - database connection cannot be established
-    /// - deleting row from the database fails
+    /// - executing database statement fails
     pub async fn update_session(
         &self,
         id: &str,

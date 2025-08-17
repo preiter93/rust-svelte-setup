@@ -25,6 +25,7 @@ A typical microservice will have the following files:
 - `handler.rs`: implement the http/grpc endpoints
 - `db.rs`: the database/repository layer
 - `utils.rs`: shared methods between endpoints, models, etc.
+- `error.rs`: the errors types of the endpoints
 
 See also [Master hexagonal architecture in Rust](https://www.howtocodeit.com/articles/master-hexagonal-architecture-rust).
 
