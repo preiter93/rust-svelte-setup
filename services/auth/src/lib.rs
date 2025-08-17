@@ -5,31 +5,34 @@ use crate::proto::{
     HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq, StartGoogleLoginResp,
     ValidateSessionReq, ValidateSessionResp, api_service_client::ApiServiceClient,
 };
+use shared::middleware::tracing::TracingServiceClient;
 use shared::{
-    middleware::{GrpcServiceInterceptor, SessionValidator, auth::ValidateSessionErr},
+    middleware::{SessionValidator, auth::ValidateSessionErr},
     session::SessionState,
 };
 use std::{error::Error, str::FromStr};
 use tonic::{
     Code, Request, Response, Status, async_trait,
-    service::interceptor::InterceptedService,
     transport::{Channel, Endpoint},
 };
 
+const GRPC_PORT: &str = "50051";
+
 #[derive(Clone)]
-pub struct AuthClient(ApiServiceClient<InterceptedService<Channel, GrpcServiceInterceptor>>);
+pub struct AuthClient(ApiServiceClient<TracingServiceClient<Channel>>);
 
 impl AuthClient {
     /// Creates a new [`AuthClient`].
     pub async fn new() -> Result<Self, Box<dyn Error>> {
         let endpoint_url = if std::env::var("LOCAL").unwrap_or_default() == "true" {
-            "http://localhost:50051"
+            format!("http://localhost:{GRPC_PORT}")
         } else {
-            "http://auth:50051"
+            format!("http://auth:{GRPC_PORT}")
         };
-        let endpoint = Endpoint::from_str(endpoint_url)?;
+        let endpoint = Endpoint::from_str(&endpoint_url)?;
         let channel = endpoint.connect().await?;
-        let client = ApiServiceClient::with_interceptor(channel, GrpcServiceInterceptor {});
+        let client = TracingServiceClient::new(channel);
+        let client = ApiServiceClient::new(client);
         Ok(Self(client))
     }
 

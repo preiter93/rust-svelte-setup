@@ -1,19 +1,12 @@
 use axum::Router;
 use http::Request;
-use opentelemetry::propagation::Injector;
 use opentelemetry::{global, trace::TraceContextExt as _};
-use opentelemetry_http::HeaderExtractor;
-use tonic::{
-    Status,
-    metadata::{MetadataKey, MetadataMap, MetadataValue},
-    service::Interceptor,
-    transport::Server,
-};
-use tower::{
-    ServiceBuilder,
-    layer::util::{Identity, Stack},
-    util::MapRequestLayer,
-};
+use opentelemetry_http::{HeaderExtractor, HeaderInjector};
+use std::task::{Context, Poll};
+use tonic::transport::Server;
+use tower::Service;
+use tower::layer::util::{Identity, Stack};
+use tower::{ServiceBuilder, util::MapRequestLayer};
 use tower_http::trace::{GrpcMakeClassifier, TraceLayer};
 use tracing::{Span, field, info_span};
 use tracing_opentelemetry::OpenTelemetrySpanExt as _;
@@ -21,7 +14,7 @@ use tracing_opentelemetry::OpenTelemetrySpanExt as _;
 /// Adds default tracing middleware to a grpc server.
 pub fn add_tracing_middleware_for_grpc<B, L>(
     server: Server<L>,
-) -> Server<Stack<MiddlewareStack<B>, L>> {
+) -> Server<Stack<ServerMiddlewareStack<B>, L>> {
     let service_builder = ServiceBuilder::new()
         .layer(TraceLayer::new_for_grpc().make_span_with(MakeSpan))
         .map_request(propagate_trace_context::<B> as MiddlewareFn<B>)
@@ -29,7 +22,7 @@ pub fn add_tracing_middleware_for_grpc<B, L>(
     server.layer(service_builder)
 }
 
-/// Adds default tracing middleware to a http router.
+/// Adds default tracing middleware to a http server.
 pub fn add_tracing_middleware_for_http(router: Router) -> Router {
     router.layer(
         ServiceBuilder::new()
@@ -74,42 +67,10 @@ impl<B> tower_http::trace::MakeSpan<B> for MakeSpan {
     }
 }
 
-/// A gRPC interceptor that injects the current trace context into request metadata.
-#[derive(Clone)]
-pub struct GrpcServiceInterceptor;
-
-impl Interceptor for GrpcServiceInterceptor {
-    /// Injects the current span's context into the request's metadata for trace propagation.
-    fn call(&mut self, mut request: tonic::Request<()>) -> Result<tonic::Request<()>, Status> {
-        global::get_text_map_propagator(|propagator| {
-            let context = Span::current().context();
-            propagator.inject_context(&context, &mut MetadataInjector(request.metadata_mut()));
-        });
-
-        Ok(request)
-    }
-}
-
-/// Adapter for injecting trace context into gRPC metadata.
-struct MetadataInjector<'a>(&'a mut MetadataMap);
-
-impl<'a> Injector for MetadataInjector<'a> {
-    /// Inserts a key-value pair into the gRPC metadata.
-    fn set(&mut self, key: &str, value: String) {
-        if let (Ok(key), Ok(value)) = (
-            MetadataKey::from_bytes(key.as_bytes()),
-            MetadataValue::try_from(value.as_str()),
-        ) {
-            self.0.insert(key, value);
-        }
-    }
-}
-
 type MiddlewareFn<B> = fn(Request<B>) -> Request<B>;
 
-/// This type abomination is necessary to type the response of
-/// [`add_tracing_middleware_for_grpc`] correctly.
-type MiddlewareStack<B> = ServiceBuilder<
+/// This type spagetthi is needed to type the response of [`add_tracing_middleware_for_grpc`].
+type ServerMiddlewareStack<B> = ServiceBuilder<
     Stack<
         MapRequestLayer<MiddlewareFn<B>>, // record trace id
         Stack<
@@ -121,3 +82,40 @@ type MiddlewareStack<B> = ServiceBuilder<
         >,
     >,
 >;
+
+/// A client side interceptor that injects the current trace
+/// context into outgoing http requests.
+#[derive(Clone, Copy)]
+pub struct TracingServiceClient<S> {
+    inner: S,
+}
+
+impl<S> TracingServiceClient<S> {
+    /// Creates a new [`TracingServiceClient`].
+    pub fn new(service: S) -> Self {
+        Self { inner: service }
+    }
+}
+
+impl<S, ReqBody> Service<Request<ReqBody>> for TracingServiceClient<S>
+where
+    S: Service<Request<ReqBody>>,
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = S::Future;
+
+    #[inline]
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, mut req: http::Request<ReqBody>) -> Self::Future {
+        global::get_text_map_propagator(|propagator| {
+            let context = Span::current().context();
+            propagator.inject_context(&context, &mut HeaderInjector(req.headers_mut()));
+        });
+
+        self.inner.call(req)
+    }
+}

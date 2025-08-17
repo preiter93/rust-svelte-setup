@@ -4,27 +4,30 @@ use crate::proto::{
     CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp, GetUserReq,
     GetUserResp, api_service_client::ApiServiceClient,
 };
-use shared::middleware::GrpcServiceInterceptor;
+use shared::middleware::tracing::TracingServiceClient;
 use std::{error::Error, str::FromStr as _};
 use tonic::{
     Request, Response, Status,
-    service::interceptor::InterceptedService,
     transport::{Channel, Endpoint},
 };
 
+const GRPC_PORT: &str = "50052";
+
 #[derive(Clone)]
-pub struct UserClient(ApiServiceClient<InterceptedService<Channel, GrpcServiceInterceptor>>);
+pub struct UserClient(ApiServiceClient<TracingServiceClient<Channel>>);
 
 impl UserClient {
     pub async fn new() -> Result<Self, Box<dyn Error>> {
         let endpoint_url = if std::env::var("LOCAL").unwrap_or_default() == "true" {
-            "http://localhost:50051"
+            format!("http://localhost:{GRPC_PORT}")
         } else {
-            "http://user:50051"
+            format!("http://user:{GRPC_PORT}")
         };
-        let endpoint = Endpoint::from_str(endpoint_url)?;
+        let endpoint = Endpoint::from_str(&endpoint_url)?;
         let channel = endpoint.connect().await?;
-        let client = ApiServiceClient::with_interceptor(channel, GrpcServiceInterceptor {});
+        let client = TracingServiceClient::new(channel);
+        let client = ApiServiceClient::new(client);
+
         Ok(Self(client))
     }
 

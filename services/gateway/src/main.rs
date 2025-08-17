@@ -5,7 +5,7 @@ mod utils;
 use auth::AuthClient;
 use handler::Handler;
 use shared::{
-    middleware::add_session_auth_middleware_for_http, middleware::add_tracing_middleware_for_http,
+    middleware::{add_tracing_middleware_for_http, auth::SessionAuthLayer},
     tracing::tracer::init_tracer,
 };
 
@@ -35,10 +35,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .allow_headers(vec![AUTHORIZATION, CONTENT_TYPE]);
 
     let auth_client = AuthClient::new().await?;
-    let no_auth = vec![
-        String::from("/auth/google/login"),
-        String::from("/auth/google/callback"),
-    ];
 
     let handler = Handler::new().await?;
     let mut router = Router::new()
@@ -46,9 +42,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .route("/user/me", get(get_current_user))
         .route("/auth/google/login", get(start_google_login))
         .route("/auth/google/callback", get(handle_google_callback))
-        .with_state(handler)
-        .layer(cors);
-    router = add_session_auth_middleware_for_http(router, auth_client.clone(), no_auth);
+        .with_state(handler);
+    router = router.layer(SessionAuthLayer::new(
+        auth_client.clone(),
+        vec![
+            String::from("/auth/google/login"),
+            String::from("/auth/google/callback"),
+        ],
+    ));
+    router = router.layer(cors);
     router = add_tracing_middleware_for_http(router);
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();

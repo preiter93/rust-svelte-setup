@@ -14,7 +14,7 @@ use shared::{middleware::add_tracing_middleware_for_grpc, run_db_migrations};
 use std::error::Error;
 use tonic::transport::Server;
 
-const GRPC_PORT: &str = "50051";
+const GRPC_PORT: &str = "50052";
 const SERVICE_NAME: &'static str = "user";
 
 #[tokio::main]
@@ -38,11 +38,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("listening on :{GRPC_PORT}");
     let server = Server::builder();
     let mut server = add_tracing_middleware_for_grpc(server);
-    server
-        .add_service(svc)
-        .serve(addr)
-        .await
-        .expect("failed to run gRPC server");
+    server.add_service(svc).serve(addr).await.unwrap();
 
     tracer.shutdown()?;
 

@@ -40,17 +40,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ),
     };
 
-    let addr = format!("0.0.0.0:{GRPC_PORT}").parse()?;
-    let svc = ApiServiceServer::new(server);
+    let address = format!("0.0.0.0:{GRPC_PORT}").parse()?;
+    let service = ApiServiceServer::new(server);
 
     println!("listening on :{GRPC_PORT}");
     let server = Server::builder();
     let mut server = add_tracing_middleware_for_grpc(server);
-    server
-        .add_service(svc)
-        .serve(addr)
-        .await
-        .expect("failed to run gRPC server");
+    server.add_service(service).serve(address).await.unwrap();
 
     tracer.shutdown()?;
 
