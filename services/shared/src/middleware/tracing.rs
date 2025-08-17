@@ -1,59 +1,101 @@
-use axum::Router;
-use http::Request;
+use http::{Request, Response};
 use opentelemetry::{global, trace::TraceContextExt as _};
 use opentelemetry_http::{HeaderExtractor, HeaderInjector};
 use std::task::{Context, Poll};
-use tonic::transport::Server;
-use tower::Service;
-use tower::layer::util::{Identity, Stack};
-use tower::{ServiceBuilder, util::MapRequestLayer};
-use tower_http::trace::{GrpcMakeClassifier, TraceLayer};
+use tower::{Layer, Service, ServiceBuilder};
+use tower_http::classify::{GrpcErrorsAsFailures, ServerErrorsAsFailures, SharedClassifier};
+use tower_http::trace::{Trace, TraceLayer};
 use tracing::{Span, field, info_span};
 use tracing_opentelemetry::OpenTelemetrySpanExt as _;
 
-/// Adds default tracing middleware to a grpc server.
-pub fn add_tracing_middleware_for_grpc<B, L>(
-    server: Server<L>,
-) -> Server<Stack<ServerMiddlewareStack<B>, L>> {
-    let service_builder = ServiceBuilder::new()
-        .layer(TraceLayer::new_for_grpc().make_span_with(MakeSpan))
-        .map_request(propagate_trace_context::<B> as MiddlewareFn<B>)
-        .map_request(record_trace_id::<B> as MiddlewareFn<B>);
-    server.layer(service_builder)
-}
+type GrpcTraceService<S> =
+    Trace<TracePropagationService<S>, SharedClassifier<GrpcErrorsAsFailures>, MakeSpan>;
 
-/// Adds default tracing middleware to a http server.
-pub fn add_tracing_middleware_for_http(router: Router) -> Router {
-    router.layer(
+type HttpTraceService<S> =
+    Trace<TracePropagationService<S>, SharedClassifier<ServerErrorsAsFailures>, MakeSpan>;
+
+// A gRPC tracing layer. Extracts trace context and starts a span per request.
+#[derive(Clone)]
+pub struct TracingGrpcServiceLayer;
+
+impl<S> Layer<S> for TracingGrpcServiceLayer {
+    type Service = GrpcTraceService<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
         ServiceBuilder::new()
-            .layer(TraceLayer::new_for_http().make_span_with(MakeSpan))
-            .map_request(propagate_trace_context)
-            .map_request(record_trace_id),
-    )
+            .layer(TraceLayer::new_for_grpc().make_span_with(MakeSpan)) // creates request span
+            .layer(TracePropagationLayer::new()) // extracts trace context and sets trace id
+            .service(inner)
+    }
 }
 
-/// Propagates trace context between service boundaries.
-///
-/// Associate the current span with the trace of the request.
-fn propagate_trace_context<B>(request: http::Request<B>) -> http::Request<B> {
-    let parent_context = global::get_text_map_propagator(|propagator| {
-        propagator.extract(&HeaderExtractor(request.headers()))
-    });
-    Span::current().set_parent(parent_context);
+// A HTTP tracing layer. Extracts trace context and starts a span per request.
+#[derive(Clone)]
+pub struct TracingHttpServiceLayer;
 
-    request
+impl<S> Layer<S> for TracingHttpServiceLayer {
+    type Service = HttpTraceService<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        ServiceBuilder::new()
+            .layer(TraceLayer::new_for_http().make_span_with(MakeSpan)) // creates request span
+            .layer(TracePropagationLayer::new()) // extracts trace context and sets trace id
+            .service(inner)
+    }
 }
 
-/// Records the trace ID of the given request as `trace_id` in the current span.
-///
-/// This should be applied after [`propagate_trace_context`].
-fn record_trace_id<B>(request: http::Request<B>) -> http::Request<B> {
-    let span = Span::current();
+/// Layer that propagates trace context from incoming requests to downstream services.
+#[derive(Clone)]
+pub struct TracePropagationLayer;
 
-    let trace_id = span.context().span().span_context().trace_id();
-    span.record("trace_id", trace_id.to_string());
+impl TracePropagationLayer {
+    fn new() -> Self {
+        Self
+    }
+}
 
-    request
+impl<S> Layer<S> for TracePropagationLayer {
+    type Service = TracePropagationService<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        TracePropagationService { inner }
+    }
+}
+
+/// Service that propagates trace context from incoming requests to downstream services
+#[derive(Clone)]
+pub struct TracePropagationService<S> {
+    inner: S,
+}
+
+impl<S, ReqBody, RespBody> Service<Request<ReqBody>> for TracePropagationService<S>
+where
+    S: Service<Request<ReqBody>, Response = Response<RespBody>>,
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = S::Future;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
+        // Extract the incoming trace context from the request headers
+        let parent_context = global::get_text_map_propagator(|propagator| {
+            propagator.extract(&HeaderExtractor(req.headers()))
+        });
+
+        // Make the current span a child of the extracted context
+        let span = Span::current();
+        span.set_parent(parent_context);
+
+        // Sets the trace ID in the current span
+        let trace_id = span.context().span().span_context().trace_id();
+        span.record("trace_id", trace_id.to_string());
+
+        self.inner.call(req)
+    }
 }
 
 /// The way [`Span`]s will be created for [`Trace`].
@@ -67,24 +109,7 @@ impl<B> tower_http::trace::MakeSpan<B> for MakeSpan {
     }
 }
 
-type MiddlewareFn<B> = fn(Request<B>) -> Request<B>;
-
-/// This type spagetthi is needed to type the response of [`add_tracing_middleware_for_grpc`].
-type ServerMiddlewareStack<B> = ServiceBuilder<
-    Stack<
-        MapRequestLayer<MiddlewareFn<B>>, // record trace id
-        Stack<
-            MapRequestLayer<MiddlewareFn<B>>, // accept trace
-            Stack<
-                TraceLayer<GrpcMakeClassifier, MakeSpan>, // trace layer
-                Identity,
-            >,
-        >,
-    >,
->;
-
-/// A client side interceptor that injects the current trace
-/// context into outgoing http requests.
+/// A client side interceptor that injects the current trace context into outgoing HTTP requests.
 #[derive(Clone, Copy)]
 pub struct TracingServiceClient<S> {
     inner: S,

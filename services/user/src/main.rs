@@ -9,8 +9,7 @@ use db::DBCLient;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
 use proto::api_service_server::ApiServiceServer;
-use shared::tracing::tracer::init_tracer;
-use shared::{middleware::add_tracing_middleware_for_grpc, run_db_migrations};
+use shared::{middleware::TracingGrpcServiceLayer, run_db_migrations, tracing::init_tracer};
 use std::error::Error;
 use tonic::transport::Server;
 
@@ -36,8 +35,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let svc = ApiServiceServer::new(server);
 
     println!("listening on :{GRPC_PORT}");
-    let server = Server::builder();
-    let mut server = add_tracing_middleware_for_grpc(server);
+    let mut server = Server::builder().layer(TracingGrpcServiceLayer);
     server.add_service(svc).serve(addr).await.unwrap();
 
     tracer.shutdown()?;

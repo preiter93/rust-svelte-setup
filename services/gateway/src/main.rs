@@ -2,12 +2,11 @@ mod error;
 mod handler;
 mod service;
 mod utils;
+
 use auth::AuthClient;
 use handler::Handler;
-use shared::{
-    middleware::{add_tracing_middleware_for_http, auth::SessionAuthLayer},
-    tracing::tracer::init_tracer,
-};
+use shared::middleware::{TracingHttpServiceLayer, auth::SessionAuthLayer};
+use shared::tracing::init_tracer;
 
 use crate::handler::{get_current_user, handle_google_callback, logout_user, start_google_login};
 use axum::{
@@ -50,8 +49,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             String::from("/auth/google/callback"),
         ],
     ));
-    router = router.layer(cors);
-    router = add_tracing_middleware_for_http(router);
+    router = router.layer(cors).layer(TracingHttpServiceLayer);
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("listening on {}", listener.local_addr().unwrap());
