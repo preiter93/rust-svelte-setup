@@ -7,7 +7,7 @@ pub const SESSION_TOKEN_COOKIE_KEY: &'static str = "session_token";
 pub const SESSION_TOKEN_EXPIRY_DURATION: Duration = Duration::days(7);
 
 /// Represents session state.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SessionState {
     /// The id of the authenticated used.
     pub user_id: String,

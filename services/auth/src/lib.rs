@@ -93,9 +93,9 @@ impl SessionValidator for AuthClient {
             })?;
         let resp = resp.into_inner();
 
-        Ok(ValidSession::new(
-            SessionState::new(resp.user_id),
-            resp.should_refresh_cookie,
-        ))
+        Ok(ValidSession {
+            session_state: SessionState::new(resp.user_id),
+            should_refresh_cookie: resp.should_refresh_cookie,
+        })
     }
 }

@@ -16,8 +16,8 @@ pub enum ApiError {
     RequestError(#[from] Status),
     #[error("failed to serialize response: {0}")]
     SerializationError(#[from] serde_json::Error),
-    #[error("parsing body")]
-    ParsingBody(#[from] http::Error),
+    #[error("failed to build response")]
+    BuildResponse(#[from] http::Error),
 }
 
 impl IntoResponse for ApiError {
@@ -45,8 +45,8 @@ pub enum OAuthError {
     StateMismatch,
     #[error("missing cookie")]
     MissingCookie(&'static str),
-    #[error("parsing body")]
-    ParsingBody(#[from] http::Error),
+    #[error("failed to build response")]
+    BuildResponse(#[from] http::Error),
 }
 
 impl IntoResponse for OAuthError {

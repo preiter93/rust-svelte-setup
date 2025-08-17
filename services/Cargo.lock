@@ -1784,6 +1784,7 @@ dependencies = [
  "opentelemetry_sdk",
  "refinery",
  "thiserror 2.0.12",
+ "tokio",
  "tonic",
  "tower",
  "tower-http",

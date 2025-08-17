@@ -4,7 +4,7 @@ use http::HeaderValue;
 use std::fmt;
 
 /// Representation of an HTTP cookie.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Cookie {
     /// The cookie's name.
     name: String,
@@ -163,5 +163,117 @@ impl ResponseCookies for http::response::Builder {
             http::HeaderValue::from_str(&cookie.to_string()).expect("valid cookie"),
         );
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::response::Response;
+    use http::header::SET_COOKIE;
+
+    use super::*;
+
+    #[test]
+    fn test_session_token_cookie() {
+        // when
+        let cookie = create_session_token_cookie("session-token");
+
+        // then
+        assert_eq!(
+            cookie.to_string(),
+            "session_token=session-token; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax"
+        );
+    }
+
+    #[test]
+    fn test_oauth_cookie() {
+        // when
+        let cookie = create_oauth_cookie("name", "value");
+
+        // then
+        assert_eq!(
+            cookie.to_string(),
+            "name=value; Max-Age=600; Path=/; HttpOnly; SameSite=Lax"
+        );
+    }
+
+    #[test]
+    fn test_expired_cookie() {
+        // when
+        let cookie = create_expired_cookie("name");
+
+        // then
+        assert_eq!(
+            cookie.to_string(),
+            "name=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax"
+        );
+    }
+
+    #[test]
+    fn test_extract_cookie() {
+        // given
+        let cookie = build_cookie("name", "value", Duration::zero());
+        let header = HeaderValue::from_str(&cookie.to_string()).unwrap();
+
+        // when
+        let cookie = extract_cookie_by_name("name", &header);
+
+        // then
+        assert_eq!(cookie, Some("value".to_string()));
+    }
+
+    #[test]
+    fn test_response_with_cookie() {
+        // given
+        let cookie = build_cookie("name", "value", Duration::zero());
+
+        // when
+        let response = Response::builder().with_cookie(cookie).body(()).unwrap();
+
+        // then
+        assert_eq!(
+            response.headers().get(SET_COOKIE).unwrap(),
+            "name=value; Max-Age=0; Path=/; HttpOnly; SameSite=Lax"
+        );
+    }
+
+    #[test]
+    fn test_response_with_cookies() {
+        // given
+        let cookie1 = build_cookie("name1", "value1", Duration::zero());
+        let cookie2 = build_cookie("name2", "value2", Duration::zero());
+
+        // when
+        let response = Response::builder()
+            .with_cookies([cookie1, cookie2])
+            .body(())
+            .unwrap();
+
+        // then
+        let headers: Vec<_> = response.headers().get_all(SET_COOKIE).iter().collect();
+        assert_eq!(
+            extract_cookie_by_name("name1", headers[0]).unwrap(),
+            "value1"
+        );
+        assert_eq!(
+            extract_cookie_by_name("name2", headers[1]).unwrap(),
+            "value2"
+        );
+    }
+
+    #[test]
+    fn test_set_session_token() {
+        // given
+        let token = "token";
+        let mut response = Response::builder().body(()).unwrap();
+
+        // when
+        set_session_token_cookie(&mut response, token);
+
+        // then
+        assert_eq!(
+            response.headers().get(SET_COOKIE).unwrap(),
+            "session_token=token; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax"
+        );
     }
 }
