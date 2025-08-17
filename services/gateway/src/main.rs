@@ -4,7 +4,8 @@ mod service;
 mod utils;
 
 use crate::handler::{
-    Handler, get_current_user, handle_google_callback, logout_user, start_google_login,
+    Handler, get_current_user, handle_google_callback, logout_user, start_github_login,
+    start_google_login,
 };
 use auth::AuthClient;
 use axum::{
@@ -39,12 +40,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/user/me", get(get_current_user))
         .route("/auth/google/login", get(start_google_login))
         .route("/auth/google/callback", get(handle_google_callback))
+        .route("/auth/github/login", get(start_github_login))
         .with_state(handler);
     router = router.layer(SessionAuthLayer::new(
         auth_client.clone(),
         vec![
             String::from("/auth/google/login"),
             String::from("/auth/google/callback"),
+            String::from("/auth/github/login"),
         ],
     ));
     router = router.layer(cors).layer(TracingHttpServiceLayer);

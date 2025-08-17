@@ -4,7 +4,9 @@
 	async function loginWithGoogle() {
 		window.location.assign(`${PUBLIC_API_URL}/auth/google/login`);
 	}
-	async function loginWithGithub() {}
+	async function loginWithGithub() {
+		window.location.assign(`${PUBLIC_API_URL}/auth/github/login`);
+	}
 </script>
 
 <div style="display:flex; justify-content: center; flex-direction: column; height: 100vh;">

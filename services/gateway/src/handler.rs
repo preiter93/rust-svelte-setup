@@ -94,8 +94,7 @@ pub async fn logout_user(
 //           OAUTH ENDPOINTS
 // ----------------------------------------
 
-/// Initiates the Google OAuth login flow
-/// Does not require authentication.
+/// Initiates the Google OAuth login flow. Does not require authentication.
 #[debug_handler]
 #[instrument(skip(h), err)]
 pub async fn start_google_login(State(mut h): State<Handler>) -> Result<Response, ApiError> {
@@ -173,6 +172,17 @@ pub async fn handle_google_callback(
             create_expired_cookie(GOOGLE_CODE_VERIFIER),
         ])
         .body(Body::empty())?;
+
+    Ok(response)
+}
+
+/// Initiates the Github OAuth login flow. Does not require authentication.
+#[debug_handler]
+#[instrument(skip(_h), err)]
+pub async fn start_github_login(State(mut _h): State<Handler>) -> Result<Response, ApiError> {
+    let response = Response::builder()
+        .status(StatusCode::NOT_IMPLEMENTED)
+        .body(Body::from("not implemented"))?;
 
     Ok(response)
 }
