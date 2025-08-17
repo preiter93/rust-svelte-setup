@@ -181,6 +181,7 @@ impl ApiService for Handler {
     /// # Errors
     /// - validating authorization code
     /// - decoding the id token
+    #[instrument(skip(self), err)]
     async fn handle_google_callback(
         &self,
         req: Request<HandleGoogleCallbackReq>,
