@@ -1,7 +1,7 @@
 use crate::error::ApiError;
 use crate::error::OAuthError;
 use crate::service::{create_user_if_not_found, get_session_token_from_cookie};
-use crate::utils::{build_oauth_cookie, build_session_token_cookie, extract_cookie};
+use crate::utils::{create_oauth_cookie, extract_cookie};
 use auth::AuthClient;
 use auth::proto::{
     CreateSessionReq, DeleteSessionReq, HandleGoogleCallbackReq, StartGoogleLoginReq,
@@ -18,6 +18,7 @@ use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
 use serde::Deserialize;
 use shared::session::SessionState;
+use shared::session::create_session_token_cookie;
 use tonic::{Code, Request};
 use tracing::instrument;
 use user::{
@@ -71,7 +72,7 @@ pub async fn logout_user(
     });
     h.auth_client.delete_session(req).await?;
 
-    let jar = jar.remove(build_session_token_cookie(token));
+    let jar = jar.remove(create_session_token_cookie(token));
 
     Ok(jar.into_response())
 }
@@ -95,8 +96,8 @@ pub async fn start_google_login(
         .into_inner();
 
     let jar = jar
-        .add(build_oauth_cookie("google_state", resp.state))
-        .add(build_oauth_cookie(
+        .add(create_oauth_cookie("google_state", resp.state))
+        .add(create_oauth_cookie(
             "google_code_verifier",
             resp.code_verifier,
         ));
@@ -156,11 +157,11 @@ pub async fn handle_google_callback(
     let session_resp = h.auth_client.create_session(session_req).await?;
     let session_token = session_resp.into_inner().token;
 
-    let jar = jar.add(build_session_token_cookie(session_token));
+    let jar = jar.add(create_session_token_cookie(session_token));
 
     let jar = jar
-        .remove(build_oauth_cookie("google_state", stored_state))
-        .remove(build_oauth_cookie("google_code_verifier", code_verifier));
+        .remove(create_oauth_cookie("google_state", stored_state))
+        .remove(create_oauth_cookie("google_code_verifier", code_verifier));
 
     Ok(jar.into_response())
 }

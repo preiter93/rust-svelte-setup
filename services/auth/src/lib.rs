@@ -5,6 +5,7 @@ use crate::proto::{
     HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq, StartGoogleLoginResp,
     ValidateSessionReq, ValidateSessionResp, api_service_client::ApiServiceClient,
 };
+use shared::middleware::auth::ValidSession;
 use shared::middleware::tracing::TracingServiceClient;
 use shared::{
     middleware::{SessionValidator, auth::ValidateSessionErr},
@@ -79,11 +80,10 @@ impl AuthClient {
 
 #[async_trait]
 impl SessionValidator for AuthClient {
-    async fn validate_session(
-        &mut self,
-        token: String,
-    ) -> Result<SessionState, ValidateSessionErr> {
-        let req = Request::new(ValidateSessionReq { token });
+    async fn validate_session(&mut self, token: &str) -> Result<ValidSession, ValidateSessionErr> {
+        let req = Request::new(ValidateSessionReq {
+            token: token.to_string(),
+        });
         let resp = self
             .validate_session(req)
             .await
@@ -91,7 +91,11 @@ impl SessionValidator for AuthClient {
                 Code::Internal => ValidateSessionErr::Internal,
                 _ => ValidateSessionErr::Unauthenticated,
             })?;
+        let resp = resp.into_inner();
 
-        Ok(SessionState::new(resp.into_inner().user_id))
+        Ok(ValidSession::new(
+            SessionState::new(resp.user_id),
+            resp.should_refresh_cookie,
+        ))
     }
 }

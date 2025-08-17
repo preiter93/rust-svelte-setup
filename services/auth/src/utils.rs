@@ -19,6 +19,7 @@ pub struct Session {
     pub id: String,
     pub secret_hash: Vec<u8>,
     pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
     pub user_id: String,
 }
 
@@ -75,7 +76,6 @@ impl OAuth {
             .body(body_bytes.to_vec())
             .header("Content-Type", "application/x-www-form-urlencoded")
             .header("Accept", "application/json")
-            // .header("User-Agent", "arctic")
             .header("Content-Length", body_bytes.len().to_string());
 
         Ok(req)

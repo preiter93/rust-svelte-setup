@@ -504,7 +504,6 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-macros",
- "chrono",
  "serde",
  "serde_json",
  "shared",
@@ -1848,6 +1847,8 @@ name = "shared"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "axum-extra",
+ "chrono",
  "deadpool-postgres",
  "http",
  "opentelemetry",
@@ -1856,6 +1857,7 @@ dependencies = [
  "opentelemetry_sdk",
  "refinery",
  "thiserror 2.0.12",
+ "time",
  "tonic",
  "tower",
  "tower-http",
@@ -2434,7 +2436,6 @@ dependencies = [
  "chrono",
  "deadpool-postgres",
  "dotenv",
- "http",
  "prost",
  "refinery",
  "serde",
@@ -2443,8 +2444,6 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tonic",
- "tower",
- "tower-http",
  "tracing",
  "uuid",
 ]

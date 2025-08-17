@@ -5,21 +5,19 @@ edition = "2024"
 
 [dependencies]
 axum = { workspace = true }
-chrono = { workspace = true }
+axum-extra = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
 tracing = { workspace = true }
 tower = { workspace = true }
 
-axum-extra = { version = "0.10", features = ["typed-header", "cookie"] }
 axum-macros = { version = "0.5" }
 serde_json = { version = "1.0" } 
-time = { version = "0.3" }
-tower-http = { version = "0.6.1", features = ["cors"] }
+tower-http = { version = "0.6", features = ["cors"] }
 
 auth = { version = "0.1", path = "../auth" }
 user = { version = "0.1", path = "../user" }
-
 shared = { version = "0.1", path = "../shared" }

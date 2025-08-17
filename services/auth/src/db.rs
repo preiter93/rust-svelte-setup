@@ -1,6 +1,7 @@
 use crate::{error::DBError, utils::Session};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
+use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
 
 #[derive(Clone)]
 pub struct DBCLient {
@@ -27,11 +28,12 @@ impl DBCLient {
         created_at: DateTime<Utc>,
     ) -> Result<(), DBError> {
         let client = self.pool.get().await?;
+        let expires_at = created_at.checked_add_signed(SESSION_TOKEN_EXPIRY_DURATION);
 
         client
             .execute(
-                "INSERT INTO sessions (id, secret_hash, user_id, created_at) VALUES ($1, $2, $3, $4)",
-                &[&id, &secret_hash, &user_id, &created_at],
+                "INSERT INTO sessions (id, secret_hash, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4, $5)",
+                &[&id, &secret_hash, &user_id, &created_at, &expires_at],
             )
             .await?;
 
@@ -47,7 +49,7 @@ impl DBCLient {
         let client = self.pool.get().await?;
 
         let stmt = client
-            .prepare("SELECT id, secret_hash, created_at, user_id FROM sessions WHERE id = $1")
+            .prepare("SELECT id, secret_hash, created_at, expires_at, user_id FROM sessions WHERE id = $1")
             .await?;
         let row = client.query_opt(&stmt, &[&id]).await?;
         let Some(row) = row else {
@@ -57,12 +59,14 @@ impl DBCLient {
         let id: String = row.try_get("id")?;
         let secret_hash: Vec<u8> = row.try_get("secret_hash")?;
         let created_at: DateTime<Utc> = row.try_get("created_at")?;
+        let expires_at: DateTime<Utc> = row.try_get("expires_at")?;
         let user_id: String = row.try_get("user_id")?;
 
         Ok(Session {
             id,
             secret_hash,
             created_at,
+            expires_at,
             user_id,
         })
     }
@@ -77,6 +81,28 @@ impl DBCLient {
 
         client
             .execute("DELETE FROM sessions WHERE id = $1", &[&id])
+            .await?;
+
+        Ok(())
+    }
+
+    /// Updates a session in the database.
+    ///
+    /// # Errors
+    /// - database connection cannot be established
+    /// - deleting row from the database fails
+    pub async fn update_session(
+        &self,
+        id: &str,
+        expires_at: &DateTime<Utc>,
+    ) -> Result<(), DBError> {
+        let client = self.pool.get().await?;
+
+        client
+            .execute(
+                "UPDATE sessions SET expires_at = $1 WHERE id = $2",
+                &[&expires_at, &id],
+            )
             .await?;
 
         Ok(())

@@ -32,6 +32,7 @@ message ValidateSessionReq {
 
 message ValidateSessionResp {
   string user_id = 1;
+  bool should_refresh_cookie = 2;
 }
 
 message DeleteSessionReq {

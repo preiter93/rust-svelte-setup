@@ -28,6 +28,8 @@ pub struct ValidateSessionReq {
 pub struct ValidateSessionResp {
     #[prost(string, tag = "1")]
     pub user_id: ::prost::alloc::string::String,
+    #[prost(bool, tag = "2")]
+    pub should_refresh_cookie: bool,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]

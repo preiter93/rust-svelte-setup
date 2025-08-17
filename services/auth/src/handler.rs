@@ -8,8 +8,8 @@
 //!
 //! # Further readings
 //! <https://lucia-auth.com/sessions/basic>
-use chrono::{DateTime, Duration, Utc};
-use shared::session::SESSION_TOKEN_EXPIRY_TIME;
+use chrono::{DateTime, Utc};
+use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
@@ -101,17 +101,20 @@ impl ApiService for Handler {
             _ => ValidateSessionErr::Database(e),
         })?;
 
-        let is_expired = Utc::now().signed_duration_since(session.created_at)
-            >= Duration::seconds(SESSION_TOKEN_EXPIRY_TIME);
-        if is_expired {
-            self.db
-                .delete_session(&session.id)
-                .await
-                .map_err(ValidateSessionErr::Database)?;
+        if Utc::now() >= session.expires_at {
+            let result = self.db.delete_session(&session.id).await;
+            result.map_err(ValidateSessionErr::Database)?;
             return Err(ValidateSessionErr::Expired.into());
         }
 
-        // TODO: Update session expiry if it is almost expired
+        let mut should_refresh_cookie = false;
+        if session.expires_at.signed_duration_since(Utc::now()) < SESSION_TOKEN_EXPIRY_DURATION / 2
+        {
+            if let Some(new_expiry) = Utc::now().checked_add_signed(SESSION_TOKEN_EXPIRY_DURATION) {
+                let _ = self.db.update_session(&session_id, &new_expiry).await;
+                should_refresh_cookie = true;
+            }
+        }
 
         let token_secret_hash = hash_secret(session_secret);
         let valid_secret = constant_time_equal(&token_secret_hash, &session.secret_hash);
@@ -121,6 +124,7 @@ impl ApiService for Handler {
 
         Ok(Response::new(ValidateSessionResp {
             user_id: session.user_id,
+            should_refresh_cookie,
         }))
     }
 

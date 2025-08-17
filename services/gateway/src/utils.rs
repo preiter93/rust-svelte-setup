@@ -4,7 +4,6 @@ use axum_extra::extract::{
     CookieJar,
     cookie::{Cookie, SameSite},
 };
-use shared::session::SESSION_TOKEN_COOKIE_KEY;
 use time::Duration;
 use tonic::Code;
 
@@ -41,7 +40,7 @@ pub fn extract_cookie(jar: &CookieJar, name: &str) -> Result<String, CookieError
 
 /// Creates a generic OAuth cookie with configurable name and value.
 /// Sets common security attributes and a default 10-minute expiration.
-pub fn build_oauth_cookie<S, T>(name: S, value: T) -> Cookie<'static>
+pub fn create_oauth_cookie<S, T>(name: S, value: T) -> Cookie<'static>
 where
     S: Into<String>,
     T: Into<String>,
@@ -50,20 +49,6 @@ where
         .http_only(true)
         .secure(false) // TODO: Enable in production
         .max_age(Duration::seconds(60 * 10)) // 10 minutes
-        .path("/")
-        .same_site(SameSite::Lax)
-        .build()
-}
-
-/// Creates a session token cookie with 7-day expiration.
-pub fn build_session_token_cookie<T>(token: T) -> Cookie<'static>
-where
-    T: Into<String>,
-{
-    Cookie::build((SESSION_TOKEN_COOKIE_KEY, token.into()))
-        .http_only(true)
-        .secure(false) // TODO: Enable in production
-        .max_age(Duration::seconds(60 * 60 * 24 * 7)) // 7 days
         .path("/")
         .same_site(SameSite::Lax)
         .build()
