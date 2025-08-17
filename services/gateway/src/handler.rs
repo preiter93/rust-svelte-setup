@@ -1,24 +1,28 @@
 use crate::error::ApiError;
 use crate::error::OAuthError;
-use crate::service::{create_user_if_not_found, get_session_token_from_cookie};
-use crate::utils::{create_oauth_cookie, extract_cookie};
+use crate::service::create_user_if_not_found;
+use crate::utils::GOOGLE_CODE_VERIFIER;
+use crate::utils::GOOGLE_STATE;
+use crate::utils::OauthCookieJar;
 use auth::AuthClient;
 use auth::proto::{
     CreateSessionReq, DeleteSessionReq, HandleGoogleCallbackReq, StartGoogleLoginReq,
 };
 use axum::Extension;
+use axum::body::Body;
 use axum::extract::Query;
-use axum::response::Redirect;
-use axum::{
-    Json,
-    extract::State,
-    response::{IntoResponse, Response},
-};
-use axum_extra::extract::CookieJar;
+use axum::http::HeaderMap;
+use axum::http::StatusCode;
+use axum::http::header::LOCATION;
+use axum::{Json, extract::State, response::Response};
 use axum_macros::debug_handler;
 use serde::Deserialize;
+use shared::cookie::ResponseCookies;
+use shared::cookie::create_expired_cookie;
+use shared::cookie::create_oauth_cookie;
+use shared::cookie::create_session_token_cookie;
+use shared::cookie::extract_session_token_cookie;
 use shared::session::SessionState;
-use shared::session::create_session_token_cookie;
 use tonic::{Code, Request};
 use tracing::instrument;
 use user::{
@@ -64,17 +68,26 @@ pub async fn get_current_user(
 #[instrument(skip(h), err)]
 pub async fn logout_user(
     State(mut h): State<Handler>,
-    jar: CookieJar,
+    headers: HeaderMap,
 ) -> Result<Response, ApiError> {
-    let token = get_session_token_from_cookie(&jar)?;
+    let Some(cookie_header) = headers.get("cookie") else {
+        return Err(ApiError::Unauthenticated);
+    };
+    let Some(token) = extract_session_token_cookie(cookie_header) else {
+        return Err(ApiError::Unauthenticated);
+    };
+
     let req = Request::new(DeleteSessionReq {
         token: token.clone(),
     });
     h.auth_client.delete_session(req).await?;
 
-    let jar = jar.remove(create_session_token_cookie(token));
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .with_cookie(create_session_token_cookie(token))
+        .body(Body::empty())?;
 
-    Ok(jar.into_response())
+    Ok(response)
 }
 
 // ----------------------------------------
@@ -85,26 +98,20 @@ pub async fn logout_user(
 /// Does not require authentication.
 #[debug_handler]
 #[instrument(skip(h), err)]
-pub async fn start_google_login(
-    State(mut h): State<Handler>,
-    jar: CookieJar,
-) -> Result<Response, ApiError> {
-    let resp = h
-        .auth_client
-        .start_google_login(Request::new(StartGoogleLoginReq {}))
-        .await?
-        .into_inner();
+pub async fn start_google_login(State(mut h): State<Handler>) -> Result<Response, ApiError> {
+    let req = Request::new(StartGoogleLoginReq {});
+    let resp = h.auth_client.start_google_login(req).await?.into_inner();
 
-    let jar = jar
-        .add(create_oauth_cookie("google_state", resp.state))
-        .add(create_oauth_cookie(
-            "google_code_verifier",
-            resp.code_verifier,
-        ));
+    let response = Response::builder()
+        .status(StatusCode::TEMPORARY_REDIRECT)
+        .header(LOCATION, &resp.authorization_url)
+        .with_cookies([
+            create_oauth_cookie(GOOGLE_STATE, resp.state),
+            create_oauth_cookie(GOOGLE_CODE_VERIFIER, resp.code_verifier),
+        ])
+        .body(Body::empty())?;
 
-    let redirect = Redirect::temporary(&resp.authorization_url);
-
-    Ok((jar, redirect).into_response())
+    Ok(response)
 }
 
 #[derive(Deserialize)]
@@ -120,10 +127,11 @@ pub struct GoogleCallbackQuery {
 pub async fn handle_google_callback(
     State(mut h): State<Handler>,
     Query(query): Query<GoogleCallbackQuery>,
-    jar: CookieJar,
+    headers: HeaderMap,
 ) -> Result<Response, OAuthError> {
-    let stored_state = extract_cookie(&jar, "google_state")?;
-    let code_verifier = extract_cookie(&jar, "google_code_verifier")?;
+    let jar = OauthCookieJar::from_headers(&headers)?;
+    let stored_state = jar.extract(GOOGLE_STATE)?;
+    let code_verifier = jar.extract(GOOGLE_CODE_VERIFIER)?;
 
     if query.state != stored_state {
         return Err(OAuthError::StateMismatch);
@@ -157,11 +165,14 @@ pub async fn handle_google_callback(
     let session_resp = h.auth_client.create_session(session_req).await?;
     let session_token = session_resp.into_inner().token;
 
-    let jar = jar.add(create_session_token_cookie(session_token));
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .with_cookies([
+            create_session_token_cookie(session_token),
+            create_expired_cookie(GOOGLE_STATE),
+            create_expired_cookie(GOOGLE_CODE_VERIFIER),
+        ])
+        .body(Body::empty())?;
 
-    let jar = jar
-        .remove(create_oauth_cookie("google_state", stored_state))
-        .remove(create_oauth_cookie("google_code_verifier", code_verifier));
-
-    Ok(jar.into_response())
+    Ok(response)
 }

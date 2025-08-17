@@ -107,7 +107,7 @@ impl ApiService for Handler {
             return Err(ValidateSessionErr::Expired.into());
         }
 
-        let mut should_refresh_cookie = false;
+        let mut should_refresh_cookie = true; // BOOOOOOM
         if session.expires_at.signed_duration_since(Utc::now()) < SESSION_TOKEN_EXPIRY_DURATION / 2
         {
             if let Some(new_expiry) = Utc::now().checked_add_signed(SESSION_TOKEN_EXPIRY_DURATION) {

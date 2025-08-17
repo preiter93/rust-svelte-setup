@@ -1,6 +1,4 @@
-use crate::error::{ApiError, OAuthError};
-use axum_extra::extract::CookieJar;
-use shared::session::SESSION_TOKEN_COOKIE_KEY;
+use crate::error::OAuthError;
 use tonic::{Code, Request, Status};
 use user::{UserClient, proto::CreateUserReq};
 
@@ -22,11 +20,4 @@ pub(crate) async fn create_user_if_not_found(
         OAuthError::RequestError(not_found_err)
     })?;
     Ok(user.id)
-}
-
-/// Returns the session token from the cookie.
-pub(crate) fn get_session_token_from_cookie(jar: &CookieJar) -> Result<String, ApiError> {
-    jar.get(SESSION_TOKEN_COOKIE_KEY)
-        .map(|cookie| cookie.value().to_string())
-        .ok_or(ApiError::Unauthenticated)
 }

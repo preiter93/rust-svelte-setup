@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 axum = { workspace = true }
-axum-extra = { workspace = true }
 chrono = { workspace = true }
 deadpool-postgres = { workspace = true }
 http = { workspace = true }
@@ -15,7 +14,6 @@ opentelemetry-otlp = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 refinery = { workspace = true }
 thiserror = { workspace = true }
-time = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true }
 tracing = {workspace = true }

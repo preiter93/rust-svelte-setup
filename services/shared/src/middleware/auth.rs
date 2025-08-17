@@ -1,7 +1,10 @@
-use crate::session::{SessionState, extract_session_token_cookie, set_session_token_cookie};
+use crate::{
+    cookie::{extract_session_token_cookie, set_session_token_cookie},
+    session::SessionState,
+};
 use axum::{body::Body, response::IntoResponse};
 use core::pin::Pin;
-use http::{Method, Request, Response, StatusCode};
+use http::{Method, Request, Response, StatusCode, header::COOKIE};
 use std::task::{Context, Poll};
 use thiserror::Error;
 use tonic::async_trait;
@@ -90,7 +93,7 @@ where
 
         Box::pin(async move {
             // Extract session token from cookies
-            let Some(cookie) = request.headers().get("cookie") else {
+            let Some(cookie) = request.headers().get(COOKIE) else {
                 return Ok(Unauthorized("missing cookies").into_response());
             };
             let Some(token) = extract_session_token_cookie(cookie) else {
@@ -105,7 +108,7 @@ where
                     let mut resp = inner.call(request).await?;
 
                     if s.should_refresh_cookie {
-                        set_session_token_cookie(&mut resp, token);
+                        set_session_token_cookie(&mut resp, &token);
                     }
 
                     return Ok(resp);

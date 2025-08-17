@@ -1,11 +1,11 @@
-use crate::error::CookieError;
-use axum::http::StatusCode;
-use axum_extra::extract::{
-    CookieJar,
-    cookie::{Cookie, SameSite},
-};
-use time::Duration;
+use axum::http::{HeaderMap, StatusCode, header::COOKIE};
+use shared::cookie::extract_cookie_by_name;
 use tonic::Code;
+
+use crate::error::OAuthError;
+
+pub(crate) const GOOGLE_STATE: &'static str = "google_state";
+pub(crate) const GOOGLE_CODE_VERIFIER: &'static str = "google_code_verifier";
 
 /// Maps grpc codes to http status codes.
 ///
@@ -30,26 +30,18 @@ pub(crate) fn grpc_to_http_status(code: Code) -> StatusCode {
     }
 }
 
-/// Extracts a cookie value from the given jar by name.
-/// Returns error if cookie is missing.
-pub fn extract_cookie(jar: &CookieJar, name: &str) -> Result<String, CookieError> {
-    jar.get(name)
-        .map(|cookie| cookie.value().to_string())
-        .ok_or_else(|| CookieError::Missing(name.to_string()))
-}
+pub(crate) struct OauthCookieJar<'a>(&'a HeaderMap);
 
-/// Creates a generic OAuth cookie with configurable name and value.
-/// Sets common security attributes and a default 10-minute expiration.
-pub fn create_oauth_cookie<S, T>(name: S, value: T) -> Cookie<'static>
-where
-    S: Into<String>,
-    T: Into<String>,
-{
-    Cookie::build((name.into(), value.into()))
-        .http_only(true)
-        .secure(false) // TODO: Enable in production
-        .max_age(Duration::seconds(60 * 10)) // 10 minutes
-        .path("/")
-        .same_site(SameSite::Lax)
-        .build()
+impl<'a> OauthCookieJar<'a> {
+    pub(crate) fn from_headers(headers: &'a HeaderMap) -> Result<Self, OAuthError> {
+        if headers.get(COOKIE).is_none() {
+            return Err(OAuthError::MissingCookie("missing cookie header"));
+        }
+        Ok(Self(headers))
+    }
+
+    pub(crate) fn extract(&self, name: &'static str) -> Result<String, OAuthError> {
+        let cookies = self.0.get(COOKIE).unwrap();
+        extract_cookie_by_name(name, cookies).ok_or(OAuthError::MissingCookie(name))
+    }
 }

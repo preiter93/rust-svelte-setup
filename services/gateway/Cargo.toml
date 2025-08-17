@@ -5,10 +5,8 @@ edition = "2024"
 
 [dependencies]
 axum = { workspace = true }
-axum-extra = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-time = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
 tracing = { workspace = true }

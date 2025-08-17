@@ -1,3 +1,4 @@
+use axum::http;
 use axum::response::{IntoResponse, Response};
 use axum::{Json, http::StatusCode};
 use serde_json::json;
@@ -15,6 +16,8 @@ pub enum ApiError {
     RequestError(#[from] Status),
     #[error("failed to serialize response: {0}")]
     SerializationError(#[from] serde_json::Error),
+    #[error("parsing body")]
+    ParsingBody(#[from] http::Error),
 }
 
 impl IntoResponse for ApiError {
@@ -25,10 +28,7 @@ impl IntoResponse for ApiError {
                 grpc_to_http_status(e.code()),
                 Self::RequestError(e).to_string(),
             ),
-            Self::SerializationError(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Self::SerializationError(e).to_string(),
-            ),
+            internal => (StatusCode::INTERNAL_SERVER_ERROR, internal.to_string()),
         };
 
         let body = Json(json!({ "error": error_message }));
@@ -43,8 +43,10 @@ pub enum OAuthError {
     RequestError(#[from] Status),
     #[error("state mismatch in oauth flow")]
     StateMismatch,
-    #[error("cookie error: {0}")]
-    CookieError(#[from] CookieError),
+    #[error("missing cookie")]
+    MissingCookie(&'static str),
+    #[error("parsing body")]
+    ParsingBody(#[from] http::Error),
 }
 
 impl IntoResponse for OAuthError {
@@ -55,20 +57,10 @@ impl IntoResponse for OAuthError {
                 Self::RequestError(e).to_string(),
             ),
             Self::StateMismatch => (StatusCode::UNAUTHORIZED, Self::StateMismatch.to_string()),
-            Self::CookieError(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Self::CookieError(e).to_string(),
-            ),
+            internal => (StatusCode::INTERNAL_SERVER_ERROR, internal.to_string()),
         };
 
         let body = Json(json!({ "error": error_message }));
         (status, body).into_response()
     }
-}
-
-/// Error for cookies
-#[derive(Debug, Error)]
-pub enum CookieError {
-    #[error("missing cookie: {0}")]
-    Missing(String),
 }
