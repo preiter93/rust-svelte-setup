@@ -2,7 +2,7 @@ use thiserror::Error;
 use tonic::Code;
 use tonic::Status;
 
-// Error for create_user
+/// Error for [`crate::proto::api_service_server::ApiService::create_user`]
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CreateUserErr {
@@ -26,7 +26,7 @@ impl From<CreateUserErr> for Status {
     }
 }
 
-// Error for get_user
+/// Error for [`crate::proto::api_service_server::ApiService::get_user`]
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum GetUserErr {
@@ -54,7 +54,7 @@ impl From<GetUserErr> for Status {
     }
 }
 
-// Error for get_user_id_from_google_id
+/// Error for [`crate::proto::api_service_server::ApiService::get_user_id_from_google_id`]
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum GetUserIdFromGoogleIdErr {
@@ -74,23 +74,6 @@ impl From<GetUserIdFromGoogleIdErr> for Status {
             GetUserIdFromGoogleIdErr::MissingGoogleId => Code::InvalidArgument,
             GetUserIdFromGoogleIdErr::NotFound => Code::NotFound,
             GetUserIdFromGoogleIdErr::Database(_) => Code::Internal,
-        };
-        Status::new(code, err.to_string())
-    }
-}
-
-// Error for list_users
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum ListUsersErr {
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
-}
-
-impl From<ListUsersErr> for Status {
-    fn from(err: ListUsersErr) -> Self {
-        let code = match err {
-            ListUsersErr::Database(_) => Code::Internal,
         };
         Status::new(code, err.to_string())
     }

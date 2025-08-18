@@ -1,7 +1,7 @@
 use thiserror::Error;
 use tonic::{Code, Status};
 
-// Error for create_session
+/// Error for [`crate::proto::api_service_server::ApiService::create_session`]
 #[derive(Debug, Error)]
 pub enum CreateSessionErr {
     #[error("missing user id")]
@@ -21,7 +21,7 @@ impl From<CreateSessionErr> for Status {
     }
 }
 
-// Error for validate_session
+/// Error for [`crate::proto::api_service_server::ApiService::validate_session`]
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ValidateSessionErr {
@@ -54,7 +54,7 @@ impl From<ValidateSessionErr> for Status {
     }
 }
 
-// Error for delete_session
+/// Error for [`crate::proto::api_service_server::ApiService::delete_session`]
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum DeleteSessionErr {
@@ -75,7 +75,7 @@ impl From<DeleteSessionErr> for Status {
     }
 }
 
-// Error for start_google_login
+/// Error for [`crate::proto::api_service_server::ApiService::start_google_login`]
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum StartGoogleLoginErr {
@@ -92,7 +92,7 @@ impl From<StartGoogleLoginErr> for Status {
     }
 }
 
-// Error for handle_google_callback
+/// Error for [`crate::proto::api_service_server::ApiService::handle_google_callback`]
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum HandleGoogleCallbackErr {
