@@ -5,10 +5,10 @@ use crate::proto::{
     HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq, StartGoogleLoginResp,
     ValidateSessionReq, ValidateSessionResp, api_service_client::ApiServiceClient,
 };
-use shared::middleware::auth::ValidSession;
+use shared::middleware::auth::AuthenticatedSession;
 use shared::middleware::tracing::TracingServiceClient;
 use shared::{
-    middleware::{SessionValidator, auth::ValidateSessionErr},
+    middleware::{SessionAuthClient, auth::AuthenticateSessionErr},
     session::SessionState,
 };
 use std::{error::Error, str::FromStr};
@@ -79,8 +79,11 @@ impl AuthClient {
 }
 
 #[async_trait]
-impl SessionValidator for AuthClient {
-    async fn validate_session(&mut self, token: &str) -> Result<ValidSession, ValidateSessionErr> {
+impl SessionAuthClient for AuthClient {
+    async fn authenticate_session(
+        &mut self,
+        token: &str,
+    ) -> Result<AuthenticatedSession, AuthenticateSessionErr> {
         let req = Request::new(ValidateSessionReq {
             token: token.to_string(),
         });
@@ -88,12 +91,12 @@ impl SessionValidator for AuthClient {
             .validate_session(req)
             .await
             .map_err(|e| match e.code() {
-                Code::Internal => ValidateSessionErr::Internal,
-                _ => ValidateSessionErr::Unauthenticated,
+                Code::Internal => AuthenticateSessionErr::Internal,
+                _ => AuthenticateSessionErr::Unauthenticated,
             })?;
         let resp = resp.into_inner();
 
-        Ok(ValidSession {
+        Ok(AuthenticatedSession {
             session_state: SessionState::new(resp.user_id),
             should_refresh_cookie: resp.should_refresh_cookie,
         })

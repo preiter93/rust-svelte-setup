@@ -15,41 +15,42 @@ use tower::{Layer, Service};
 /// After successful authentication the middleware inserts the user id
 /// into the request's extensions allowing handlers to access the user.
 #[derive(Clone)]
-pub struct SessionAuthLayer<V> {
+pub struct SessionAuthLayer<A> {
     /// The session validator used to check authentication.
-    pub session_validator: V,
+    pub session_auth_client: A,
 
     /// Request uri paths for which authentication should be skipped.
     pub no_auth_endpoints: Vec<String>,
 }
 
-impl<V> SessionAuthLayer<V> {
+impl<A> SessionAuthLayer<A> {
     /// Creates a new [`SessionAuthLayer`].
-    pub fn new(session_validator: V, no_auth_endpoints: Vec<String>) -> Self {
+    pub fn new(session_auth_client: A, no_auth_endpoints: Vec<String>) -> Self {
         Self {
-            session_validator,
+            session_auth_client,
             no_auth_endpoints,
         }
     }
 }
 
-/// Trait for types that can validate a session token and return a user id.
+/// Trait for types that can authenticate a session token.
 #[async_trait]
-pub trait SessionValidator: Send + Sync {
-    /// Validates a session token.
+pub trait SessionAuthClient: Send + Sync {
+    /// Authenticates a session token.
     ///
     /// # Returns
-    /// - `Ok(ValidSession)` if the token is valid.
-    /// - `Err(ValidateSessionErr::Unauthenticated)` if the session is missing,
-    ///   the token is invalid, or expired.
-    /// - `Err(ValidateSessionErr::Internal(_))` if an internal error occurred
-    ///   (e.g., connecting to a database).
-    async fn validate_session(&mut self, token: &str) -> Result<ValidSession, ValidateSessionErr>;
+    /// - [`AuthenticatedSession`] if the token is valid.
+    /// - [`AuthenticateSessionErr::Unauthenticated`] if the session is missing not in the db or the token is invalid/expired.
+    /// - [`AuthenticateSessionErr::Internal`] on internal errors (e.g., connecting to a database).
+    async fn authenticate_session(
+        &mut self,
+        token: &str,
+    ) -> Result<AuthenticatedSession, AuthenticateSessionErr>;
 }
 
-/// The result of a successful session validation.
+/// The result of a successful session authentication.
 #[derive(Debug, Clone, Default)]
-pub struct ValidSession {
+pub struct AuthenticatedSession {
     /// The current state of the session.
     pub session_state: SessionState,
     /// Whether the session cookie should be refreshed.
@@ -62,7 +63,7 @@ pub struct SessionAuthService<S, V> {
     /// The inner service.
     pub inner: S,
 
-    /// The session validator used to check authentication.
+    /// The auth client with which to authenticate the session.
     pub auth_client: V,
 
     /// Request uri paths for which authentication should be skipped.
@@ -75,7 +76,7 @@ impl<S, V: Clone> Layer<S> for SessionAuthLayer<V> {
     fn layer(&self, inner: S) -> Self::Service {
         SessionAuthService {
             inner,
-            auth_client: self.session_validator.clone(),
+            auth_client: self.session_auth_client.clone(),
             no_auth: self.no_auth_endpoints.clone(),
         }
     }
@@ -86,7 +87,7 @@ where
     S: Service<Request<ReqBody>, Response = Response<Body>> + Clone + Send + 'static,
     S::Future: Send,
     ReqBody: Send + 'static,
-    Validator: SessionValidator + Clone + Send + 'static,
+    Validator: SessionAuthClient + Clone + Send + 'static,
 {
     type Response = S::Response;
     type Error = S::Error;
@@ -129,8 +130,8 @@ where
                     .unwrap());
             };
 
-            // Validate token and store session state in request extensions
-            match validator.validate_session(&token).await {
+            // Authenticate session and store session state in request extensions
+            match validator.authenticate_session(&token).await {
                 Ok(s) => {
                     request.extensions_mut().insert(s.session_state);
 
@@ -153,10 +154,10 @@ where
 
 pub(crate) type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-/// Error for validate_session
+/// Error for [`SessionAuthClient::authenticate_session`].
 #[derive(Debug, Clone, Error)]
 #[non_exhaustive]
-pub enum ValidateSessionErr {
+pub enum AuthenticateSessionErr {
     #[error("unauthenticated")]
     Unauthenticated,
 
@@ -177,7 +178,7 @@ mod tests {
 
     struct TestCase<ReqBody> {
         given_request: Request<ReqBody>,
-        given_validation_result: Result<ValidSession, ValidateSessionErr>,
+        given_validation_result: Result<AuthenticatedSession, AuthenticateSessionErr>,
         given_no_auth: Vec<String>,
         want_status_code: StatusCode,
         want_resp_set_cookies: Option<&'static str>,
@@ -187,7 +188,7 @@ mod tests {
         fn default() -> Self {
             Self {
                 given_request: Request::<ReqBody>::default(),
-                given_validation_result: Ok(ValidSession::default()),
+                given_validation_result: Ok(AuthenticatedSession::default()),
                 given_no_auth: Vec::new(),
                 want_status_code: StatusCode::INTERNAL_SERVER_ERROR,
                 want_resp_set_cookies: None,
@@ -235,7 +236,7 @@ mod tests {
         let c = format!("{}={}", SESSION_TOKEN_COOKIE_KEY, "token");
         TestCase {
             given_request: Request::builder().header("Cookie", c).body(()).unwrap(),
-            given_validation_result: Ok(ValidSession {
+            given_validation_result: Ok(AuthenticatedSession {
                 session_state: SessionState::default(),
                 should_refresh_cookie: true,
             }),
@@ -287,7 +288,7 @@ mod tests {
     async fn test_unauthenticated_missing_session_token_cookie() {
         TestCase {
             given_request: Request::builder().header("Cookie", "").body(()).unwrap(),
-            given_validation_result: Ok(ValidSession::default()),
+            given_validation_result: Ok(AuthenticatedSession::default()),
             want_status_code: StatusCode::UNAUTHORIZED,
             ..Default::default()
         }
@@ -302,7 +303,7 @@ mod tests {
 
         TestCase {
             given_request: Request::builder().header("Cookie", value).body(()).unwrap(),
-            given_validation_result: Err(ValidateSessionErr::Unauthenticated),
+            given_validation_result: Err(AuthenticateSessionErr::Unauthenticated),
             want_status_code: StatusCode::UNAUTHORIZED,
             ..Default::default()
         }
@@ -335,12 +336,15 @@ mod tests {
 
     #[derive(Clone)]
     struct MockAuthClient {
-        response: Result<ValidSession, ValidateSessionErr>,
+        response: Result<AuthenticatedSession, AuthenticateSessionErr>,
     }
 
     #[async_trait]
-    impl SessionValidator for MockAuthClient {
-        async fn validate_session(&mut self, _: &str) -> Result<ValidSession, ValidateSessionErr> {
+    impl SessionAuthClient for MockAuthClient {
+        async fn authenticate_session(
+            &mut self,
+            _: &str,
+        ) -> Result<AuthenticatedSession, AuthenticateSessionErr> {
             return self.response.clone();
         }
     }
