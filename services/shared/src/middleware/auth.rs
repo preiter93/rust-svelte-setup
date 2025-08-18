@@ -63,7 +63,7 @@ pub struct SessionAuthService<S, V> {
     pub inner: S,
 
     /// The session validator used to check authentication.
-    pub session_validator: V,
+    pub auth_client: V,
 
     /// Request uri paths for which authentication should be skipped.
     pub no_auth: Vec<String>,
@@ -75,7 +75,7 @@ impl<S, V: Clone> Layer<S> for SessionAuthLayer<V> {
     fn layer(&self, inner: S) -> Self::Service {
         SessionAuthService {
             inner,
-            session_validator: self.session_validator.clone(),
+            auth_client: self.session_validator.clone(),
             no_auth: self.no_auth_endpoints.clone(),
         }
     }
@@ -112,7 +112,7 @@ where
         // https://docs.rs/tower/latest/tower/trait.Service.html#be-careful-when-cloning-inner-services
         let clone = self.inner.clone();
         let mut inner = std::mem::replace(&mut self.inner, clone);
-        let mut validator = self.session_validator.clone();
+        let mut validator = self.auth_client.clone();
 
         Box::pin(async move {
             // Extract session token from cookies
@@ -175,7 +175,7 @@ mod tests {
 
     use super::*;
 
-    struct AuthMiddlewareTestCase<ReqBody> {
+    struct TestCase<ReqBody> {
         given_request: Request<ReqBody>,
         given_validation_result: Result<ValidSession, ValidateSessionErr>,
         given_no_auth: Vec<String>,
@@ -183,7 +183,7 @@ mod tests {
         want_resp_set_cookies: Option<&'static str>,
     }
 
-    impl<ReqBody: Default> Default for AuthMiddlewareTestCase<ReqBody> {
+    impl<ReqBody: Default> Default for TestCase<ReqBody> {
         fn default() -> Self {
             Self {
                 given_request: Request::<ReqBody>::default(),
@@ -194,46 +194,46 @@ mod tests {
             }
         }
     }
-
-    async fn run_auth_middleware_tets_case<ReqBody>(tc: AuthMiddlewareTestCase<ReqBody>)
+    impl<ReqBody> TestCase<ReqBody>
     where
         ReqBody: Send + 'static,
     {
-        // given
-        let auth_client = AuthClient {
-            response: tc.given_validation_result,
-        };
+        async fn run(self) {
+            // given
+            let mut service = SessionAuthService {
+                inner: MockService::default(),
+                auth_client: MockAuthClient {
+                    response: self.given_validation_result,
+                },
+                no_auth: self.given_no_auth,
+            };
 
-        let mut service = SessionAuthService {
-            inner: DummyService::default(),
-            session_validator: auth_client,
-            no_auth: tc.given_no_auth,
-        };
+            // when
+            let resp = service.call(self.given_request).await.unwrap();
 
-        // when
-        let resp = service.call(tc.given_request).await.unwrap();
-
-        // then
-        assert_eq!(resp.status(), tc.want_status_code);
-        let resp_set_cookies = resp.headers().get(SET_COOKIE).map(|x| x.to_str().unwrap());
-        assert_eq!(resp_set_cookies, tc.want_resp_set_cookies);
+            // then
+            assert_eq!(resp.status(), self.want_status_code);
+            let resp_set_cookies = resp.headers().get(SET_COOKIE).map(|x| x.to_str().unwrap());
+            assert_eq!(resp_set_cookies, self.want_resp_set_cookies);
+        }
     }
 
     #[tokio::test]
     async fn test_authenticated() {
         let c = format!("{}={}", SESSION_TOKEN_COOKIE_KEY, "token");
-        run_auth_middleware_tets_case(AuthMiddlewareTestCase {
+        TestCase {
             given_request: Request::builder().header("Cookie", c).body(()).unwrap(),
             want_status_code: StatusCode::OK,
             ..Default::default()
-        })
+        }
+        .run()
         .await;
     }
 
     #[tokio::test]
     async fn test_authenticated_and_refresh_cookie() {
         let c = format!("{}={}", SESSION_TOKEN_COOKIE_KEY, "token");
-        run_auth_middleware_tets_case(AuthMiddlewareTestCase {
+        TestCase {
             given_request: Request::builder().header("Cookie", c).body(()).unwrap(),
             given_validation_result: Ok(ValidSession {
                 session_state: SessionState::default(),
@@ -244,49 +244,54 @@ mod tests {
             ),
             want_status_code: StatusCode::OK,
             ..Default::default()
-        })
+        }
+        .run()
         .await;
     }
 
     #[tokio::test]
     async fn test_skip_preflight_requests() {
-        run_auth_middleware_tets_case(AuthMiddlewareTestCase {
+        TestCase {
             given_request: Request::builder().method("OPTIONS").body(()).unwrap(),
             want_status_code: StatusCode::OK,
             ..Default::default()
-        })
+        }
+        .run()
         .await;
     }
 
     #[tokio::test]
     async fn test_skip_no_auth_endpoints() {
-        run_auth_middleware_tets_case(AuthMiddlewareTestCase {
+        TestCase {
             given_request: Request::builder().uri("/no-auth").body(()).unwrap(),
             given_no_auth: vec![String::from("/no-auth")],
             want_status_code: StatusCode::OK,
             ..Default::default()
-        })
+        }
+        .run()
         .await;
     }
 
     #[tokio::test]
     async fn test_unauthenticated_missing_cookies() {
-        run_auth_middleware_tets_case(AuthMiddlewareTestCase {
+        TestCase {
             given_request: Request::builder().body(()).unwrap(),
             want_status_code: StatusCode::UNAUTHORIZED,
             ..Default::default()
-        })
+        }
+        .run()
         .await;
     }
 
     #[tokio::test]
     async fn test_unauthenticated_missing_session_token_cookie() {
-        run_auth_middleware_tets_case(AuthMiddlewareTestCase {
+        TestCase {
             given_request: Request::builder().header("Cookie", "").body(()).unwrap(),
             given_validation_result: Ok(ValidSession::default()),
             want_status_code: StatusCode::UNAUTHORIZED,
             ..Default::default()
-        })
+        }
+        .run()
         .await;
     }
 
@@ -295,19 +300,20 @@ mod tests {
         let session_token = "token";
         let value = format!("{}={}", SESSION_TOKEN_COOKIE_KEY, session_token);
 
-        run_auth_middleware_tets_case(AuthMiddlewareTestCase {
+        TestCase {
             given_request: Request::builder().header("Cookie", value).body(()).unwrap(),
             given_validation_result: Err(ValidateSessionErr::Unauthenticated),
             want_status_code: StatusCode::UNAUTHORIZED,
             ..Default::default()
-        })
+        }
+        .run()
         .await;
     }
 
     #[derive(Clone, Default)]
-    struct DummyService;
+    struct MockService;
 
-    impl<ReqBody> Service<Request<ReqBody>> for DummyService
+    impl<ReqBody> Service<Request<ReqBody>> for MockService
     where
         ReqBody: Send + 'static,
     {
@@ -320,21 +326,20 @@ mod tests {
         }
 
         fn call(&mut self, _req: Request<ReqBody>) -> Self::Future {
-            let resp = Response::builder()
+            ready(Ok(Response::builder()
                 .status(StatusCode::OK)
                 .body(Body::empty())
-                .unwrap();
-            ready(Ok(resp))
+                .unwrap()))
         }
     }
 
     #[derive(Clone)]
-    struct AuthClient {
+    struct MockAuthClient {
         response: Result<ValidSession, ValidateSessionErr>,
     }
 
     #[async_trait]
-    impl SessionValidator for AuthClient {
+    impl SessionValidator for MockAuthClient {
         async fn validate_session(&mut self, _: &str) -> Result<ValidSession, ValidateSessionErr> {
             return self.response.clone();
         }
