@@ -3,9 +3,12 @@ pub mod error;
 pub mod handler;
 #[allow(clippy::all)]
 pub mod proto;
+#[cfg(test)]
+pub mod test_utils;
+pub mod utils;
 
-use crate::handler::Handler;
-use db::DBCLient;
+use crate::{handler::Handler, utils::UuidV4Generator};
+use db::PostgresDBClient;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
 use proto::api_service_server::ApiServiceServer;
@@ -28,7 +31,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     run_db_migrations!(pool, "./migrations");
 
     let server = Handler {
-        db: DBCLient::new(pool),
+        db: PostgresDBClient::new(pool),
+        uuid: UuidV4Generator,
     };
 
     let addr = format!("0.0.0.0:{GRPC_PORT}").parse()?;

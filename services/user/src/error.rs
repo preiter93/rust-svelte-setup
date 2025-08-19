@@ -82,6 +82,9 @@ impl From<GetUserIdFromGoogleIdErr> for Status {
 // Database error
 #[derive(Debug, Error)]
 pub enum DBError {
+    #[error("An unknown error occured")]
+    Unknown,
+
     #[error("Database error: {0}")]
     Error(#[from] tokio_postgres::Error),
 

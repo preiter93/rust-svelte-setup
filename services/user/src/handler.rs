@@ -1,7 +1,8 @@
+use crate::utils::UuidGenerator;
 use std::str::FromStr;
 
 use crate::{
-    db::DBCLient,
+    db::DBClient,
     error::{CreateUserErr, DBError, GetUserErr, GetUserIdFromGoogleIdErr},
     proto::{
         CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp,
@@ -12,13 +13,14 @@ use tonic::{Request, Response, Status};
 use tracing::instrument;
 use uuid::Uuid;
 
-#[derive(Clone, Debug)]
-pub(crate) struct Handler {
-    pub db: DBCLient,
+#[derive(Clone)]
+pub(crate) struct Handler<D: DBClient, U: UuidGenerator> {
+    pub db: D,
+    pub uuid: U,
 }
 
 #[tonic::async_trait]
-impl ApiService for Handler {
+impl<D: DBClient, U: UuidGenerator> ApiService for Handler<D, U> {
     /// Creates a new user.
     ///
     /// # Errors
@@ -29,7 +31,7 @@ impl ApiService for Handler {
         req: Request<CreateUserReq>,
     ) -> Result<Response<CreateUserResp>, Status> {
         let req = req.into_inner();
-        let id = Uuid::new_v4();
+        let id = self.uuid.new();
 
         let name = req.name;
         if name.is_empty() {
@@ -63,7 +65,7 @@ impl ApiService for Handler {
     ///
     /// # Errors
     /// - internal error if the user cannot be inserted into the db
-    #[instrument(field(req = req.into_inner()), err)]
+    #[instrument(skip_all, err)]
     async fn get_user(&self, req: Request<GetUserReq>) -> Result<Response<GetUserResp>, Status> {
         let req = req.into_inner();
         if req.id.is_empty() {
@@ -84,7 +86,7 @@ impl ApiService for Handler {
     ///
     /// # Errors
     /// - internal error if the user cannot be inserted into the db
-    #[instrument(field(req = req.into_inner()), err)]
+    #[instrument(skip_all, err)]
     async fn get_user_id_from_google_id(
         &self,
         req: Request<GetUserIdFromGoogleIdReq>,
@@ -106,5 +108,277 @@ impl ApiService for Handler {
 
         let response = GetUserIdFromGoogleIdResp { id: id.to_string() };
         Ok(Response::new(response))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio::sync::Mutex;
+    use tonic::{Code, Request};
+    use uuid::Uuid;
+
+    use crate::{
+        error::DBError,
+        handler::Handler,
+        proto::{
+            CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp,
+            GetUserReq, GetUserResp, User, api_service_server::ApiService as _,
+        },
+        test_utils::test::{
+            MockDBClient, MockUuidGenerator, assert_response, fixture_create_user_req,
+            fixture_user, fixture_uuid,
+        },
+    };
+
+    struct TestCaseCreateUser {
+        given_req: CreateUserReq,
+        given_db_insert_user: Result<(), DBError>,
+        want: Result<CreateUserResp, Code>,
+    }
+
+    impl Default for TestCaseCreateUser {
+        fn default() -> Self {
+            Self {
+                given_req: fixture_create_user_req(|_| {}),
+                given_db_insert_user: Ok(()),
+                want: Ok(CreateUserResp {
+                    user: Some(fixture_user(|_| {})),
+                }),
+            }
+        }
+    }
+
+    impl TestCaseCreateUser {
+        async fn run(self) {
+            // given
+            let db = MockDBClient {
+                insert_user: Mutex::new(Some(self.given_db_insert_user)),
+                ..Default::default()
+            };
+            let uuid = MockUuidGenerator::default();
+            let service = Handler { db, uuid };
+
+            // when
+            let req = Request::new(self.given_req);
+            let got = service.create_user(req).await;
+
+            // then
+            assert_response(got, self.want);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_user_happy_path() {
+        TestCaseCreateUser {
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_create_user_missing_name() {
+        TestCaseCreateUser {
+            given_req: fixture_create_user_req(|r| r.name = String::new()),
+            want: Err(Code::InvalidArgument),
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_create_user_missing_email() {
+        TestCaseCreateUser {
+            given_req: fixture_create_user_req(|r| r.email = String::new()),
+            want: Err(Code::InvalidArgument),
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_create_user_internal_error() {
+        TestCaseCreateUser {
+            given_db_insert_user: Err(DBError::Unknown),
+            want: Err(Code::Internal),
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    struct TestCaseGetUser {
+        given_id: String,
+        given_db_get_user: Result<User, DBError>,
+        want: Result<GetUserResp, Code>,
+    }
+
+    impl Default for TestCaseGetUser {
+        fn default() -> Self {
+            Self {
+                given_id: fixture_uuid().to_string(),
+                given_db_get_user: Ok(fixture_user(|_| {})),
+                want: Ok(GetUserResp {
+                    user: Some(fixture_user(|_| {})),
+                }),
+            }
+        }
+    }
+
+    impl TestCaseGetUser {
+        async fn run(self) {
+            // given
+            let db = MockDBClient {
+                get_user: Mutex::new(Some(self.given_db_get_user)),
+                ..Default::default()
+            };
+            let uuid = MockUuidGenerator::default();
+            let service = Handler { db, uuid };
+
+            // when
+            let req = Request::new(GetUserReq { id: self.given_id });
+            let got = service.get_user(req).await;
+
+            // then
+            assert_response(got, self.want);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_user_happy_path() {
+        TestCaseGetUser {
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user_missing_id() {
+        TestCaseGetUser {
+            given_id: String::new(),
+            want: Err(Code::InvalidArgument),
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user_not_a_uuid() {
+        TestCaseGetUser {
+            given_id: "not-uuid".to_string(),
+            want: Err(Code::InvalidArgument),
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user_not_found() {
+        TestCaseGetUser {
+            given_db_get_user: Err(DBError::NotFound),
+            want: Err(Code::NotFound),
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user_internal_error() {
+        TestCaseGetUser {
+            given_db_get_user: Err(DBError::Unknown),
+            want: Err(Code::Internal),
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    struct TestCaseGetUserIdFromGoogleId {
+        given_google_id: String,
+        given_db_get_user_id_from_google_id: Result<Uuid, DBError>,
+        want: Result<GetUserIdFromGoogleIdResp, Code>,
+    }
+
+    impl Default for TestCaseGetUserIdFromGoogleId {
+        fn default() -> Self {
+            Self {
+                given_google_id: fixture_uuid().to_string(),
+                given_db_get_user_id_from_google_id: Ok(fixture_uuid()),
+                want: Ok(GetUserIdFromGoogleIdResp {
+                    id: fixture_uuid().to_string(),
+                }),
+            }
+        }
+    }
+
+    impl TestCaseGetUserIdFromGoogleId {
+        async fn run(self) {
+            // given
+            let db = MockDBClient {
+                get_user_id_from_google_id: Mutex::new(Some(
+                    self.given_db_get_user_id_from_google_id,
+                )),
+                ..Default::default()
+            };
+            let uuid = MockUuidGenerator::default();
+            let service = Handler { db, uuid };
+
+            // when
+            let req = Request::new(GetUserIdFromGoogleIdReq {
+                google_id: self.given_google_id,
+            });
+            let got = service.get_user_id_from_google_id(req).await;
+
+            // then
+            assert_response(got, self.want);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_user_id_from_google_id_happy_path() {
+        TestCaseGetUserIdFromGoogleId {
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user_id_from_google_id_missing_id() {
+        TestCaseGetUserIdFromGoogleId {
+            given_google_id: String::new(),
+            want: Err(Code::InvalidArgument),
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user_id_from_google_id_not_found() {
+        TestCaseGetUserIdFromGoogleId {
+            given_db_get_user_id_from_google_id: Err(DBError::NotFound),
+            want: Err(Code::NotFound),
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user_id_from_google_id_internal_error() {
+        TestCaseGetUserIdFromGoogleId {
+            given_db_get_user_id_from_google_id: Err(DBError::Unknown),
+            want: Err(Code::Internal),
+            ..Default::default()
+        }
+        .run()
+        .await;
     }
 }

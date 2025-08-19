@@ -1,25 +1,45 @@
 use crate::error::DBError;
 use deadpool_postgres::Pool;
+use std::fmt::Debug;
 use tokio_postgres::Row;
+use tonic::async_trait;
 use uuid::Uuid;
 
 use crate::proto::User;
 
+#[async_trait]
+pub trait DBClient: Send + Sync + 'static {
+    async fn insert_user(
+        &self,
+        id: Uuid,
+        name: &str,
+        email: &str,
+        google_id: &str,
+    ) -> Result<(), DBError>;
+
+    async fn get_user(&self, id: Uuid) -> Result<User, DBError>;
+
+    async fn get_user_id_from_google_id(&self, google_id: &str) -> Result<Uuid, DBError>;
+}
+
 #[derive(Clone, Debug)]
-pub struct DBCLient {
+pub struct PostgresDBClient {
     pub pool: Pool,
 }
 
-impl DBCLient {
+impl PostgresDBClient {
     #[must_use]
     pub fn new(pool: Pool) -> Self {
         Self { pool }
     }
+}
 
+#[async_trait]
+impl DBClient for PostgresDBClient {
     /// # Errors
     /// - if the database connection cannot be established
     /// - if the database query fails
-    pub async fn insert_user(
+    async fn insert_user(
         &self,
         id: Uuid,
         name: &str,
@@ -42,7 +62,7 @@ impl DBCLient {
     /// - if the database connection cannot be established
     /// - if the database query fails
     /// - If the user is not found
-    pub async fn get_user(&self, id: Uuid) -> Result<User, DBError> {
+    async fn get_user(&self, id: Uuid) -> Result<User, DBError> {
         let client = self.pool.get().await?;
 
         let stmt = client
@@ -62,7 +82,7 @@ impl DBCLient {
     /// - if the database connection cannot be established
     /// - if the database query fails
     /// - If the user is not found
-    pub async fn get_user_id_from_google_id(&self, google_id: &str) -> Result<Uuid, DBError> {
+    async fn get_user_id_from_google_id(&self, google_id: &str) -> Result<Uuid, DBError> {
         let client = self.pool.get().await?;
 
         let stmt = client
