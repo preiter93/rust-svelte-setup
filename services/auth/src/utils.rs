@@ -1,6 +1,7 @@
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use std::collections::HashMap;
 use std::error::Error;
+use std::marker::PhantomData;
 
 use base64::Engine as _;
 use base64::prelude::BASE64_URL_SAFE_NO_PAD;
@@ -23,35 +24,56 @@ pub struct Session {
     pub user_id: String,
 }
 
-/// Generates cryptographically secure random strings.
-///
-/// [`Documentation`]: https://lucia-auth.com/sessions/basic
-#[must_use]
-pub fn generate_secure_random_string() -> String {
-    let mut rng = StdRng::from_os_rng();
+/// Trait for generating cryptographically secure random strings.
+pub trait RandomStringGenerator: Send + Sync + 'static {
+    /// Generates a cryptographically secure random alphanumeric string.
+    fn generate_secure_random_string() -> String;
 
-    Alphanumeric.sample_string(&mut rng, 24)
+    /// Generates the oauth state/csrf token.
+    fn generate_random_base64_encoded_string(num_bytes: usize) -> String;
 }
 
-/// Generates the oauth state/csrf token.
-#[must_use]
-pub fn generate_random_base64_encoded_string(num_bytes: usize) -> String {
-    let random_bytes: Vec<u8> = (0..num_bytes).map(|_| rand::rng().random()).collect();
-    BASE64_URL_SAFE_NO_PAD.encode(&random_bytes[..])
+/// The default random string generator using [`StdRng`].
+pub struct StdRandomStringGenerator;
+
+impl RandomStringGenerator for StdRandomStringGenerator {
+    /// Generates cryptographically secure random strings.
+    ///
+    /// [`Documentation`]: https://lucia-auth.com/sessions/basic
+    fn generate_secure_random_string() -> String {
+        let mut rng = StdRng::from_os_rng();
+        Alphanumeric.sample_string(&mut rng, 24)
+    }
+
+    /// Generates the oauth state/csrf token.
+    fn generate_random_base64_encoded_string(num_bytes: usize) -> String {
+        let random_bytes: Vec<u8> = (0..num_bytes).map(|_| rand::rng().random()).collect();
+        BASE64_URL_SAFE_NO_PAD.encode(&random_bytes)
+    }
 }
 
-pub(crate) struct OAuth;
-impl OAuth {
+#[derive(Default, Clone)]
+pub(crate) struct OAuth<R> {
+    _phantom: PhantomData<R>,
+}
+
+impl<R: RandomStringGenerator> OAuth<R> {
+    pub(crate) fn new() -> Self {
+        Self {
+            _phantom: PhantomData,
+        }
+    }
+
     /// Generates the oauth state/csrf token.
     #[must_use]
     pub fn generate_state() -> String {
-        generate_random_base64_encoded_string(32)
+        R::generate_random_base64_encoded_string(32)
     }
 
     /// Generates the oauth code verifier.
     #[must_use]
     pub fn generate_code_verifier() -> String {
-        generate_random_base64_encoded_string(32)
+        R::generate_random_base64_encoded_string(32)
     }
 
     /// Creates a S256 code challenge.
@@ -99,14 +121,14 @@ pub struct Oauth2TokenClaims {
 }
 
 #[derive(Clone)]
-pub(crate) struct GoogleOAuth {
+pub(crate) struct GoogleOAuth<R> {
     client_id: String,
     client_secret: String,
     redirect_uri: String,
+    _phantom: PhantomData<R>,
 }
-impl GoogleOAuth {}
 
-impl GoogleOAuth {
+impl<R: RandomStringGenerator> GoogleOAuth<R> {
     const AUTHORIZATION_ENDPOINT: &'static str = "https://accounts.google.com/o/oauth2/v2/auth";
     const TOKEN_ENDPOINT: &'static str = "https://oauth2.googleapis.com/token";
     const TOKEN_REVOCATION_ENDPOINT: &'static str = "https://oauth2.googleapis.com/revoke";
@@ -118,6 +140,7 @@ impl GoogleOAuth {
             client_id,
             client_secret,
             redirect_uri,
+            _phantom: PhantomData,
         }
     }
 
@@ -129,7 +152,7 @@ impl GoogleOAuth {
         code_verifier: &str,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let scopes = ["openid", "profile", "email"];
-        let code_challenge = OAuth::create_s256_code_challenge(code_verifier);
+        let code_challenge = OAuth::<R>::create_s256_code_challenge(code_verifier);
         let params = [
             ("response_type", "code"),
             ("client_id", &self.client_id),
@@ -156,7 +179,7 @@ impl GoogleOAuth {
         params.insert("code".to_string(), code.to_owned());
         params.insert("code_verifier".to_string(), code_verifier.to_owned());
 
-        let request = OAuth::create_oauth2_request(token_endpoint, params)?;
+        let request = OAuth::<R>::create_oauth2_request(token_endpoint, params)?;
         let request = request
             .basic_auth(&self.client_id, Some(&self.client_secret))
             .build()?;

@@ -8,7 +8,7 @@
 //!
 //! # Further readings
 //! <https://lucia-auth.com/sessions/basic>
-use crate::db::DBClient;
+use crate::{db::DBClient, utils::RandomStringGenerator};
 use chrono::{DateTime, Utc};
 use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
 use tonic::{Request, Response, Status};
@@ -24,21 +24,22 @@ use crate::{
         StartGoogleLoginResp, ValidateSessionReq, ValidateSessionResp,
         api_service_server::ApiService,
     },
-    utils::{GoogleOAuth, OAuth, constant_time_equal, generate_secure_random_string, hash_secret},
+    utils::{GoogleOAuth, OAuth, constant_time_equal, hash_secret},
 };
 
 #[derive(Clone)]
-pub struct Handler<D> {
+pub struct Handler<D, R> {
     pub db: D,
-    pub google: GoogleOAuth,
+    pub google: GoogleOAuth<R>,
 }
 
 type SessionToken = String;
 
 #[tonic::async_trait]
-impl<D> ApiService for Handler<D>
+impl<D, R> ApiService for Handler<D, R>
 where
     D: DBClient,
+    R: RandomStringGenerator,
 {
     /// Creates a new session.
     ///
@@ -59,8 +60,8 @@ where
 
         let now: DateTime<Utc> = Utc::now();
 
-        let id = generate_secure_random_string();
-        let secret = generate_secure_random_string();
+        let id = R::generate_secure_random_string();
+        let secret = R::generate_secure_random_string();
         let secret_hash = hash_secret(&secret);
 
         self.db
@@ -169,7 +170,10 @@ where
         &self,
         _: Request<StartGoogleLoginReq>,
     ) -> Result<Response<StartGoogleLoginResp>, Status> {
-        let (state, code_verifier) = (OAuth::generate_state(), OAuth::generate_code_verifier());
+        let (state, code_verifier) = (
+            OAuth::<R>::generate_state(),
+            OAuth::<R>::generate_code_verifier(),
+        );
 
         let authorization_url = self
             .google
