@@ -2,25 +2,46 @@ use crate::{error::DBError, utils::Session};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
+use tonic::async_trait;
+
+#[async_trait]
+pub trait DBClient: Send + Sync + 'static {
+    async fn insert_session(
+        &self,
+        id: &str,
+        secret_hash: &[u8],
+        user_id: &str,
+        created_at: DateTime<Utc>,
+    ) -> Result<(), DBError>;
+
+    async fn get_session(&self, id: &str) -> Result<Session, DBError>;
+
+    async fn delete_session(&self, id: &str) -> Result<(), DBError>;
+
+    async fn update_session(&self, id: &str, expires_at: &DateTime<Utc>) -> Result<(), DBError>;
+}
 
 #[derive(Clone)]
-pub struct DBCLient {
+pub struct PostgresDBClient {
     pub pool: Pool,
 }
 
-impl DBCLient {
+impl PostgresDBClient {
     /// Creates a new `DBClient`.
     #[must_use]
     pub fn new(pool: Pool) -> Self {
         Self { pool }
     }
+}
 
+#[async_trait]
+impl DBClient for PostgresDBClient {
     /// Inserts a session into the database.
     ///
     /// # Errors
     /// - database connection cannot be established
     /// - executing database statement fails
-    pub async fn insert_session(
+    async fn insert_session(
         &self,
         id: &str,
         secret_hash: &[u8],
@@ -46,7 +67,7 @@ impl DBCLient {
     /// - not found
     /// - database connection cannot be established
     /// - executing database statement fails
-    pub async fn get_session(&self, id: &str) -> Result<Session, DBError> {
+    async fn get_session(&self, id: &str) -> Result<Session, DBError> {
         let client = self.pool.get().await?;
 
         let stmt = client
@@ -77,7 +98,7 @@ impl DBCLient {
     /// # Errors
     /// - database connection cannot be established
     /// - executing database statement fails
-    pub async fn delete_session(&self, id: &str) -> Result<(), DBError> {
+    async fn delete_session(&self, id: &str) -> Result<(), DBError> {
         let client = self.pool.get().await?;
 
         client
@@ -92,11 +113,7 @@ impl DBCLient {
     /// # Errors
     /// - database connection cannot be established
     /// - executing database statement fails
-    pub async fn update_session(
-        &self,
-        id: &str,
-        expires_at: &DateTime<Utc>,
-    ) -> Result<(), DBError> {
+    async fn update_session(&self, id: &str, expires_at: &DateTime<Utc>) -> Result<(), DBError> {
         let client = self.pool.get().await?;
 
         client
@@ -107,5 +124,58 @@ impl DBCLient {
             .await?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use tokio::sync::Mutex;
+    use tonic::async_trait;
+
+    use super::*;
+
+    use crate::error::DBError;
+
+    pub struct MockDBClient {
+        pub insert_session: Mutex<Option<Result<(), DBError>>>,
+        pub get_session: Mutex<Option<Result<Session, DBError>>>,
+        pub delete_session: Mutex<Option<Result<(), DBError>>>,
+        pub update_session: Mutex<Option<Result<(), DBError>>>,
+    }
+
+    impl Default for MockDBClient {
+        fn default() -> Self {
+            Self {
+                insert_session: Mutex::new(None),
+                get_session: Mutex::new(None),
+                delete_session: Mutex::new(None),
+                update_session: Mutex::new(None),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl DBClient for MockDBClient {
+        async fn insert_session(
+            &self,
+            _: &str,
+            _: &[u8],
+            _: &str,
+            _: DateTime<Utc>,
+        ) -> Result<(), DBError> {
+            self.insert_session.lock().await.take().unwrap()
+        }
+
+        async fn get_session(&self, _: &str) -> Result<Session, DBError> {
+            self.get_session.lock().await.take().unwrap()
+        }
+
+        async fn delete_session(&self, _: &str) -> Result<(), DBError> {
+            self.delete_session.lock().await.take().unwrap()
+        }
+
+        async fn update_session(&self, _: &str, _: &DateTime<Utc>) -> Result<(), DBError> {
+            self.update_session.lock().await.take().unwrap()
+        }
     }
 }

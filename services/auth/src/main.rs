@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use crate::{
-    db::DBCLient, handler::Handler, proto::api_service_server::ApiServiceServer, utils::GoogleOAuth,
+    db::PostgresDBClient, handler::Handler, proto::api_service_server::ApiServiceServer,
+    utils::GoogleOAuth,
 };
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
@@ -30,7 +31,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     run_db_migrations!(pool, "./migrations");
 
     let server = Handler {
-        db: DBCLient::new(pool),
+        db: PostgresDBClient::new(pool),
         google: GoogleOAuth::new(
             cfg.google_client_id,
             cfg.google_client_secret,

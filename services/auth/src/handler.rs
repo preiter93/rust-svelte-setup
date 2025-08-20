@@ -8,13 +8,13 @@
 //!
 //! # Further readings
 //! <https://lucia-auth.com/sessions/basic>
+use crate::db::DBClient;
 use chrono::{DateTime, Utc};
 use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
 use crate::{
-    db::DBCLient,
     error::{
         CreateSessionErr, DBError, HandleGoogleCallbackErr, StartGoogleLoginErr, ValidateSessionErr,
     },
@@ -28,15 +28,18 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Handler {
-    pub db: DBCLient,
+pub struct Handler<D> {
+    pub db: D,
     pub google: GoogleOAuth,
 }
 
 type SessionToken = String;
 
 #[tonic::async_trait]
-impl ApiService for Handler {
+impl<D> ApiService for Handler<D>
+where
+    D: DBClient,
+{
     /// Creates a new session.
     ///
     /// # Errors
@@ -107,7 +110,7 @@ impl ApiService for Handler {
             return Err(ValidateSessionErr::Expired.into());
         }
 
-        let mut should_refresh_cookie = true; // BOOOOOOM
+        let mut should_refresh_cookie = false;
         if session.expires_at.signed_duration_since(Utc::now()) < SESSION_TOKEN_EXPIRY_DURATION / 2
         {
             if let Some(new_expiry) = Utc::now().checked_add_signed(SESSION_TOKEN_EXPIRY_DURATION) {

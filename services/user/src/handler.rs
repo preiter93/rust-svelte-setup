@@ -14,13 +14,17 @@ use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Clone)]
-pub(crate) struct Handler<D: DBClient, U: UuidGenerator> {
+pub(crate) struct Handler<D, U> {
     pub db: D,
     pub uuid: U,
 }
 
 #[tonic::async_trait]
-impl<D: DBClient, U: UuidGenerator> ApiService for Handler<D, U> {
+impl<D, U> ApiService for Handler<D, U>
+where
+    D: DBClient,
+    U: UuidGenerator,
+{
     /// Creates a new user.
     ///
     /// # Errors
