@@ -118,15 +118,15 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
+        db::test::MockDBClient,
         error::DBError,
         handler::Handler,
         proto::{
             CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp,
             GetUserReq, GetUserResp, User, api_service_server::ApiService as _,
         },
-        test_utils::test::{
-            MockDBClient, MockUuidGenerator, assert_response, fixture_create_user_req,
-            fixture_user, fixture_uuid,
+        utils::test::{
+            MockUuidGenerator, assert_response, fixture_create_user_req, fixture_user, fixture_uuid,
         },
     };
 

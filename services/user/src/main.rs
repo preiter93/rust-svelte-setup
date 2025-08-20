@@ -3,8 +3,6 @@ pub mod error;
 pub mod handler;
 #[allow(clippy::all)]
 pub mod proto;
-#[cfg(test)]
-pub mod test_utils;
 pub mod utils;
 
 use crate::{handler::Handler, utils::UuidV4Generator};

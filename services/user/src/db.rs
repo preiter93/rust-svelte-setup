@@ -114,3 +114,45 @@ impl TryFrom<Row> for User {
         })
     }
 }
+
+#[cfg(test)]
+pub mod test {
+    use crate::proto::User;
+    use tokio::sync::Mutex;
+    use tonic::async_trait;
+    use uuid::Uuid;
+
+    use super::*;
+
+    use crate::error::DBError;
+
+    pub struct MockDBClient {
+        pub get_user: Mutex<Option<Result<User, DBError>>>,
+        pub insert_user: Mutex<Option<Result<(), DBError>>>,
+        pub get_user_id_from_google_id: Mutex<Option<Result<Uuid, DBError>>>,
+    }
+    impl Default for MockDBClient {
+        fn default() -> Self {
+            Self {
+                insert_user: Mutex::new(None),
+                get_user: Mutex::new(None),
+                get_user_id_from_google_id: Mutex::new(None),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl DBClient for MockDBClient {
+        async fn insert_user(&self, _: Uuid, _: &str, _: &str, _: &str) -> Result<(), DBError> {
+            self.insert_user.lock().await.take().unwrap()
+        }
+
+        async fn get_user(&self, _: Uuid) -> Result<User, DBError> {
+            self.get_user.lock().await.take().unwrap()
+        }
+
+        async fn get_user_id_from_google_id(&self, _: &str) -> Result<Uuid, DBError> {
+            self.get_user_id_from_google_id.lock().await.take().unwrap()
+        }
+    }
+}
