@@ -128,7 +128,7 @@ impl DBClient for PostgresDBClient {
 }
 
 #[cfg(test)]
-pub mod test {
+pub(crate) mod test {
     use tokio::sync::Mutex;
     use tonic::async_trait;
 
@@ -136,11 +136,11 @@ pub mod test {
 
     use crate::error::DBError;
 
-    pub struct MockDBClient {
-        pub insert_session: Mutex<Option<Result<(), DBError>>>,
-        pub get_session: Mutex<Option<Result<Session, DBError>>>,
-        pub delete_session: Mutex<Option<Result<(), DBError>>>,
-        pub update_session: Mutex<Option<Result<(), DBError>>>,
+    pub(crate) struct MockDBClient {
+        pub(crate) insert_session: Mutex<Option<Result<(), DBError>>>,
+        pub(crate) get_session: Mutex<Option<Result<Session, DBError>>>,
+        pub(crate) delete_session: Mutex<Option<Result<(), DBError>>>,
+        pub(crate) update_session: Mutex<Option<Result<(), DBError>>>,
     }
 
     impl Default for MockDBClient {
