@@ -5,9 +5,12 @@ use crate::{
     proto::api_service_server::ApiServiceServer,
     utils::{GoogleOAuth, StdRandomStringGenerator},
 };
+use auth::SERVICE_NAME;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
-use shared::{middleware::TracingGrpcServiceLayer, run_db_migrations, tracing::init_tracer};
+use shared::{
+    middleware::TracingGrpcServiceLayer, patched_host, run_db_migrations, tracing::init_tracer,
+};
 use std::error::Error;
 use tonic::transport::Server;
 
@@ -19,7 +22,6 @@ pub(crate) mod proto;
 pub(crate) mod utils;
 
 const GRPC_PORT: &str = "50051";
-const SERVICE_NAME: &'static str = "auth";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -70,17 +72,16 @@ impl Config {
     }
 
     pub fn from_env() -> Self {
-        let pg_port_str = Self::must_get_env("PG_PORT");
+        let pg_port = Self::must_get_env("PG_PORT")
+            .parse()
+            .expect("failed to parse PG_PORT");
+
         Self {
             pg_dbname: format!("{SERVICE_NAME}_db"),
             pg_password: Self::must_get_env("PG_PASSWORD"),
             pg_user: Self::must_get_env("PG_USER"),
-            pg_host: if std::env::var("LOCAL").unwrap_or_default() == "true" {
-                Self::must_get_env("PG_HOST_LOCAL")
-            } else {
-                Self::must_get_env("PG_HOST_REMOTE")
-            },
-            pg_port: pg_port_str.parse().expect("failed to parse PG_PORT"),
+            pg_host: patched_host(Self::must_get_env("PG_HOST")),
+            pg_port,
             google_client_id: Self::must_get_env("GOOGLE_CLIENT_ID"),
             google_client_secret: Self::must_get_env("GOOGLE_CLIENT_SECRET"),
             google_redirect_uri: Self::must_get_env("GOOGLE_REDIRECT_URI"),
@@ -105,5 +106,7 @@ fn connect_to_db(cfg: &Config) -> Result<Pool, Box<dyn Error>> {
         },
     );
 
-    Ok(Pool::builder(manager).build()?)
+    Ok(Pool::builder(manager)
+        .build()
+        .map_err(|e| format!("failed to connect to db: {e}"))?)
 }

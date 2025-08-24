@@ -7,6 +7,7 @@ services:
       dockerfile: ./Dockerfile
       args:
         SERVICE_NAME: gateway
+    image: services_gateway:latest
     ports:
       - 3000:3000
     depends_on:
@@ -27,6 +28,7 @@ services:
         - PG_DBNAME=auth_db
       args:
         SERVICE_NAME: auth
+    image: services_auth:latest
     networks:
       - shared_network
 
@@ -42,6 +44,7 @@ services:
         - PG_DBNAME=user_db
       args:
         SERVICE_NAME: user
+    image: services_user:latest
     networks:
       - shared_network
 

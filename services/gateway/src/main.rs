@@ -3,12 +3,10 @@ mod handler;
 mod service;
 mod utils;
 
+use crate::handler::{
+    Handler, get_current_user, handle_google_callback, logout_user, start_google_login,
+};
 use auth::AuthClient;
-use handler::Handler;
-use shared::middleware::{TracingHttpServiceLayer, auth::SessionAuthLayer};
-use shared::tracing::init_tracer;
-
-use crate::handler::{get_current_user, handle_google_callback, logout_user, start_google_login};
 use axum::{
     Router,
     http::{
@@ -17,14 +15,16 @@ use axum::{
     },
     routing::{get, post},
 };
-use std::error::Error;
+use shared::middleware::{TracingHttpServiceLayer, auth::SessionAuthLayer};
+use shared::tracing::init_tracer;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
 
 const SERVICE_NAME: &'static str = "gateway";
+const ADDRESS: &'static str = "0.0.0.0:3000";
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tracer = init_tracer(SERVICE_NAME)?;
 
     let cors = CorsLayer::new()
@@ -51,10 +51,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     ));
     router = router.layer(cors).layer(TracingHttpServiceLayer);
 
-    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("listening on {}", listener.local_addr().unwrap());
+    let listener = TcpListener::bind(ADDRESS).await?;
+    println!("listening on :{}", listener.local_addr()?);
 
-    axum::serve(listener, router).await.unwrap();
+    axum::serve(listener, router).await?;
 
     tracer.shutdown()?;
 

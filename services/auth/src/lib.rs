@@ -7,6 +7,7 @@ use crate::proto::{
 };
 use shared::middleware::auth::AuthenticatedSession;
 use shared::middleware::tracing::TracingServiceClient;
+use shared::patched_host;
 use shared::{
     middleware::{SessionAuthClient, auth::AuthenticateSessionErr},
     session::SessionState,
@@ -18,6 +19,7 @@ use tonic::{
 };
 
 const GRPC_PORT: &str = "50051";
+pub const SERVICE_NAME: &str = "auth";
 
 #[derive(Clone)]
 pub struct AuthClient(ApiServiceClient<TracingServiceClient<Channel>>);
@@ -25,12 +27,8 @@ pub struct AuthClient(ApiServiceClient<TracingServiceClient<Channel>>);
 impl AuthClient {
     /// Creates a new [`AuthClient`].
     pub async fn new() -> Result<Self, Box<dyn Error>> {
-        let endpoint_url = if std::env::var("LOCAL").unwrap_or_default() == "true" {
-            format!("http://localhost:{GRPC_PORT}")
-        } else {
-            format!("http://auth:{GRPC_PORT}")
-        };
-        let endpoint = Endpoint::from_str(&endpoint_url)?;
+        let host = patched_host(String::from(SERVICE_NAME));
+        let endpoint = Endpoint::from_str(&format!("http://{host}:{GRPC_PORT}"))?;
         let channel = endpoint.connect().await?;
         let client = TracingServiceClient::new(channel);
         let client = ApiServiceClient::new(client);
