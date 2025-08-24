@@ -33,10 +33,10 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Handler<D, R, Now> {
+pub struct Handler<D, R, N> {
     pub db: D,
     pub google: GoogleOAuth<R>,
-    _now: PhantomData<Now>,
+    _now: PhantomData<N>,
 }
 
 impl<D, R> Handler<D, R, SystemNow> {
@@ -75,14 +75,12 @@ where
             return Err(CreateSessionErr::MissingUserUID.into());
         }
 
-        let now = N::now();
-
         let id = R::generate_secure_random_string();
         let secret = R::generate_secure_random_string();
         let secret_hash = hash_secret(&secret);
 
         self.db
-            .insert_session(&id, &secret_hash, &req.user_id, now)
+            .insert_session(&id, &secret_hash, &req.user_id, N::now())
             .await
             .map_err(CreateSessionErr::Database)?;
 
@@ -249,7 +247,7 @@ pub(crate) mod tests {
     use crate::utils::{
         Session,
         tests::{
-            MockRandomStringGenerator, MockUTC, assert_response, fixture_session, fixture_token,
+            MockNow, MockRandomStringGenerator, assert_response, fixture_session, fixture_token,
         },
     };
     use chrono::TimeZone;
@@ -287,11 +285,10 @@ pub(crate) mod tests {
                 insert_session: Mutex::new(Some(self.given_db_insert_session)),
                 ..Default::default()
             };
-            let google = GoogleOAuth::<MockRandomStringGenerator>::default();
             let service = Handler {
                 db,
-                google,
-                _now: PhantomData::<MockUTC>,
+                google: GoogleOAuth::<MockRandomStringGenerator>::default(),
+                _now: PhantomData::<MockNow>,
             };
 
             // when
@@ -361,11 +358,10 @@ pub(crate) mod tests {
                 delete_session: Mutex::new(Some(self.given_db_delete_session)),
                 ..Default::default()
             };
-            let google = GoogleOAuth::<MockRandomStringGenerator>::default();
             let service = Handler {
                 db,
-                google,
-                _now: PhantomData::<MockUTC>,
+                google: GoogleOAuth::<MockRandomStringGenerator>::default(),
+                _now: PhantomData::<MockNow>,
             };
 
             // when
@@ -453,11 +449,10 @@ pub(crate) mod tests {
                 update_session: Mutex::new(Some(Ok(()))),
                 ..Default::default()
             };
-            let google = GoogleOAuth::<MockRandomStringGenerator>::default();
             let service = Handler {
                 db,
-                google,
-                _now: PhantomData::<MockUTC>,
+                google: GoogleOAuth::<MockRandomStringGenerator>::default(),
+                _now: PhantomData::<MockNow>,
             };
 
             // when

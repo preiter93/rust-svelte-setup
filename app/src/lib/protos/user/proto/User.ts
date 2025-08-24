@@ -1,4 +1,4 @@
-// Original file: /Users/philippreiter/Svelte/sveltekit-rust-setup/services/user/api.proto
+// Original file: /Users/philippreiter/Svelte/rust-svelte-setup/services/user/api.proto
 
 
 export interface User {

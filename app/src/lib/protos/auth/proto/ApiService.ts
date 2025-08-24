@@ -1,4 +1,4 @@
-// Original file: /Users/philippreiter/Svelte/sveltekit-rust-setup/services/auth/api.proto
+// Original file: /Users/philippreiter/Svelte/rust-svelte-setup/services/auth/api.proto
 
 import type * as grpc from '@grpc/grpc-js'
 import type { MethodDefinition } from '@grpc/proto-loader'

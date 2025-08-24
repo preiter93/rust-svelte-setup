@@ -1,4 +1,4 @@
-# sveltekit-rust-setup
+# rust-svelte-setup
 
 ## Connect to database
 

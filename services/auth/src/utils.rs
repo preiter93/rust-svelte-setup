@@ -322,9 +322,9 @@ pub(crate) mod tests {
         }
     }
 
-    pub struct MockUTC(chrono::DateTime<Utc>);
+    pub struct MockNow(chrono::DateTime<Utc>);
 
-    impl Now for MockUTC {
+    impl Now for MockNow {
         fn now() -> chrono::DateTime<chrono::Utc> {
             chrono::Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
         }
