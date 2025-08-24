@@ -11,12 +11,12 @@ use shared::{middleware::TracingGrpcServiceLayer, run_db_migrations, tracing::in
 use std::error::Error;
 use tonic::transport::Server;
 
-mod db;
-mod error;
-mod handler;
+pub(crate) mod db;
+pub(crate) mod error;
+pub(crate) mod handler;
 #[allow(clippy::all)]
-pub mod proto;
-mod utils;
+pub(crate) mod proto;
+pub(crate) mod utils;
 
 const GRPC_PORT: &str = "50051";
 const SERVICE_NAME: &'static str = "auth";
@@ -32,14 +32,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pool = connect_to_db(&cfg)?;
     run_db_migrations!(pool, "./migrations");
 
-    let server = Handler {
-        db: PostgresDBClient::new(pool),
-        google: GoogleOAuth::<StdRandomStringGenerator>::new(
+    let server = Handler::new(
+        PostgresDBClient::new(pool),
+        GoogleOAuth::<StdRandomStringGenerator>::new(
             cfg.google_client_id,
             cfg.google_client_secret,
             cfg.google_redirect_uri,
         ),
-    };
+    );
 
     let address = format!("0.0.0.0:{GRPC_PORT}").parse()?;
     let service = ApiServiceServer::new(server);

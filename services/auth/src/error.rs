@@ -25,6 +25,9 @@ impl From<CreateSessionErr> for Status {
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ValidateSessionErr {
+    #[error("missing token")]
+    MissingToken,
+
     #[error("invalid token format")]
     InvalidFormat,
 
@@ -44,8 +47,10 @@ pub enum ValidateSessionErr {
 impl From<ValidateSessionErr> for Status {
     fn from(err: ValidateSessionErr) -> Self {
         let code = match err {
-            ValidateSessionErr::InvalidFormat
-            | ValidateSessionErr::SecretMismatch
+            ValidateSessionErr::InvalidFormat | ValidateSessionErr::MissingToken => {
+                Code::InvalidArgument
+            }
+            ValidateSessionErr::SecretMismatch
             | ValidateSessionErr::Expired
             | ValidateSessionErr::NotFound => Code::Unauthenticated,
             ValidateSessionErr::Database(_) => Code::Internal,
@@ -58,6 +63,9 @@ impl From<ValidateSessionErr> for Status {
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum DeleteSessionErr {
+    #[error("missing token")]
+    MissingToken,
+
     #[error("invalid token format")]
     InvalidFormat,
 
@@ -68,7 +76,9 @@ pub enum DeleteSessionErr {
 impl From<DeleteSessionErr> for Status {
     fn from(err: DeleteSessionErr) -> Self {
         let code = match err {
-            DeleteSessionErr::InvalidFormat => Code::Unauthenticated,
+            DeleteSessionErr::MissingToken | DeleteSessionErr::InvalidFormat => {
+                Code::InvalidArgument
+            }
             DeleteSessionErr::Database(_) => Code::Internal,
         };
         Status::new(code, err.to_string())
@@ -115,6 +125,9 @@ impl From<HandleGoogleCallbackErr> for Status {
 // Database error
 #[derive(Debug, Error)]
 pub enum DBError {
+    #[error("An unknown error occured")]
+    Unknown,
+
     #[error("Database error: {0}")]
     Error(#[from] tokio_postgres::Error),
 

@@ -33,6 +33,21 @@ pub trait RandomStringGenerator: Send + Sync + 'static {
     fn generate_random_base64_encoded_string(num_bytes: usize) -> String;
 }
 
+/// Trait for providing the current UTC time.
+pub trait Now: Send + Sync + 'static {
+    /// Returns the current UTC time.
+    fn now() -> chrono::DateTime<chrono::Utc>;
+}
+
+/// Implementation of `UTC` that returns the actual current time.
+pub struct SystemNow;
+
+impl Now for SystemNow {
+    fn now() -> chrono::DateTime<chrono::Utc> {
+        chrono::Utc::now()
+    }
+}
+
 /// The default random string generator using [`StdRng`].
 pub struct StdRandomStringGenerator;
 
@@ -120,7 +135,7 @@ pub struct Oauth2TokenClaims {
     pub exp: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct GoogleOAuth<R> {
     client_id: String,
     client_secret: String,
@@ -266,4 +281,64 @@ async fn get_jwks(endpoint: &str) -> Result<Jwks, Box<dyn std::error::Error>> {
     let client = Client::new();
     let res = client.get(endpoint).send().await?.json::<Jwks>().await?;
     Ok(res)
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use chrono::TimeZone;
+    use tonic::{Code, Response, Status};
+
+    use super::*;
+
+    pub(crate) fn fixture_token() -> String {
+        "random.random".to_string()
+    }
+
+    pub(crate) fn fixture_session<F>(mut func: F) -> Session
+    where
+        F: FnMut(&mut Session),
+    {
+        let mut session = Session {
+            id: "session-id".to_string(),
+            secret_hash: hash_secret("random"),
+            created_at: chrono::Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
+            expires_at: chrono::Utc.with_ymd_and_hms(2021, 1, 1, 0, 0, 0).unwrap(),
+            user_id: "user-id".to_string(),
+        };
+        func(&mut session);
+        session
+    }
+
+    #[derive(Default)]
+    pub(crate) struct MockRandomStringGenerator;
+
+    impl RandomStringGenerator for MockRandomStringGenerator {
+        fn generate_secure_random_string() -> String {
+            "random".to_string()
+        }
+
+        fn generate_random_base64_encoded_string(_: usize) -> String {
+            "random-encoded".to_string()
+        }
+    }
+
+    pub struct MockUTC(chrono::DateTime<Utc>);
+
+    impl Now for MockUTC {
+        fn now() -> chrono::DateTime<chrono::Utc> {
+            chrono::Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
+        }
+    }
+
+    pub(crate) fn assert_response<T: PartialEq + std::fmt::Debug>(
+        got: Result<Response<T>, Status>,
+        want: Result<T, Code>,
+    ) {
+        match (got, want) {
+            (Ok(got), Ok(want)) => assert_eq!(got.into_inner(), want),
+            (Err(got), Err(want)) => assert_eq!(got.code(), want),
+            (Ok(got), Err(want)) => panic!("left: {got:?}\nright: {want}"),
+            (Err(got), Ok(want)) => panic!("left: {got}\nright: {want:?}"),
+        }
+    }
 }
