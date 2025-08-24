@@ -422,6 +422,8 @@ pub(crate) mod tests {
     struct ValidateSessionTestCase {
         given_req: ValidateSessionReq,
         given_db_get_session: Result<Session, DBError>,
+        want_update_session_count: usize,
+        want_delete_session_count: usize,
         want_resp: Result<ValidateSessionResp, Code>,
     }
 
@@ -432,6 +434,8 @@ pub(crate) mod tests {
                     token: fixture_token(),
                 },
                 given_db_get_session: Ok(fixture_session(|_| {})),
+                want_update_session_count: 0,
+                want_delete_session_count: 0,
                 want_resp: Ok(ValidateSessionResp {
                     user_id: "user-id".to_string(),
                     should_refresh_cookie: false,
@@ -461,6 +465,18 @@ pub(crate) mod tests {
 
             // then
             assert_response(got, self.want_resp);
+
+            assert_eq!(
+                *service.db.update_session_count.lock().await,
+                self.want_update_session_count,
+                "update_session_count mismatch",
+            );
+
+            assert_eq!(
+                *service.db.delete_session_count.lock().await,
+                self.want_delete_session_count,
+                "delete_session_count mismatch",
+            );
         }
     }
 
@@ -516,6 +532,7 @@ pub(crate) mod tests {
             given_db_get_session: Ok(fixture_session(|session| {
                 session.expires_at = chrono::Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap();
             })),
+            want_delete_session_count: 1,
             want_resp: Err(Code::Unauthenticated),
             ..Default::default()
         }
@@ -529,6 +546,7 @@ pub(crate) mod tests {
             given_db_get_session: Ok(fixture_session(|session| {
                 session.expires_at = chrono::Utc.with_ymd_and_hms(2020, 1, 2, 0, 0, 0).unwrap();
             })),
+            want_update_session_count: 1,
             want_resp: Ok(ValidateSessionResp {
                 user_id: "user-id".to_string(),
                 should_refresh_cookie: true,

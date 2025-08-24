@@ -129,6 +129,8 @@ impl DBClient for PostgresDBClient {
 
 #[cfg(test)]
 pub(crate) mod test {
+    use std::sync::Arc;
+
     use tokio::sync::Mutex;
     use tonic::async_trait;
 
@@ -141,6 +143,8 @@ pub(crate) mod test {
         pub(crate) get_session: Mutex<Option<Result<Session, DBError>>>,
         pub(crate) delete_session: Mutex<Option<Result<(), DBError>>>,
         pub(crate) update_session: Mutex<Option<Result<(), DBError>>>,
+        pub(crate) update_session_count: Arc<Mutex<usize>>,
+        pub(crate) delete_session_count: Arc<Mutex<usize>>,
     }
 
     impl Default for MockDBClient {
@@ -150,6 +154,8 @@ pub(crate) mod test {
                 get_session: Mutex::new(None),
                 delete_session: Mutex::new(None),
                 update_session: Mutex::new(None),
+                update_session_count: Arc::new(Mutex::new(0)),
+                delete_session_count: Arc::new(Mutex::new(0)),
             }
         }
     }
@@ -171,10 +177,14 @@ pub(crate) mod test {
         }
 
         async fn delete_session(&self, _: &str) -> Result<(), DBError> {
+            let mut count = self.delete_session_count.lock().await;
+            *count += 1;
             self.delete_session.lock().await.take().unwrap()
         }
 
         async fn update_session(&self, _: &str, _: &DateTime<Utc>) -> Result<(), DBError> {
+            let mut count = self.update_session_count.lock().await;
+            *count += 1;
             self.update_session.lock().await.take().unwrap()
         }
     }
