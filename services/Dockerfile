@@ -1,6 +1,3 @@
-# Usage:
-# docker build --build-arg SERVICE_NAME=gateway -t srb/gateway .
-
 ARG SERVICE_NAME
 
 FROM lukemathwalker/cargo-chef:latest-rust-1.88-bookworm as chef
