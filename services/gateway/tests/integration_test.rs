@@ -1,21 +1,12 @@
 use reqwest::Client;
 
-use crate::utils::{
-    create_authenticated_user,
-    testcontainers::{TestContainers, get_test_containers},
-};
+use crate::utils::{create_authenticated_user, testcontainers::get_test_containers};
 
 mod utils;
 
 #[tokio::test]
-async fn test_main() {
+async fn test_get_current_user_authenticated() {
     let containers = get_test_containers().await;
-
-    test_get_current_user_authenticated(&containers).await;
-    test_get_current_user_unauthenticated(&containers).await;
-}
-
-async fn test_get_current_user_authenticated(containers: &TestContainers) {
     let authenticated_user = create_authenticated_user(&containers).await.unwrap();
     let uri = containers.gateway_uri().await;
 
@@ -34,7 +25,9 @@ async fn test_get_current_user_authenticated(containers: &TestContainers) {
     );
 }
 
-async fn test_get_current_user_unauthenticated(containers: &TestContainers) {
+#[tokio::test]
+async fn test_get_current_user_unauthenticated() {
+    let containers = get_test_containers().await;
     let uri = containers.gateway_uri().await;
 
     let resp = Client::new()

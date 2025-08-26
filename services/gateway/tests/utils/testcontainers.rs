@@ -1,13 +1,13 @@
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, OnceLock, Weak},
+    time::Duration,
+};
 use testcontainers::{core::ContainerPort, runners::AsyncRunner};
 use tokio::io::AsyncBufReadExt;
 
 use testcontainers::{ContainerAsync, GenericImage, ImageExt, core::WaitFor};
 use tokio::{io::BufReader, time::timeout};
-
-pub async fn get_test_containers() -> TestContainers {
-    TestContainers::init().await
-}
 
 #[allow(dead_code)]
 pub(crate) struct TestContainers {
@@ -15,6 +15,26 @@ pub(crate) struct TestContainers {
     pub(crate) auth: ContainerAsync<GenericImage>,
     pub(crate) user: ContainerAsync<GenericImage>,
     pub(crate) gateway: ContainerAsync<GenericImage>,
+}
+
+/// [`TESTCONTAINERS`] ensures that containers are shared across all integration tests.
+/// It uses a [`Weak`] reference so that [`TestContainers`] are automatically dropped
+/// and Docker containers are cleaned up after all tests have completed.
+static TESTCONTAINERS: OnceLock<Mutex<Weak<TestContainers>>> = OnceLock::new();
+
+pub async fn get_test_containers() -> Arc<TestContainers> {
+    let mut guard = TESTCONTAINERS
+        .get_or_init(|| Mutex::new(Weak::new()))
+        .lock()
+        .unwrap();
+
+    if let Some(container) = guard.upgrade() {
+        return container;
+    }
+
+    let container = Arc::new(TestContainers::init().await);
+    *guard = Arc::downgrade(&container);
+    container
 }
 
 impl TestContainers {
