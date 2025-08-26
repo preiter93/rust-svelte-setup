@@ -166,7 +166,6 @@ async fn read_startup_logs(container: &ContainerAsync<GenericImage>, service_nam
             tokio::select! {
                 Ok(Some(line)) = stdout.next_line() => {
                     println!("[{service_name}] STDOUT: {line}");
-                    if line.contains("ready to accept connections") { break; }
                 }
                 Ok(Some(line)) = stderr.next_line() => {
                     println!("[{service_name}] STDERR: {line}");
