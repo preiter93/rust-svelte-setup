@@ -5,7 +5,7 @@ use crate::{
     proto::api_service_server::ApiServiceServer,
     utils::{GoogleOAuth, StdRandomStringGenerator},
 };
-use auth::SERVICE_NAME;
+use auth::{GRPC_PORT, SERVICE_NAME};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
 use shared::{
@@ -20,8 +20,6 @@ pub(crate) mod handler;
 #[allow(clippy::all)]
 pub(crate) mod proto;
 pub(crate) mod utils;
-
-const GRPC_PORT: &str = "50051";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

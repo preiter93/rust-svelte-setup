@@ -43,10 +43,10 @@ impl TestContainers {
         let pg_host = "db";
         let pg_port_str = pg_port.to_string();
 
-        let postgres = setup_postgres(pg_host, pg_port).await;
-        let auth = setup_auth_service(pg_host, &pg_port_str).await;
-        let user = setup_user_service(pg_host, &pg_port_str).await;
-        let gateway = setup_gateway_service(pg_host, &pg_port_str).await;
+        let postgres = run_postgres(pg_host, pg_port).await;
+        let auth = run_auth_service(pg_host, &pg_port_str).await;
+        let user = run_user_service(pg_host, &pg_port_str).await;
+        let gateway = run_gateway_service(pg_host, &pg_port_str).await;
 
         TestContainers {
             postgres,
@@ -69,11 +69,12 @@ impl TestContainers {
     }
 
     async fn gateway_port(&self) -> u16 {
-        self.gateway.get_host_port_ipv4(3000).await.unwrap()
+        let port = gateway::HTTP_PORT;
+        self.gateway.get_host_port_ipv4(port).await.unwrap()
     }
 }
 
-async fn setup_postgres(pg_host: &str, pg_port: u16) -> ContainerAsync<GenericImage> {
+async fn run_postgres(pg_host: &str, pg_port: u16) -> ContainerAsync<GenericImage> {
     GenericImage::new("postgres", "latest")
         .with_exposed_port(ContainerPort::Tcp(pg_port))
         .with_wait_for(WaitFor::message_on_stdout(
@@ -98,46 +99,26 @@ async fn setup_postgres(pg_host: &str, pg_port: u16) -> ContainerAsync<GenericIm
         .expect("Failed to start postgres")
 }
 
-async fn setup_auth_service(pg_host: &str, pg_port: &str) -> ContainerAsync<GenericImage> {
+async fn run_auth_service(pg_host: &str, pg_port: &str) -> ContainerAsync<GenericImage> {
     let mut auth_env_vars = HashMap::new();
     auth_env_vars.insert("GOOGLE_CLIENT_ID", "test");
     auth_env_vars.insert("GOOGLE_CLIENT_SECRET", "test");
     auth_env_vars.insert("GOOGLE_REDIRECT_URI", "test");
-    start_service_image("auth", pg_host, pg_port, auth_env_vars, Some(50051)).await
+    let exposed_port = Some(auth::GRPC_PORT);
+    run_service_container("auth", pg_host, pg_port, auth_env_vars, exposed_port).await
 }
 
-async fn setup_user_service(pg_host: &str, pg_port: &str) -> ContainerAsync<GenericImage> {
-    start_service_image("user", pg_host, pg_port, HashMap::new(), Some(50052)).await
+async fn run_user_service(pg_host: &str, pg_port: &str) -> ContainerAsync<GenericImage> {
+    let exposed_port = Some(user::GRPC_PORT);
+    run_service_container("user", pg_host, pg_port, HashMap::new(), exposed_port).await
 }
 
-async fn setup_gateway_service(pg_host: &str, pg_port: &str) -> ContainerAsync<GenericImage> {
-    start_service_image("gateway", pg_host, pg_port, HashMap::new(), Some(3000)).await
+async fn run_gateway_service(pg_host: &str, pg_port: &str) -> ContainerAsync<GenericImage> {
+    let exposed_port = Some(gateway::HTTP_PORT);
+    run_service_container("gateway", pg_host, pg_port, HashMap::new(), exposed_port).await
 }
 
-#[allow(dead_code)]
-async fn read_startup_logs(container: &ContainerAsync<GenericImage>, service_name: &str) {
-    let mut stdout = BufReader::new(container.stdout(true)).lines();
-    let mut stderr = BufReader::new(container.stderr(true)).lines();
-
-    // Read logs for up to 5 seconds
-    let _ = timeout(Duration::from_secs(5), async {
-        loop {
-            tokio::select! {
-                Ok(Some(line)) = stdout.next_line() => {
-                    println!("[{service_name}] STDOUT: {line}");
-                    if line.contains("ready to accept connections") { break; }
-                }
-                Ok(Some(line)) = stderr.next_line() => {
-                    println!("[{service_name}] STDERR: {line}");
-                }
-                else => break,
-            }
-        }
-    })
-    .await;
-}
-
-async fn start_service_image(
+async fn run_service_container(
     service_name: &str,
     pg_host: &str,
     pg_port: &str,
@@ -172,4 +153,27 @@ async fn start_service_image(
     // read_startup_logs(&container, service_name).await;
 
     container
+}
+
+#[allow(dead_code)]
+async fn read_startup_logs(container: &ContainerAsync<GenericImage>, service_name: &str) {
+    let mut stdout = BufReader::new(container.stdout(true)).lines();
+    let mut stderr = BufReader::new(container.stderr(true)).lines();
+
+    // Read logs for up to 5 seconds
+    let _ = timeout(Duration::from_secs(5), async {
+        loop {
+            tokio::select! {
+                Ok(Some(line)) = stdout.next_line() => {
+                    println!("[{service_name}] STDOUT: {line}");
+                    if line.contains("ready to accept connections") { break; }
+                }
+                Ok(Some(line)) = stderr.next_line() => {
+                    println!("[{service_name}] STDERR: {line}");
+                }
+                else => break,
+            }
+        }
+    })
+    .await;
 }

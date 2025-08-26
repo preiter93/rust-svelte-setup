@@ -15,13 +15,11 @@ use axum::{
     },
     routing::{get, post},
 };
+use gateway::{HTTP_PORT, SERVICE_NAME};
 use shared::middleware::{TracingHttpServiceLayer, auth::SessionAuthLayer};
 use shared::tracing::init_tracer;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
-
-const SERVICE_NAME: &'static str = "gateway";
-const ADDRESS: &'static str = "0.0.0.0:3000";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -51,7 +49,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ));
     router = router.layer(cors).layer(TracingHttpServiceLayer);
 
-    let listener = TcpListener::bind(ADDRESS).await?;
+    let address = format!("0.0.0.0:{HTTP_PORT}");
+
+    let listener = TcpListener::bind(address).await?;
     println!("listening on :{}", listener.local_addr()?);
 
     axum::serve(listener, router).await?;

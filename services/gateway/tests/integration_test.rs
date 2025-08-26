@@ -1,8 +1,7 @@
-use reqwest::Client;
+mod utils;
 
 use crate::utils::{create_authenticated_user, testcontainers::get_test_containers};
-
-mod utils;
+use reqwest::Client;
 
 #[tokio::test]
 async fn test_get_current_user_authenticated() {

@@ -15,9 +15,7 @@ use shared::{
 };
 use std::error::Error;
 use tonic::transport::Server;
-use user::SERVICE_NAME;
-
-const GRPC_PORT: &str = "50052";
+use user::{GRPC_PORT, SERVICE_NAME};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

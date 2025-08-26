@@ -18,7 +18,7 @@ use tonic::{
     transport::{Channel, Endpoint},
 };
 
-const GRPC_PORT: &str = "50051";
+pub const GRPC_PORT: u16 = 50051;
 pub const SERVICE_NAME: &str = "auth";
 
 #[derive(Clone)]
