@@ -32,18 +32,16 @@ pub(crate) async fn create_authenticated_user(
     containers: &TestContainers,
 ) -> Result<AuthenticatedUser, Box<dyn Error>> {
     let host = containers.user.get_host().await.unwrap();
-    let auth_port = containers.auth.get_host_port_ipv4(50051).await.unwrap();
-    let user_port = containers.user.get_host_port_ipv4(50052).await.unwrap();
 
-    let endpoint = Endpoint::from_str(&format!("http://{host}:{user_port}"))?;
-    println!("user endpoint {:?}", endpoint.uri());
-    let channel = endpoint.connect().await?;
-    let mut user_client = UserClient::new(channel);
-
-    let endpoint = Endpoint::from_str(&format!("http://{host}:{auth_port}"))?;
-    println!("auth endpoint {:?}", endpoint.uri());
+    let port = containers.auth.get_host_port_ipv4(auth::GRPC_PORT).await;
+    let endpoint = Endpoint::from_str(&format!("http://{host}:{}", port.unwrap()))?;
     let channel = endpoint.connect().await?;
     let mut auth_client = AuthClient::new(channel);
+
+    let port = containers.user.get_host_port_ipv4(user::GRPC_PORT).await;
+    let endpoint = Endpoint::from_str(&format!("http://{host}:{}", port.unwrap()))?;
+    let channel = endpoint.connect().await?;
+    let mut user_client = UserClient::new(channel);
 
     let req = Request::new(CreateUserReq {
         name: "integration-test-name".to_string(),
