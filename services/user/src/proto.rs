@@ -215,7 +215,7 @@ pub mod api_service_client {
             req.extensions_mut().insert(GrpcMethod::new("proto.ApiService", "GetUser"));
             self.inner.unary(req, path, codec).await
         }
-        /// Resolves the user id from the oauth account id.
+        /// Resolves the user id from the oauth id.
         pub async fn get_user_id_from_oauth_id(
             &mut self,
             request: impl tonic::IntoRequest<super::GetUserIdFromOauthIdReq>,
@@ -265,7 +265,7 @@ pub mod api_service_server {
             &self,
             request: tonic::Request<super::GetUserReq>,
         ) -> std::result::Result<tonic::Response<super::GetUserResp>, tonic::Status>;
-        /// Resolves the user id from the oauth account id.
+        /// Resolves the user id from the oauth id.
         async fn get_user_id_from_oauth_id(
             &self,
             request: tonic::Request<super::GetUserIdFromOauthIdReq>,

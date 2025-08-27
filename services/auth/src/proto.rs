@@ -57,10 +57,8 @@ pub struct StartGoogleLoginResp {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HandleGoogleCallbackReq {
     #[prost(string, tag = "1")]
-    pub state: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
     pub code: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
+    #[prost(string, tag = "2")]
     pub code_verifier: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -88,8 +86,6 @@ pub struct StartGithubLoginResp {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HandleGithubCallbackReq {
     #[prost(string, tag = "1")]
-    pub state: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
     pub code: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]

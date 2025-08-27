@@ -141,7 +141,6 @@ pub async fn handle_google_callback(
     }
 
     let callback_req = Request::new(HandleGoogleCallbackReq {
-        state: query.state,
         code: query.code,
         code_verifier: code_verifier.clone(),
     });
@@ -220,10 +219,7 @@ pub async fn handle_github_callback(
         return Err(OAuthError::StateMismatch);
     }
 
-    let callback_req = Request::new(HandleGithubCallbackReq {
-        state: query.state,
-        code: query.code,
-    });
+    let callback_req = Request::new(HandleGithubCallbackReq { code: query.code });
     let callback_resp = h.auth_client.handle_github_callback(callback_req).await?;
     let callback_data = callback_resp.into_inner();
 

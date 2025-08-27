@@ -52,9 +52,8 @@ message StartGoogleLoginResp {
 }
 
 message HandleGoogleCallbackReq {
-  string state = 1;
-  string code = 2;
-  string code_verifier = 3;
+  string code = 1;
+  string code_verifier = 2;
 }
 
 message HandleGoogleCallbackResp {
@@ -71,8 +70,7 @@ message StartGithubLoginResp {
 }
 
 message HandleGithubCallbackReq {
-  string state = 1;
-  string code = 2;
+  string code = 1;
 }
 
 message HandleGithubCallbackResp {
