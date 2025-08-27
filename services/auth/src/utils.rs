@@ -147,7 +147,6 @@ pub(crate) struct GoogleOAuth<R> {
 impl<R: RandomStringGenerator> GoogleOAuth<R> {
     const AUTHORIZATION_ENDPOINT: &'static str = "https://accounts.google.com/o/oauth2/v2/auth";
     const TOKEN_ENDPOINT: &'static str = "https://oauth2.googleapis.com/token";
-    const TOKEN_REVOCATION_ENDPOINT: &'static str = "https://oauth2.googleapis.com/revoke";
     const JWKS_ENDPOINT: &'static str = "https://www.googleapis.com/oauth2/v3/certs";
 
     /// Creates a new [Google] oauth client.
@@ -296,7 +295,14 @@ impl<R: RandomStringGenerator> GithubOAuth<R> {
         Ok(response.json().await?)
     }
 
-    pub async fn get_user(&self, access_token: &str) -> Result<GithubUser, Box<dyn Error>> {
+    pub async fn get_user(&self, access_token: &str) -> Result<(String, String), Box<dyn Error>> {
+        #[derive(Debug, Deserialize)]
+        pub struct GithubUser {
+            pub id: u64,
+            pub login: String,
+            pub name: Option<String>,
+            pub email: Option<String>,
+        }
         let client = Client::new();
         let response = client
             .get(Self::GET_USER_ENDPOINT)
@@ -305,7 +311,9 @@ impl<R: RandomStringGenerator> GithubOAuth<R> {
             .send()
             .await?;
 
-        Ok(response.json().await?)
+        let user: GithubUser = response.json().await?;
+
+        Ok((user.id.to_string(), user.name.unwrap_or(user.login)))
     }
 
     pub async fn get_primary_email(&self, access_token: &str) -> Result<String, Box<dyn Error>> {
@@ -331,14 +339,6 @@ impl<R: RandomStringGenerator> GithubOAuth<R> {
             Err(Box::from("no primary email found for this user"))
         }
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GithubUser {
-    pub id: u64,
-    pub login: String,
-    pub name: Option<String>,
-    pub email: Option<String>,
 }
 
 /// Hashes a secret using SHA-256. While SHA-256 is unsuitable

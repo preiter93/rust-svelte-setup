@@ -293,7 +293,7 @@ where
             return Err(HandleGithubCallbackErr::MissingAccessToken.into());
         };
 
-        let Ok(user) = self.github.get_user(&access_token).await else {
+        let Ok((github_id, name)) = self.github.get_user(&access_token).await else {
             return Err(HandleGithubCallbackErr::GetUserInformation.into());
         };
 
@@ -302,9 +302,9 @@ where
         };
 
         return Ok(Response::new(HandleGithubCallbackResp {
-            github_id: user.id.to_string(),
-            name: user.name.unwrap_or(user.login),
-            email: email,
+            github_id,
+            name,
+            email,
         }));
     }
 }
