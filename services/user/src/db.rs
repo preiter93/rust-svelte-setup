@@ -117,9 +117,14 @@ impl TryFrom<Row> for User {
 
 #[cfg(test)]
 pub mod test {
-    use crate::proto::User;
+    use crate::{
+        proto::User,
+        utils::test::{fixture_user, fixture_uuid},
+    };
+    use shared::test_utils::get_test_db;
     use tokio::sync::Mutex;
     use tonic::async_trait;
+    use user::SERVICE_NAME;
     use uuid::Uuid;
 
     use super::*;
@@ -154,5 +159,76 @@ pub mod test {
         async fn get_user_id_from_google_id(&self, _: &str) -> Result<Uuid, DBError> {
             self.get_user_id_from_google_id.lock().await.take().unwrap()
         }
+    }
+
+    struct DBUser {
+        id: Uuid,
+        name: &'static str,
+        email: &'static str,
+        google_id: &'static str,
+    }
+
+    fn fixture_db_user<F>(mut func: F) -> DBUser
+    where
+        F: FnMut(&mut DBUser),
+    {
+        let mut user = DBUser {
+            id: fixture_uuid(),
+            name: "name",
+            email: "email",
+            google_id: "google-id",
+        };
+        func(&mut user);
+        user
+    }
+
+    async fn run_db_test<F, Fut>(given_user: Vec<DBUser>, test_fn: F)
+    where
+        F: FnOnce(PostgresDBClient) -> Fut,
+        Fut: std::future::Future<Output = ()>,
+    {
+        let migrations = std::fs::canonicalize("./migrations").unwrap();
+        let db = get_test_db(SERVICE_NAME, migrations)
+            .await
+            .expect("failed to get test db client");
+        let db_client = PostgresDBClient::new(db.pool.clone());
+
+        for user in given_user {
+            db_client
+                .insert_user(user.id.clone(), &user.name, &user.email, &user.google_id)
+                .await
+                .expect("failed to insert user");
+        }
+
+        test_fn(db_client).await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user() {
+        let user_id = fixture_uuid();
+        let given_user = fixture_db_user(|u| u.id = user_id);
+        let want_user = fixture_user(|u| u.id = user_id.to_string());
+
+        run_db_test(vec![given_user], |db_client| async move {
+            let got_user = db_client
+                .get_user(user_id)
+                .await
+                .expect("failed to get user");
+
+            assert_eq!(got_user, want_user);
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user_not_found() {
+        let user_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+
+        run_db_test(vec![], |db_client| async move {
+            let got_result = db_client.get_user(user_id).await;
+
+            assert!(matches!(got_result, Err(DBError::NotFound)));
+        })
+        .await;
     }
 }

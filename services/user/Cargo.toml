@@ -19,3 +19,5 @@ tracing = {workspace = true }
 
 shared = { version = "0.1", path = "../shared" }
 
+[dev-dependencies]
+shared = { version = "0.1", path = "../shared", features = ["test-utils"] }
