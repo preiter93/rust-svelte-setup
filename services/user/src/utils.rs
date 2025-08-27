@@ -56,6 +56,7 @@ pub mod test {
             name: "name".to_string(),
             email: "email".to_string(),
             google_id: "google-id".to_string(),
+            github_id: "github-id".to_string(),
         };
         func(&mut user);
         user

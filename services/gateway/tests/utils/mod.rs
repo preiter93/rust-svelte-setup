@@ -47,6 +47,7 @@ pub(crate) async fn create_authenticated_user(
         name: "integration-test-name".to_string(),
         email: "integration-test-email".to_string(),
         google_id: String::new(),
+        github_id: String::new(),
     });
     let resp = user_client.create_user(req).await?;
     let user = resp.into_inner().user.unwrap();

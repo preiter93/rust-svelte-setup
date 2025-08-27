@@ -4,8 +4,8 @@ import type * as grpc from '@grpc/grpc-js'
 import type { MethodDefinition } from '@grpc/proto-loader'
 import type { CreateUserReq as _proto_CreateUserReq, CreateUserReq__Output as _proto_CreateUserReq__Output } from '../proto/CreateUserReq';
 import type { CreateUserResp as _proto_CreateUserResp, CreateUserResp__Output as _proto_CreateUserResp__Output } from '../proto/CreateUserResp';
-import type { GetUserIdFromGoogleIdReq as _proto_GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdReq__Output as _proto_GetUserIdFromGoogleIdReq__Output } from '../proto/GetUserIdFromGoogleIdReq';
-import type { GetUserIdFromGoogleIdResp as _proto_GetUserIdFromGoogleIdResp, GetUserIdFromGoogleIdResp__Output as _proto_GetUserIdFromGoogleIdResp__Output } from '../proto/GetUserIdFromGoogleIdResp';
+import type { GetUserIdFromOauthIdReq as _proto_GetUserIdFromOauthIdReq, GetUserIdFromOauthIdReq__Output as _proto_GetUserIdFromOauthIdReq__Output } from '../proto/GetUserIdFromOauthIdReq';
+import type { GetUserIdFromOauthIdResp as _proto_GetUserIdFromOauthIdResp, GetUserIdFromOauthIdResp__Output as _proto_GetUserIdFromOauthIdResp__Output } from '../proto/GetUserIdFromOauthIdResp';
 import type { GetUserReq as _proto_GetUserReq, GetUserReq__Output as _proto_GetUserReq__Output } from '../proto/GetUserReq';
 import type { GetUserResp as _proto_GetUserResp, GetUserResp__Output as _proto_GetUserResp__Output } from '../proto/GetUserResp';
 
@@ -28,14 +28,14 @@ export interface ApiServiceClient extends grpc.Client {
   getUser(argument: _proto_GetUserReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetUserResp__Output>): grpc.ClientUnaryCall;
   getUser(argument: _proto_GetUserReq, callback: grpc.requestCallback<_proto_GetUserResp__Output>): grpc.ClientUnaryCall;
   
-  GetUserIdFromGoogleId(argument: _proto_GetUserIdFromGoogleIdReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetUserIdFromGoogleIdResp__Output>): grpc.ClientUnaryCall;
-  GetUserIdFromGoogleId(argument: _proto_GetUserIdFromGoogleIdReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_GetUserIdFromGoogleIdResp__Output>): grpc.ClientUnaryCall;
-  GetUserIdFromGoogleId(argument: _proto_GetUserIdFromGoogleIdReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetUserIdFromGoogleIdResp__Output>): grpc.ClientUnaryCall;
-  GetUserIdFromGoogleId(argument: _proto_GetUserIdFromGoogleIdReq, callback: grpc.requestCallback<_proto_GetUserIdFromGoogleIdResp__Output>): grpc.ClientUnaryCall;
-  getUserIdFromGoogleId(argument: _proto_GetUserIdFromGoogleIdReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetUserIdFromGoogleIdResp__Output>): grpc.ClientUnaryCall;
-  getUserIdFromGoogleId(argument: _proto_GetUserIdFromGoogleIdReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_GetUserIdFromGoogleIdResp__Output>): grpc.ClientUnaryCall;
-  getUserIdFromGoogleId(argument: _proto_GetUserIdFromGoogleIdReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetUserIdFromGoogleIdResp__Output>): grpc.ClientUnaryCall;
-  getUserIdFromGoogleId(argument: _proto_GetUserIdFromGoogleIdReq, callback: grpc.requestCallback<_proto_GetUserIdFromGoogleIdResp__Output>): grpc.ClientUnaryCall;
+  GetUserIdFromOauthId(argument: _proto_GetUserIdFromOauthIdReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetUserIdFromOauthIdResp__Output>): grpc.ClientUnaryCall;
+  GetUserIdFromOauthId(argument: _proto_GetUserIdFromOauthIdReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_GetUserIdFromOauthIdResp__Output>): grpc.ClientUnaryCall;
+  GetUserIdFromOauthId(argument: _proto_GetUserIdFromOauthIdReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetUserIdFromOauthIdResp__Output>): grpc.ClientUnaryCall;
+  GetUserIdFromOauthId(argument: _proto_GetUserIdFromOauthIdReq, callback: grpc.requestCallback<_proto_GetUserIdFromOauthIdResp__Output>): grpc.ClientUnaryCall;
+  getUserIdFromOauthId(argument: _proto_GetUserIdFromOauthIdReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetUserIdFromOauthIdResp__Output>): grpc.ClientUnaryCall;
+  getUserIdFromOauthId(argument: _proto_GetUserIdFromOauthIdReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_GetUserIdFromOauthIdResp__Output>): grpc.ClientUnaryCall;
+  getUserIdFromOauthId(argument: _proto_GetUserIdFromOauthIdReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetUserIdFromOauthIdResp__Output>): grpc.ClientUnaryCall;
+  getUserIdFromOauthId(argument: _proto_GetUserIdFromOauthIdReq, callback: grpc.requestCallback<_proto_GetUserIdFromOauthIdResp__Output>): grpc.ClientUnaryCall;
   
 }
 
@@ -44,12 +44,12 @@ export interface ApiServiceHandlers extends grpc.UntypedServiceImplementation {
   
   GetUser: grpc.handleUnaryCall<_proto_GetUserReq__Output, _proto_GetUserResp>;
   
-  GetUserIdFromGoogleId: grpc.handleUnaryCall<_proto_GetUserIdFromGoogleIdReq__Output, _proto_GetUserIdFromGoogleIdResp>;
+  GetUserIdFromOauthId: grpc.handleUnaryCall<_proto_GetUserIdFromOauthIdReq__Output, _proto_GetUserIdFromOauthIdResp>;
   
 }
 
 export interface ApiServiceDefinition extends grpc.ServiceDefinition {
   CreateUser: MethodDefinition<_proto_CreateUserReq, _proto_CreateUserResp, _proto_CreateUserReq__Output, _proto_CreateUserResp__Output>
   GetUser: MethodDefinition<_proto_GetUserReq, _proto_GetUserResp, _proto_GetUserReq__Output, _proto_GetUserResp__Output>
-  GetUserIdFromGoogleId: MethodDefinition<_proto_GetUserIdFromGoogleIdReq, _proto_GetUserIdFromGoogleIdResp, _proto_GetUserIdFromGoogleIdReq__Output, _proto_GetUserIdFromGoogleIdResp__Output>
+  GetUserIdFromOauthId: MethodDefinition<_proto_GetUserIdFromOauthIdReq, _proto_GetUserIdFromOauthIdResp, _proto_GetUserIdFromOauthIdReq__Output, _proto_GetUserIdFromOauthIdResp__Output>
 }

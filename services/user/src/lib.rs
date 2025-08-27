@@ -1,7 +1,7 @@
 pub mod proto;
 
 use crate::proto::{
-    CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp, GetUserReq,
+    CreateUserReq, CreateUserResp, GetUserIdFromOauthIdReq, GetUserIdFromOauthIdResp, GetUserReq,
     GetUserResp, api_service_client::ApiServiceClient,
 };
 use shared::{middleware::tracing::TracingServiceClient, patched_host};
@@ -35,11 +35,11 @@ impl UserClient {
         self.0.get_user(req).await
     }
 
-    pub async fn get_user_id_from_google_id(
+    pub async fn get_user_id_from_oauth_id(
         &mut self,
-        req: Request<GetUserIdFromGoogleIdReq>,
-    ) -> Result<Response<GetUserIdFromGoogleIdResp>, Status> {
-        self.0.get_user_id_from_google_id(req).await
+        req: Request<GetUserIdFromOauthIdReq>,
+    ) -> Result<Response<GetUserIdFromOauthIdResp>, Status> {
+        self.0.get_user_id_from_oauth_id(req).await
     }
 
     pub async fn create_user(

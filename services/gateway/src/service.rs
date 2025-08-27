@@ -6,11 +6,13 @@ use user::{UserClient, proto::CreateUserReq};
 pub(crate) async fn create_user_if_not_found(
     user_client: &mut UserClient,
     google_id: String,
+    github_id: String,
     name: String,
     email: String,
 ) -> Result<String, OAuthError> {
     let req = Request::new(CreateUserReq {
         google_id,
+        github_id,
         name,
         email,
     });

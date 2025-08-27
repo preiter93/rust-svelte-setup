@@ -54,12 +54,15 @@ impl From<GetUserErr> for Status {
     }
 }
 
-/// Error for [`crate::proto::api_service_server::ApiService::get_user_id_from_google_id`]
+/// Error for [`crate::proto::api_service_server::ApiService::get_user_id_from_oauth_id`]
 #[derive(Debug, Error)]
 #[non_exhaustive]
-pub enum GetUserIdFromGoogleIdErr {
-    #[error("missing google id")]
-    MissingGoogleId,
+pub enum GetUserIdFromOauthIdErr {
+    #[error("missing oauth id")]
+    MissingOAuthId,
+
+    #[error("unspecified oauth provider")]
+    UnspecifiedOauthProvider,
 
     #[error("user not found")]
     NotFound,
@@ -68,12 +71,13 @@ pub enum GetUserIdFromGoogleIdErr {
     Database(#[from] DBError),
 }
 
-impl From<GetUserIdFromGoogleIdErr> for Status {
-    fn from(err: GetUserIdFromGoogleIdErr) -> Self {
+impl From<GetUserIdFromOauthIdErr> for Status {
+    fn from(err: GetUserIdFromOauthIdErr) -> Self {
         let code = match err {
-            GetUserIdFromGoogleIdErr::MissingGoogleId => Code::InvalidArgument,
-            GetUserIdFromGoogleIdErr::NotFound => Code::NotFound,
-            GetUserIdFromGoogleIdErr::Database(_) => Code::Internal,
+            GetUserIdFromOauthIdErr::MissingOAuthId
+            | GetUserIdFromOauthIdErr::UnspecifiedOauthProvider => Code::InvalidArgument,
+            GetUserIdFromOauthIdErr::NotFound => Code::NotFound,
+            GetUserIdFromOauthIdErr::Database(_) => Code::Internal,
         };
         Status::new(code, err.to_string())
     }

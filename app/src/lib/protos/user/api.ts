@@ -1,5 +1,5 @@
 import type * as grpc from '@grpc/grpc-js';
-import type { MessageTypeDefinition } from '@grpc/proto-loader';
+import type { EnumTypeDefinition, MessageTypeDefinition } from '@grpc/proto-loader';
 
 import type { ApiServiceClient as _proto_ApiServiceClient, ApiServiceDefinition as _proto_ApiServiceDefinition } from './proto/ApiService';
 
@@ -12,10 +12,11 @@ export interface ProtoGrpcType {
     ApiService: SubtypeConstructor<typeof grpc.Client, _proto_ApiServiceClient> & { service: _proto_ApiServiceDefinition }
     CreateUserReq: MessageTypeDefinition
     CreateUserResp: MessageTypeDefinition
-    GetUserIdFromGoogleIdReq: MessageTypeDefinition
-    GetUserIdFromGoogleIdResp: MessageTypeDefinition
+    GetUserIdFromOauthIdReq: MessageTypeDefinition
+    GetUserIdFromOauthIdResp: MessageTypeDefinition
     GetUserReq: MessageTypeDefinition
     GetUserResp: MessageTypeDefinition
+    OauthProvider: EnumTypeDefinition
     User: MessageTypeDefinition
   }
 }

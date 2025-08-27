@@ -1,11 +1,11 @@
-use crate::utils::UuidGenerator;
+use crate::{proto::OauthProvider, utils::UuidGenerator};
 use std::str::FromStr;
 
 use crate::{
     db::DBClient,
-    error::{CreateUserErr, DBError, GetUserErr, GetUserIdFromGoogleIdErr},
+    error::{CreateUserErr, DBError, GetUserErr, GetUserIdFromOauthIdErr},
     proto::{
-        CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp,
+        CreateUserReq, CreateUserResp, GetUserIdFromOauthIdReq, GetUserIdFromOauthIdResp,
         GetUserReq, GetUserResp, User, api_service_server::ApiService,
     },
 };
@@ -48,9 +48,10 @@ where
         }
 
         let google_id = req.google_id;
+        let github_id = req.github_id;
 
         self.db
-            .insert_user(id, &name, &email, &google_id)
+            .insert_user(id, &name, &email, &google_id, &github_id)
             .await
             .map_err(CreateUserErr::Database)?;
 
@@ -91,26 +92,32 @@ where
     /// # Errors
     /// - internal error if the user cannot be inserted into the db
     #[instrument(skip_all, err)]
-    async fn get_user_id_from_google_id(
+    async fn get_user_id_from_oauth_id(
         &self,
-        req: Request<GetUserIdFromGoogleIdReq>,
-    ) -> Result<Response<GetUserIdFromGoogleIdResp>, Status> {
+        req: Request<GetUserIdFromOauthIdReq>,
+    ) -> Result<Response<GetUserIdFromOauthIdResp>, Status> {
         let req = req.into_inner();
-        if req.google_id.is_empty() {
-            return Err(GetUserIdFromGoogleIdErr::MissingGoogleId.into());
+
+        let oauth_id = req.oauth_id.clone();
+        if oauth_id.is_empty() {
+            return Err(GetUserIdFromOauthIdErr::MissingOAuthId.into());
         }
-        let google_id = req.google_id;
+
+        let provider = req.provider();
+        if provider == OauthProvider::Unspecified {
+            return Err(GetUserIdFromOauthIdErr::UnspecifiedOauthProvider.into());
+        }
 
         let id = self
             .db
-            .get_user_id_from_google_id(&google_id)
+            .get_user_id_from_oauth_id(&oauth_id, provider)
             .await
             .map_err(|e| match e {
-                DBError::NotFound => GetUserIdFromGoogleIdErr::NotFound,
-                _ => GetUserIdFromGoogleIdErr::Database(e),
+                DBError::NotFound => GetUserIdFromOauthIdErr::NotFound,
+                _ => GetUserIdFromOauthIdErr::Database(e),
             })?;
 
-        let response = GetUserIdFromGoogleIdResp { id: id.to_string() };
+        let response = GetUserIdFromOauthIdResp { id: id.to_string() };
         Ok(Response::new(response))
     }
 }
@@ -119,6 +126,7 @@ where
 mod tests {
     use tokio::sync::Mutex;
     use tonic::{Code, Request};
+    use user::proto::OauthProvider;
     use uuid::Uuid;
 
     use crate::{
@@ -126,7 +134,7 @@ mod tests {
         error::DBError,
         handler::Handler,
         proto::{
-            CreateUserReq, CreateUserResp, GetUserIdFromGoogleIdReq, GetUserIdFromGoogleIdResp,
+            CreateUserReq, CreateUserResp, GetUserIdFromOauthIdReq, GetUserIdFromOauthIdResp,
             GetUserReq, GetUserResp, User, api_service_server::ApiService as _,
         },
         utils::test::{
@@ -303,29 +311,29 @@ mod tests {
         .await;
     }
 
-    struct TestCaseGetUserIdFromGoogleId {
+    struct TestCaseGetUserIdFromOauthId {
         given_google_id: String,
         given_db_get_user_id_from_google_id: Result<Uuid, DBError>,
-        want: Result<GetUserIdFromGoogleIdResp, Code>,
+        want: Result<GetUserIdFromOauthIdResp, Code>,
     }
 
-    impl Default for TestCaseGetUserIdFromGoogleId {
+    impl Default for TestCaseGetUserIdFromOauthId {
         fn default() -> Self {
             Self {
                 given_google_id: fixture_uuid().to_string(),
                 given_db_get_user_id_from_google_id: Ok(fixture_uuid()),
-                want: Ok(GetUserIdFromGoogleIdResp {
+                want: Ok(GetUserIdFromOauthIdResp {
                     id: fixture_uuid().to_string(),
                 }),
             }
         }
     }
 
-    impl TestCaseGetUserIdFromGoogleId {
+    impl TestCaseGetUserIdFromOauthId {
         async fn run(self) {
             // given
             let db = MockDBClient {
-                get_user_id_from_google_id: Mutex::new(Some(
+                get_user_id_from_oauth_id: Mutex::new(Some(
                     self.given_db_get_user_id_from_google_id,
                 )),
                 ..Default::default()
@@ -334,10 +342,11 @@ mod tests {
             let service = Handler { db, uuid };
 
             // when
-            let req = Request::new(GetUserIdFromGoogleIdReq {
-                google_id: self.given_google_id,
+            let req = Request::new(GetUserIdFromOauthIdReq {
+                oauth_id: self.given_google_id,
+                provider: OauthProvider::Google.into(),
             });
-            let got = service.get_user_id_from_google_id(req).await;
+            let got = service.get_user_id_from_oauth_id(req).await;
 
             // then
             assert_response(got, self.want);
@@ -346,7 +355,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_id_from_google_id_happy_path() {
-        TestCaseGetUserIdFromGoogleId {
+        TestCaseGetUserIdFromOauthId {
             ..Default::default()
         }
         .run()
@@ -355,7 +364,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_id_from_google_id_missing_id() {
-        TestCaseGetUserIdFromGoogleId {
+        TestCaseGetUserIdFromOauthId {
             given_google_id: String::new(),
             want: Err(Code::InvalidArgument),
             ..Default::default()
@@ -366,7 +375,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_id_from_google_id_not_found() {
-        TestCaseGetUserIdFromGoogleId {
+        TestCaseGetUserIdFromOauthId {
             given_db_get_user_id_from_google_id: Err(DBError::NotFound),
             want: Err(Code::NotFound),
             ..Default::default()
@@ -377,7 +386,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_id_from_google_id_internal_error() {
-        TestCaseGetUserIdFromGoogleId {
+        TestCaseGetUserIdFromOauthId {
             given_db_get_user_id_from_google_id: Err(DBError::Unknown),
             want: Err(Code::Internal),
             ..Default::default()

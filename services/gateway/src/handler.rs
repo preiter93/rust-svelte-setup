@@ -28,9 +28,10 @@ use shared::cookie::extract_session_token_cookie;
 use shared::session::SessionState;
 use tonic::{Code, Request};
 use tracing::instrument;
+use user::proto::OauthProvider;
 use user::{
     UserClient,
-    proto::{GetUserIdFromGoogleIdReq, GetUserReq, GetUserResp},
+    proto::{GetUserIdFromOauthIdReq, GetUserReq, GetUserResp},
 };
 
 #[derive(Clone)]
@@ -151,14 +152,16 @@ pub async fn handle_google_callback(
     let name = callback_data.name.to_string();
     let email = callback_data.email.to_string();
 
-    let user_req = Request::new(GetUserIdFromGoogleIdReq {
-        google_id: google_id.clone(),
+    let user_req = Request::new(GetUserIdFromOauthIdReq {
+        oauth_id: google_id.clone(),
+        provider: OauthProvider::Google.into(),
     });
-    let user_resp = h.user_client.get_user_id_from_google_id(user_req).await;
+    let user_resp = h.user_client.get_user_id_from_oauth_id(user_req).await;
     let user_id = match user_resp {
         Ok(resp) => resp.into_inner().id,
         Err(ref status) if status.code() == Code::NotFound => {
-            create_user_if_not_found(&mut h.user_client, google_id, name, email).await?
+            create_user_if_not_found(&mut h.user_client, google_id, String::new(), name, email)
+                .await?
         }
         Err(err) => return Err(OAuthError::RequestError(err)),
     };
@@ -228,14 +231,16 @@ pub async fn handle_github_callback(
     let name = callback_data.name.to_string();
     let email = callback_data.email.to_string();
 
-    let user_req = Request::new(GetUserIdFromGoogleIdReq {
-        google_id: github_id.clone(),
+    let user_req = Request::new(GetUserIdFromOauthIdReq {
+        oauth_id: github_id.clone(),
+        provider: OauthProvider::Github.into(),
     });
-    let user_resp = h.user_client.get_user_id_from_google_id(user_req).await;
+    let user_resp = h.user_client.get_user_id_from_oauth_id(user_req).await;
     let user_id = match user_resp {
         Ok(resp) => resp.into_inner().id,
         Err(ref status) if status.code() == Code::NotFound => {
-            create_user_if_not_found(&mut h.user_client, github_id, name, email).await?
+            create_user_if_not_found(&mut h.user_client, String::new(), github_id, name, email)
+                .await?
         }
         Err(err) => return Err(OAuthError::RequestError(err)),
     };

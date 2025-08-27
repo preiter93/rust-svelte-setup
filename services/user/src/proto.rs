@@ -8,6 +8,8 @@ pub struct CreateUserReq {
     pub email: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub google_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub github_id: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -29,13 +31,15 @@ pub struct GetUserResp {
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetUserIdFromGoogleIdReq {
+pub struct GetUserIdFromOauthIdReq {
     #[prost(string, tag = "1")]
-    pub google_id: ::prost::alloc::string::String,
+    pub oauth_id: ::prost::alloc::string::String,
+    #[prost(enumeration = "OauthProvider", tag = "2")]
+    pub provider: i32,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetUserIdFromGoogleIdResp {
+pub struct GetUserIdFromOauthIdResp {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
 }
@@ -48,6 +52,36 @@ pub struct User {
     pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub email: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum OauthProvider {
+    Unspecified = 0,
+    Google = 1,
+    Github = 2,
+}
+impl OauthProvider {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "OAUTH_PROVIDER_UNSPECIFIED",
+            Self::Google => "OAUTH_PROVIDER_GOOGLE",
+            Self::Github => "OAUTH_PROVIDER_GITHUB",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "OAUTH_PROVIDER_UNSPECIFIED" => Some(Self::Unspecified),
+            "OAUTH_PROVIDER_GOOGLE" => Some(Self::Google),
+            "OAUTH_PROVIDER_GITHUB" => Some(Self::Github),
+            _ => None,
+        }
+    }
 }
 /// Generated client implementations.
 pub mod api_service_client {
@@ -181,12 +215,12 @@ pub mod api_service_client {
             req.extensions_mut().insert(GrpcMethod::new("proto.ApiService", "GetUser"));
             self.inner.unary(req, path, codec).await
         }
-        /// Resolves the user id from the google account id.
-        pub async fn get_user_id_from_google_id(
+        /// Resolves the user id from the oauth account id.
+        pub async fn get_user_id_from_oauth_id(
             &mut self,
-            request: impl tonic::IntoRequest<super::GetUserIdFromGoogleIdReq>,
+            request: impl tonic::IntoRequest<super::GetUserIdFromOauthIdReq>,
         ) -> std::result::Result<
-            tonic::Response<super::GetUserIdFromGoogleIdResp>,
+            tonic::Response<super::GetUserIdFromOauthIdResp>,
             tonic::Status,
         > {
             self.inner
@@ -199,11 +233,11 @@ pub mod api_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/GetUserIdFromGoogleId",
+                "/proto.ApiService/GetUserIdFromOauthId",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "GetUserIdFromGoogleId"));
+                .insert(GrpcMethod::new("proto.ApiService", "GetUserIdFromOauthId"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -231,12 +265,12 @@ pub mod api_service_server {
             &self,
             request: tonic::Request<super::GetUserReq>,
         ) -> std::result::Result<tonic::Response<super::GetUserResp>, tonic::Status>;
-        /// Resolves the user id from the google account id.
-        async fn get_user_id_from_google_id(
+        /// Resolves the user id from the oauth account id.
+        async fn get_user_id_from_oauth_id(
             &self,
-            request: tonic::Request<super::GetUserIdFromGoogleIdReq>,
+            request: tonic::Request<super::GetUserIdFromOauthIdReq>,
         ) -> std::result::Result<
-            tonic::Response<super::GetUserIdFromGoogleIdResp>,
+            tonic::Response<super::GetUserIdFromOauthIdResp>,
             tonic::Status,
         >;
     }
@@ -402,25 +436,25 @@ pub mod api_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/proto.ApiService/GetUserIdFromGoogleId" => {
+                "/proto.ApiService/GetUserIdFromOauthId" => {
                     #[allow(non_camel_case_types)]
-                    struct GetUserIdFromGoogleIdSvc<T: ApiService>(pub Arc<T>);
+                    struct GetUserIdFromOauthIdSvc<T: ApiService>(pub Arc<T>);
                     impl<
                         T: ApiService,
-                    > tonic::server::UnaryService<super::GetUserIdFromGoogleIdReq>
-                    for GetUserIdFromGoogleIdSvc<T> {
-                        type Response = super::GetUserIdFromGoogleIdResp;
+                    > tonic::server::UnaryService<super::GetUserIdFromOauthIdReq>
+                    for GetUserIdFromOauthIdSvc<T> {
+                        type Response = super::GetUserIdFromOauthIdResp;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::GetUserIdFromGoogleIdReq>,
+                            request: tonic::Request<super::GetUserIdFromOauthIdReq>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::get_user_id_from_google_id(
+                                <T as ApiService>::get_user_id_from_oauth_id(
                                         &inner,
                                         request,
                                     )
@@ -435,7 +469,7 @@ pub mod api_service_server {
                     let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = GetUserIdFromGoogleIdSvc(inner);
+                        let method = GetUserIdFromOauthIdSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
