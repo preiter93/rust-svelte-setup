@@ -1,10 +1,13 @@
 use crate::error::ApiError;
 use crate::error::OAuthError;
 use crate::service::create_user_if_not_found;
+use crate::utils::GITHUB_STATE;
 use crate::utils::GOOGLE_CODE_VERIFIER;
 use crate::utils::GOOGLE_STATE;
 use crate::utils::OauthCookieJar;
 use auth::AuthClient;
+use auth::proto::HandleGithubCallbackReq;
+use auth::proto::StartGithubLoginReq;
 use auth::proto::{
     CreateSessionReq, DeleteSessionReq, HandleGoogleCallbackReq, StartGoogleLoginReq,
 };
@@ -178,11 +181,76 @@ pub async fn handle_google_callback(
 
 /// Initiates the Github OAuth login flow. Does not require authentication.
 #[debug_handler]
-#[instrument(skip(_h), err)]
-pub async fn start_github_login(State(mut _h): State<Handler>) -> Result<Response, ApiError> {
+#[instrument(skip(h), err)]
+pub async fn start_github_login(State(mut h): State<Handler>) -> Result<Response, ApiError> {
+    let req = Request::new(StartGithubLoginReq {});
+    let resp = h.auth_client.start_github_login(req).await?.into_inner();
+
     let response = Response::builder()
-        .status(StatusCode::NOT_IMPLEMENTED)
-        .body(Body::from("not implemented"))?;
+        .status(StatusCode::TEMPORARY_REDIRECT)
+        .header(LOCATION, &resp.authorization_url)
+        .with_cookies([create_oauth_cookie(GITHUB_STATE, resp.state)])
+        .body(Body::empty())?;
+
+    Ok(response)
+}
+
+#[derive(Deserialize)]
+pub struct GithubCallbackQuery {
+    state: String,
+    code: String,
+}
+
+/// Handles the Github OAuth callback, creates a session and logs the user in.
+/// Does not require authentication.
+#[debug_handler]
+#[instrument(skip(h, query), err)]
+pub async fn handle_github_callback(
+    State(mut h): State<Handler>,
+    Query(query): Query<GithubCallbackQuery>,
+    headers: HeaderMap,
+) -> Result<Response, OAuthError> {
+    let jar = OauthCookieJar::from_headers(&headers)?;
+    let stored_state = jar.extract(GITHUB_STATE)?;
+
+    if query.state != stored_state {
+        return Err(OAuthError::StateMismatch);
+    }
+
+    let callback_req = Request::new(HandleGithubCallbackReq {
+        state: query.state,
+        code: query.code,
+    });
+    let callback_resp = h.auth_client.handle_github_callback(callback_req).await?;
+    let callback_data = callback_resp.into_inner();
+
+    let github_id = callback_data.github_id.to_string();
+    let name = callback_data.name.to_string();
+    let email = callback_data.email.to_string();
+
+    let user_req = Request::new(GetUserIdFromGoogleIdReq {
+        google_id: github_id.clone(),
+    });
+    let user_resp = h.user_client.get_user_id_from_google_id(user_req).await;
+    let user_id = match user_resp {
+        Ok(resp) => resp.into_inner().id,
+        Err(ref status) if status.code() == Code::NotFound => {
+            create_user_if_not_found(&mut h.user_client, github_id, name, email).await?
+        }
+        Err(err) => return Err(OAuthError::RequestError(err)),
+    };
+
+    let session_req = Request::new(CreateSessionReq { user_id });
+    let session_resp = h.auth_client.create_session(session_req).await?;
+    let session_token = session_resp.into_inner().token;
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .with_cookies([
+            create_session_token_cookie(session_token),
+            create_expired_cookie(GITHUB_STATE),
+        ])
+        .body(Body::empty())?;
 
     Ok(response)
 }

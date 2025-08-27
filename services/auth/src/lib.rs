@@ -5,6 +5,9 @@ use crate::proto::{
     HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq, StartGoogleLoginResp,
     ValidateSessionReq, ValidateSessionResp, api_service_client::ApiServiceClient,
 };
+use crate::proto::{
+    HandleGithubCallbackReq, HandleGithubCallbackResp, StartGithubLoginReq, StartGithubLoginResp,
+};
 use shared::middleware::auth::AuthenticatedSession;
 use shared::middleware::tracing::TracingServiceClient;
 use shared::patched_host;
@@ -73,6 +76,22 @@ impl AuthClient {
         req: Request<HandleGoogleCallbackReq>,
     ) -> Result<Response<HandleGoogleCallbackResp>, Status> {
         self.0.handle_google_callback(req).await
+    }
+
+    /// Starts a github login flow and returns the redirect URL.
+    pub async fn start_github_login(
+        &mut self,
+        req: Request<StartGithubLoginReq>,
+    ) -> Result<Response<StartGithubLoginResp>, Status> {
+        self.0.start_github_login(req).await
+    }
+
+    /// Handles github's OAuth callback and finalizes login.
+    pub async fn handle_github_callback(
+        &mut self,
+        req: Request<HandleGithubCallbackReq>,
+    ) -> Result<Response<HandleGithubCallbackResp>, Status> {
+        self.0.handle_github_callback(req).await
     }
 }
 

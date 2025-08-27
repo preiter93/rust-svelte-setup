@@ -19,9 +19,13 @@ export interface ProtoGrpcType {
     CreateSessionResp: MessageTypeDefinition
     DeleteSessionReq: MessageTypeDefinition
     DeleteSessionResp: MessageTypeDefinition
+    HandleGithubCallbackReq: MessageTypeDefinition
+    HandleGithubCallbackResp: MessageTypeDefinition
     HandleGoogleCallbackReq: MessageTypeDefinition
     HandleGoogleCallbackResp: MessageTypeDefinition
     Session: MessageTypeDefinition
+    StartGithubLoginReq: MessageTypeDefinition
+    StartGithubLoginResp: MessageTypeDefinition
     StartGoogleLoginReq: MessageTypeDefinition
     StartGoogleLoginResp: MessageTypeDefinition
     ValidateSessionReq: MessageTypeDefinition

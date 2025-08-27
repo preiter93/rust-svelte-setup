@@ -6,6 +6,7 @@ use crate::error::OAuthError;
 
 pub(crate) const GOOGLE_STATE: &'static str = "google_state";
 pub(crate) const GOOGLE_CODE_VERIFIER: &'static str = "google_code_verifier";
+pub(crate) const GITHUB_STATE: &'static str = "github_state";
 
 /// Maps grpc codes to http status codes.
 ///

@@ -3,7 +3,7 @@ use crate::{
     db::PostgresDBClient,
     handler::Handler,
     proto::api_service_server::ApiServiceServer,
-    utils::{GoogleOAuth, StdRandomStringGenerator},
+    utils::{GithubOAuth, GoogleOAuth, StdRandomStringGenerator},
 };
 use auth::{GRPC_PORT, SERVICE_NAME};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
@@ -39,6 +39,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             cfg.google_client_secret,
             cfg.google_redirect_uri,
         ),
+        GithubOAuth::<StdRandomStringGenerator>::new(
+            cfg.github_client_id,
+            cfg.github_client_secret,
+            cfg.github_redirect_uri,
+        ),
     );
 
     let address = format!("0.0.0.0:{GRPC_PORT}").parse()?;
@@ -62,6 +67,9 @@ struct Config {
     google_client_id: String,
     google_client_secret: String,
     google_redirect_uri: String,
+    github_client_id: String,
+    github_client_secret: String,
+    github_redirect_uri: String,
 }
 
 impl Config {
@@ -83,6 +91,9 @@ impl Config {
             google_client_id: Self::must_get_env("GOOGLE_CLIENT_ID"),
             google_client_secret: Self::must_get_env("GOOGLE_CLIENT_SECRET"),
             google_redirect_uri: Self::must_get_env("GOOGLE_REDIRECT_URI"),
+            github_client_id: Self::must_get_env("GITHUB_CLIENT_ID"),
+            github_client_secret: Self::must_get_env("GITHUB_CLIENT_SECRET"),
+            github_redirect_uri: Self::must_get_env("GITHUB_REDIRECT_URI"),
         }
     }
 }

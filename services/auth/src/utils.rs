@@ -113,6 +113,7 @@ impl<R: RandomStringGenerator> OAuth<R> {
             .body(body_bytes.to_vec())
             .header("Content-Type", "application/x-www-form-urlencoded")
             .header("Accept", "application/json")
+            .header("User-Agent", "rust-svelte-setup")
             .header("Content-Length", body_bytes.len().to_string());
 
         Ok(req)
@@ -120,11 +121,11 @@ impl<R: RandomStringGenerator> OAuth<R> {
 }
 #[derive(Debug, Deserialize)]
 pub struct OAuth2TokenResponse {
-    pub access_token: String,
-    pub expires_in: u64,
-    pub scope: String,
-    pub token_type: String,
-    pub id_token: String,
+    pub access_token: Option<String>,
+    pub expires_in: Option<u64>,
+    pub scope: Option<String>,
+    pub token_type: Option<String>,
+    pub id_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -227,6 +228,117 @@ impl<R: RandomStringGenerator> GoogleOAuth<R> {
 
         Ok(token_data.claims)
     }
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct GithubOAuth<R> {
+    client_id: String,
+    client_secret: String,
+    redirect_uri: String,
+    _phantom: PhantomData<R>,
+}
+
+impl<R: RandomStringGenerator> GithubOAuth<R> {
+    const AUTHORIZATION_ENDPOINT: &'static str = "https://github.com/login/oauth/authorize";
+    const TOKEN_ENDPOINT: &'static str = "https://github.com/login/oauth/access_token";
+    const GET_USER_ENDPOINT: &'static str = "https://api.github.com/user";
+    const LIST_USER_EMAILS_ENDPOINT: &'static str = "https://api.github.com/user/emails";
+
+    pub(crate) fn new(client_id: String, client_secret: String, redirect_uri: String) -> Self {
+        Self {
+            client_id,
+            client_secret,
+            redirect_uri,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Generates the authorization url.
+    #[must_use]
+    pub fn generate_authorization_url(
+        &self,
+        state: &str,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let scopes = ["user", "user:email"];
+        let params = [
+            ("response_type", "code"),
+            ("client_id", &self.client_id),
+            ("redirect_uri", &self.redirect_uri),
+            ("state", state),
+            ("scope", &scopes.join(" ")),
+        ];
+
+        Ok(Url::parse_with_params(Self::AUTHORIZATION_ENDPOINT, &params)?.into())
+    }
+
+    // Validates the authorization code.
+    pub async fn validate_authorization_code(
+        &self,
+        code: &str,
+    ) -> Result<OAuth2TokenResponse, Box<dyn Error>> {
+        let token_endpoint = Self::TOKEN_ENDPOINT;
+
+        let mut params = HashMap::new();
+        params.insert("client_id".to_string(), self.client_id.to_owned());
+        params.insert("client_secret".to_string(), self.client_secret.to_owned());
+        params.insert("grant_type".to_string(), "authorization_code".to_string());
+        params.insert("redirect_uri".to_string(), self.redirect_uri.to_owned());
+        params.insert("code".to_string(), code.to_owned());
+
+        let request = OAuth::<R>::create_oauth2_request(token_endpoint, params)?;
+        let request = request
+            .basic_auth(&self.client_id, Some(&self.client_secret))
+            .build()?;
+
+        let client = ClientBuilder::new().build()?;
+        let response = client.execute(request).await?;
+
+        Ok(response.json().await?)
+    }
+
+    pub async fn get_user(&self, access_token: &str) -> Result<GithubUser, Box<dyn Error>> {
+        let client = Client::new();
+        let response = client
+            .get(Self::GET_USER_ENDPOINT)
+            .header("Authorization", format!("Bearer {}", access_token))
+            .header("User-Agent", "rust-svelte-setup")
+            .send()
+            .await?;
+
+        Ok(response.json().await?)
+    }
+
+    pub async fn get_primary_email(&self, access_token: &str) -> Result<String, Box<dyn Error>> {
+        #[derive(Debug, Deserialize)]
+        struct GitHubEmail {
+            email: String,
+            primary: bool,
+        }
+
+        let client = Client::new();
+        let response = client
+            .get(Self::LIST_USER_EMAILS_ENDPOINT)
+            .header("Authorization", format!("Bearer {}", access_token))
+            .header("User-Agent", "rust-svelte-setup")
+            .send()
+            .await?;
+
+        let emails: Vec<GitHubEmail> = response.json().await?;
+
+        if let Some(primary) = emails.iter().find(|e| e.primary) {
+            Ok(primary.email.to_string())
+        } else {
+            Err(Box::from("no primary email found for this user"))
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GithubUser {
+    pub id: u64,
+    pub login: String,
+    pub name: Option<String>,
+    pub email: Option<String>,
 }
 
 /// Hashes a secret using SHA-256. While SHA-256 is unsuitable

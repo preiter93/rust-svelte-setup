@@ -11,6 +11,8 @@ service ApiService {
 
   rpc StartGoogleLogin(StartGoogleLoginReq) returns (StartGoogleLoginResp) {}
   rpc HandleGoogleCallback(HandleGoogleCallbackReq) returns (HandleGoogleCallbackResp);
+  rpc StartGithubLogin(StartGithubLoginReq) returns (StartGithubLoginResp) {}
+  rpc HandleGithubCallback(HandleGithubCallbackReq) returns (HandleGithubCallbackResp);
 }
 
 message Session {
@@ -41,8 +43,8 @@ message DeleteSessionReq {
 
 message DeleteSessionResp { }
 
-message StartGoogleLoginReq {
-}
+message StartGoogleLoginReq { }
+
 message StartGoogleLoginResp {
   string state = 1;
   string code_verifier = 2;
@@ -57,6 +59,24 @@ message HandleGoogleCallbackReq {
 
 message HandleGoogleCallbackResp {
   string google_id = 1;
+  string email = 2;
+  string name = 3;
+}
+
+message StartGithubLoginReq { }
+
+message StartGithubLoginResp {
+  string state = 1;
+  string authorization_url = 2;
+}
+
+message HandleGithubCallbackReq {
+  string state = 1;
+  string code = 2;
+}
+
+message HandleGithubCallbackResp {
+  string github_id = 1;
   string email = 2;
   string name = 3;
 }

@@ -109,12 +109,61 @@ pub enum HandleGoogleCallbackErr {
     #[error("failed to validate authorization code")]
     ValidateAuthorizationCode,
 
+    #[error("missing id token")]
+    MissingIDToken,
+
     #[error("failed to decode id token")]
     DecodeIdToken,
 }
 
 impl From<HandleGoogleCallbackErr> for Status {
     fn from(err: HandleGoogleCallbackErr) -> Self {
+        let code = match err {
+            _ => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
+}
+
+/// Error for [`crate::proto::api_service_server::ApiService::start_github_login`]
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum StartGithubLoginErr {
+    #[error("failed to generate authorization url")]
+    AuthorizationUrl,
+}
+
+impl From<StartGithubLoginErr> for Status {
+    fn from(err: StartGithubLoginErr) -> Self {
+        let code = match err {
+            _ => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
+}
+
+/// Error for [`crate::proto::api_service_server::ApiService::handle_github_callback`]
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum HandleGithubCallbackErr {
+    #[error("failed to validate authorization code")]
+    ValidateAuthorizationCode,
+
+    #[error("missing access token")]
+    MissingAccessToken,
+
+    #[error("failed to get user information")]
+    GetUserInformation,
+
+    #[error("failed to get email information")]
+    GetEmailInformation,
+
+    #[error("failed to decode id token")]
+    DecodeIdToken,
+}
+
+impl From<HandleGithubCallbackErr> for Status {
+    fn from(err: HandleGithubCallbackErr) -> Self {
         let code = match err {
             _ => Code::Internal,
         };
