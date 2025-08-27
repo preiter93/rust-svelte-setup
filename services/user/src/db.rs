@@ -161,6 +161,7 @@ pub mod test {
         }
     }
 
+    #[derive(Clone)]
     struct DBUser {
         id: Uuid,
         name: &'static str,
@@ -221,8 +222,27 @@ pub mod test {
     }
 
     #[tokio::test]
-    async fn test_get_user_not_found() {
+    async fn test_get_user_id_from_google_id() {
         let user_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+        let given_user = fixture_db_user(|u| {
+            u.id = user_id;
+            u.google_id = "google-id-1";
+        });
+
+        run_db_test(vec![given_user.clone()], |db_client| async move {
+            let got_user_id = db_client
+                .get_user_id_from_google_id(given_user.google_id)
+                .await
+                .expect("failed to get user id from google id");
+
+            assert_eq!(got_user_id, user_id);
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user_not_found() {
+        let user_id = Uuid::parse_str("99999999-9999-9999-9999-999999999999").unwrap();
 
         run_db_test(vec![], |db_client| async move {
             let got_result = db_client.get_user(user_id).await;
