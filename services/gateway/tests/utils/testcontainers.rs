@@ -89,7 +89,6 @@ async fn run_postgres(pg_host: &str, pg_port: u16) -> ContainerAsync<GenericImag
             "/docker-entrypoint-initdb.d/init.sql",
             include_bytes!("../../../../infrastructure/db/init.sql").to_vec(),
         )
-        .with_env_var("APP_ENV", "integration-test")
         .with_env_var("PGPORT", pg_port.to_string())
         .with_env_var("POSTGRES_USER", "postgres")
         .with_env_var("POSTGRES_PASSWORD", "postgres")

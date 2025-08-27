@@ -15,7 +15,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use url::Url;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Session {
     pub id: String,
     pub secret_hash: Vec<u8>,
@@ -291,7 +291,7 @@ pub(crate) mod tests {
     use super::*;
 
     pub(crate) fn fixture_token() -> String {
-        "random.random".to_string()
+        "secret.secret".to_string()
     }
 
     pub(crate) fn fixture_session<F>(mut func: F) -> Session
@@ -300,9 +300,9 @@ pub(crate) mod tests {
     {
         let mut session = Session {
             id: "session-id".to_string(),
-            secret_hash: hash_secret("random"),
+            secret_hash: hash_secret("secret"),
             created_at: chrono::Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
-            expires_at: chrono::Utc.with_ymd_and_hms(2021, 1, 1, 0, 0, 0).unwrap(),
+            expires_at: chrono::Utc.with_ymd_and_hms(2020, 1, 8, 0, 0, 0).unwrap(),
             user_id: "user-id".to_string(),
         };
         func(&mut session);
@@ -314,15 +314,15 @@ pub(crate) mod tests {
 
     impl RandomStringGenerator for MockRandomStringGenerator {
         fn generate_secure_random_string() -> String {
-            "random".to_string()
+            "secret".to_string()
         }
 
         fn generate_random_base64_encoded_string(_: usize) -> String {
-            "random-encoded".to_string()
+            "secret-encoded".to_string()
         }
     }
 
-    pub struct MockNow(chrono::DateTime<Utc>);
+    pub struct MockNow;
 
     impl Now for MockNow {
         fn now() -> chrono::DateTime<chrono::Utc> {

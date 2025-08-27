@@ -2,6 +2,8 @@ pub mod cookie;
 pub mod db;
 pub mod middleware;
 pub mod session;
+#[cfg(feature = "test-utils")]
+pub mod test_utils;
 pub mod tracing;
 
 pub fn patched_host<S: Into<String>>(host: S) -> String {

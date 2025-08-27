@@ -129,6 +129,10 @@ impl DBClient for PostgresDBClient {
 
 #[cfg(test)]
 pub(crate) mod test {
+    use crate::SERVICE_NAME;
+    use crate::utils::tests::fixture_session;
+    use chrono::TimeZone;
+    use shared::test_utils::get_test_db;
     use std::sync::Arc;
 
     use tokio::sync::Mutex;
@@ -187,5 +191,87 @@ pub(crate) mod test {
             *count += 1;
             self.update_session.lock().await.take().unwrap()
         }
+    }
+
+    async fn run_db_test<F, Fut>(given_sessions: Vec<Session>, test_fn: F)
+    where
+        F: FnOnce(PostgresDBClient) -> Fut,
+        Fut: std::future::Future<Output = ()>,
+    {
+        let migrations = std::fs::canonicalize("./migrations").unwrap();
+        let db = get_test_db(SERVICE_NAME, migrations)
+            .await
+            .expect("failed to get test db client");
+        let db_client = PostgresDBClient::new(db.pool.clone());
+
+        for session in given_sessions {
+            db_client
+                .insert_session(
+                    &session.id,
+                    &session.secret_hash,
+                    &session.user_id,
+                    session.created_at,
+                )
+                .await
+                .expect("failed to insert session");
+        }
+
+        test_fn(db_client).await;
+    }
+
+    #[tokio::test]
+    async fn test_get_session() {
+        let session_id = "session-id-get";
+        let session = fixture_session(|s| s.id = session_id.to_string());
+
+        run_db_test(vec![session.clone()], |db_client| async move {
+            let got_session = db_client
+                .get_session(session_id)
+                .await
+                .expect("failed to get session");
+
+            assert_eq!(got_session, session);
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_update_session() {
+        let session_id = "session-id-update";
+        let mut session = fixture_session(|s| s.id = session_id.to_string());
+
+        run_db_test(vec![session.clone()], |db_client| async move {
+            session.expires_at = chrono::Utc.with_ymd_and_hms(2020, 1, 9, 0, 0, 0).unwrap();
+            db_client
+                .update_session(session_id, &session.expires_at)
+                .await
+                .expect("failed to update session");
+
+            let got_session = db_client
+                .get_session(session_id)
+                .await
+                .expect("failed to get session");
+
+            assert_eq!(got_session, session);
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_delete_session() {
+        let session_id = "session-id-delete";
+        let session = fixture_session(|s| s.id = session_id.to_string());
+
+        run_db_test(vec![session.clone()], |db_client| async move {
+            db_client
+                .delete_session(session_id)
+                .await
+                .expect("failed to delete session");
+
+            let got_result = db_client.get_session(session_id).await;
+
+            assert!(matches!(got_result, Err(DBError::NotFound)));
+        })
+        .await;
     }
 }
