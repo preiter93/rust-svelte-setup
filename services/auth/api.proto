@@ -9,10 +9,8 @@ service ApiService {
   rpc ValidateSession(ValidateSessionReq) returns (ValidateSessionResp) {}
   rpc DeleteSession(DeleteSessionReq) returns (DeleteSessionResp) {}
 
-  rpc StartGoogleLogin(StartGoogleLoginReq) returns (StartGoogleLoginResp) {}
-  rpc HandleGoogleCallback(HandleGoogleCallbackReq) returns (HandleGoogleCallbackResp);
-  rpc StartGithubLogin(StartGithubLoginReq) returns (StartGithubLoginResp) {}
-  rpc HandleGithubCallback(HandleGithubCallbackReq) returns (HandleGithubCallbackResp);
+  rpc StartOauthLogin(StartOauthLoginReq) returns (StartOauthLoginResp) {}
+  rpc HandleOauthCallback(HandleOauthCallbackReq) returns (HandleOauthCallbackResp);
 }
 
 message Session {
@@ -43,38 +41,30 @@ message DeleteSessionReq {
 
 message DeleteSessionResp { }
 
-message StartGoogleLoginReq { }
-
-message StartGoogleLoginResp {
-  string state = 1;
-  string code_verifier = 2;
-  string authorization_url = 3;
+enum OauthProvider {
+    OAUTH_PROVIDER_UNSPECIFIED = 0;
+    OAUTH_PROVIDER_GOOGLE = 1;
+    OAUTH_PROVIDER_GITHUB = 2;
 }
 
-message HandleGoogleCallbackReq {
-  string code = 1;
-  string code_verifier = 2;
+message StartOauthLoginReq {
+  OauthProvider provider = 1;
 }
 
-message HandleGoogleCallbackResp {
-  string google_id = 1;
-  string email = 2;
-  string name = 3;
-}
-
-message StartGithubLoginReq { }
-
-message StartGithubLoginResp {
+message StartOauthLoginResp {
   string state = 1;
   string authorization_url = 2;
+  string code_verifier = 3;
 }
 
-message HandleGithubCallbackReq {
-  string code = 1;
+message HandleOauthCallbackReq {
+  OauthProvider provider = 1;
+  string code = 2;
+  string code_verifier = 3;
 }
 
-message HandleGithubCallbackResp {
-  string github_id = 1;
+message HandleOauthCallbackResp {
+  string id = 1;
   string email = 2;
   string name = 3;
 }

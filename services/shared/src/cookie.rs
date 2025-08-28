@@ -69,6 +69,11 @@ pub fn create_session_token_cookie<T: Into<String>>(token: T) -> Cookie {
     )
 }
 
+/// Expires a session token cookie.
+pub fn expire_session_token_cookie() -> Cookie {
+    build_cookie(SESSION_TOKEN_COOKIE_KEY, "", Duration::zero())
+}
+
 /// Creates a new oauth cookie.
 pub fn create_oauth_cookie<S, T>(name: S, value: T) -> Cookie
 where

@@ -171,6 +171,61 @@ impl From<HandleGithubCallbackErr> for Status {
     }
 }
 
+/// Error for `start_{provider}_login`
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum StartOauthLoginErr {
+    #[error("failed to generate authorization url")]
+    GenerateAuthorizationUrl,
+
+    #[error("oauth provider is not supported")]
+    UnsupportedOauthProvider,
+}
+
+impl From<StartOauthLoginErr> for Status {
+    fn from(err: StartOauthLoginErr) -> Self {
+        let code = match err {
+            _ => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
+}
+
+/// Error for `handle_{provider}_callback`
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum HandleOauthCallbackErr {
+    #[error("failed to validate authorization code")]
+    ValidateAuthorizationCode,
+
+    #[error("missing id token")]
+    MissingIDToken,
+
+    #[error("failed to decode id token")]
+    DecodeIdToken,
+
+    #[error("missing access token")]
+    MissingAccessToken,
+
+    #[error("failed to fetch user information")]
+    FetchUserInformation,
+
+    #[error("failed to fetch email information")]
+    FetchEmailInformation,
+
+    #[error("oauth provider is not supported")]
+    UnsupportedOauthProvider,
+}
+
+impl From<HandleOauthCallbackErr> for Status {
+    fn from(err: HandleOauthCallbackErr) -> Self {
+        let code = match err {
+            _ => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
+}
+
 // Database error
 #[derive(Debug, Error)]
 pub enum DBError {

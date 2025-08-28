@@ -12,26 +12,22 @@ use std::marker::PhantomData;
 
 use crate::{
     db::DBClient,
-    error::{DeleteSessionErr, HandleGithubCallbackErr, StartGithubLoginErr},
+    error::{DeleteSessionErr, HandleOauthCallbackErr, StartOauthLoginErr},
     proto::{
-        HandleGithubCallbackReq, HandleGithubCallbackResp, StartGithubLoginReq,
-        StartGithubLoginResp,
+        HandleOauthCallbackReq, HandleOauthCallbackResp, OauthProvider, StartOauthLoginReq,
+        StartOauthLoginResp,
     },
-    utils::{GithubOAuth, Now, RandomStringGenerator, SystemNow},
+    utils::{GithubOAuth, Now, OAuthProvider, RandomStringGenerator, SystemNow},
 };
 use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
 use crate::{
-    error::{
-        CreateSessionErr, DBError, HandleGoogleCallbackErr, StartGoogleLoginErr, ValidateSessionErr,
-    },
+    error::{CreateSessionErr, DBError, ValidateSessionErr},
     proto::{
         CreateSessionReq, CreateSessionResp, DeleteSessionReq, DeleteSessionResp,
-        HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq,
-        StartGoogleLoginResp, ValidateSessionReq, ValidateSessionResp,
-        api_service_server::ApiService,
+        ValidateSessionReq, ValidateSessionResp, api_service_server::ApiService,
     },
     utils::{GoogleOAuth, OAuth, constant_time_equal, hash_secret},
 };
@@ -191,120 +187,101 @@ where
         Ok(Response::new(DeleteSessionResp {}))
     }
 
-    /// Starts a google login.
+    /// Starts a oauth login.
     ///
     /// # Errors
     /// - generating authorization url
     #[instrument(skip(self), err)]
-    async fn start_google_login(
+    async fn start_oauth_login(
         &self,
-        _: Request<StartGoogleLoginReq>,
-    ) -> Result<Response<StartGoogleLoginResp>, Status> {
-        let (state, code_verifier) = (
-            OAuth::<R>::generate_state(),
-            OAuth::<R>::generate_code_verifier(),
-        );
+        req: Request<StartOauthLoginReq>,
+    ) -> Result<Response<StartOauthLoginResp>, Status> {
+        let req = req.into_inner();
 
-        let Ok(authorization_url) = self
-            .google
-            .generate_authorization_url(&state, &code_verifier)
-        else {
-            return Err(StartGoogleLoginErr::AuthorizationUrl.into());
+        let state = OAuth::<R>::generate_state();
+
+        let (code_verifier, authorization_url) = match req.provider() {
+            OauthProvider::Google => {
+                let code_verifier = OAuth::<R>::generate_code_verifier();
+                let code_challenge = OAuth::<R>::create_s256_code_challenge(&code_verifier);
+
+                let authorization_url = self
+                    .google
+                    .generate_authorization_url(state.clone(), code_challenge)
+                    .map_err(|_| StartOauthLoginErr::GenerateAuthorizationUrl)?;
+
+                (code_verifier, authorization_url)
+            }
+            OauthProvider::Github => {
+                let authorization_url = self
+                    .github
+                    .generate_authorization_url(state.clone(), String::new())
+                    .map_err(|_| StartOauthLoginErr::GenerateAuthorizationUrl)?;
+
+                (String::new(), authorization_url)
+            }
+            _ => return Err(StartOauthLoginErr::UnsupportedOauthProvider.into()),
         };
 
-        Ok(Response::new(StartGoogleLoginResp {
+        Ok(Response::new(StartOauthLoginResp {
             state,
             code_verifier,
             authorization_url,
         }))
     }
 
-    /// Handles a google login callback
+    /// Handles a oauth login callback
     ///
     /// # Errors
     /// - validating authorization code
     /// - decoding the id token
     #[instrument(skip(self), err)]
-    async fn handle_google_callback(
+    async fn handle_oauth_callback(
         &self,
-        req: Request<HandleGoogleCallbackReq>,
-    ) -> Result<Response<HandleGoogleCallbackResp>, Status> {
+        req: Request<HandleOauthCallbackReq>,
+    ) -> Result<Response<HandleOauthCallbackResp>, Status> {
         let req = req.into_inner();
-        let Ok(tokens) = self
-            .google
-            .validate_authorization_code(&req.code, &req.code_verifier)
-            .await
-        else {
-            return Err(HandleGoogleCallbackErr::ValidateAuthorizationCode.into());
+
+        let user = match req.provider() {
+            OauthProvider::Google => {
+                let tokens = self
+                    .google
+                    .validate_authorization_code(&req.code, &req.code_verifier)
+                    .await
+                    .map_err(|_| HandleOauthCallbackErr::ValidateAuthorizationCode)?;
+
+                let Some(id_token) = tokens.id_token else {
+                    return Err(HandleOauthCallbackErr::MissingIDToken.into());
+                };
+
+                self.google
+                    .fetch_user_info(&id_token)
+                    .await
+                    .map_err(|_| HandleOauthCallbackErr::FetchUserInformation)?
+            }
+            OauthProvider::Github => {
+                let tokens = self
+                    .github
+                    .validate_authorization_code(&req.code, &req.code_verifier)
+                    .await
+                    .map_err(|_| HandleOauthCallbackErr::ValidateAuthorizationCode)?;
+
+                let Some(access_token) = tokens.access_token else {
+                    return Err(HandleOauthCallbackErr::MissingAccessToken.into());
+                };
+
+                self.github
+                    .fetch_user_info(&access_token)
+                    .await
+                    .map_err(|_| HandleOauthCallbackErr::FetchUserInformation)?
+            }
+            _ => return Err(HandleOauthCallbackErr::UnsupportedOauthProvider.into()),
         };
 
-        let Some(id_token) = tokens.id_token else {
-            return Err(HandleGoogleCallbackErr::MissingIDToken.into());
-        };
-
-        let Ok(claims) = self.google.decode_id_token(&id_token).await else {
-            return Err(HandleGoogleCallbackErr::DecodeIdToken.into());
-        };
-
-        return Ok(Response::new(HandleGoogleCallbackResp {
-            google_id: claims.sub,
-            name: claims.name,
-            email: claims.email,
-        }));
-    }
-
-    /// Starts a github login.
-    ///
-    /// # Errors
-    /// - generating authorization url
-    #[instrument(skip(self), err)]
-    async fn start_github_login(
-        &self,
-        _: Request<StartGithubLoginReq>,
-    ) -> Result<Response<StartGithubLoginResp>, Status> {
-        let state = OAuth::<R>::generate_state();
-
-        let Ok(authorization_url) = self.github.generate_authorization_url(&state) else {
-            return Err(StartGithubLoginErr::AuthorizationUrl.into());
-        };
-
-        Ok(Response::new(StartGithubLoginResp {
-            state,
-            authorization_url,
-        }))
-    }
-
-    /// Handles a github login callback
-    ///
-    /// # Errors
-    /// - validating authorization code
-    /// - decoding the id token
-    #[instrument(skip(self), err)]
-    async fn handle_github_callback(
-        &self,
-        req: Request<HandleGithubCallbackReq>,
-    ) -> Result<Response<HandleGithubCallbackResp>, Status> {
-        let req = req.into_inner();
-        let Ok(tokens) = self.github.validate_authorization_code(&req.code).await else {
-            return Err(HandleGithubCallbackErr::ValidateAuthorizationCode.into());
-        };
-
-        let Some(access_token) = tokens.access_token else {
-            return Err(HandleGithubCallbackErr::MissingAccessToken.into());
-        };
-
-        let Ok((github_id, name)) = self.github.get_user(&access_token).await else {
-            return Err(HandleGithubCallbackErr::GetUserInformation.into());
-        };
-
-        let Ok(email) = self.github.get_primary_email(&access_token).await else {
-            return Err(HandleGithubCallbackErr::GetEmailInformation.into());
-        };
-
-        return Ok(Response::new(HandleGithubCallbackResp {
-            github_id,
-            name,
-            email,
+        return Ok(Response::new(HandleOauthCallbackResp {
+            id: user.id,
+            name: user.name,
+            email: user.email,
         }));
     }
 }

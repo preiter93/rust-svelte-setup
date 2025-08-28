@@ -6,6 +6,11 @@
 
 	$effect(() => {
 		async function validateAuthorizationCode() {
+			const provider = data.provider;
+			if (provider != 'google' && provider != 'github') {
+				return new Response('Unsupported oauth provider: ' + provider, { status: 400 });
+			}
+
 			const code = data.code;
 			const state = data.state;
 			if (code === null || state === null) {
@@ -13,7 +18,7 @@
 			}
 
 			let authService = new AuthService(fetch);
-			await authService.handleGoogleCallback(state, code);
+			await authService.handleOauthCallback(data.provider, state, code);
 
 			goto('/');
 		}

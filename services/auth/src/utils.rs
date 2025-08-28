@@ -2,6 +2,7 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use std::collections::HashMap;
 use std::error::Error;
 use std::marker::PhantomData;
+use tonic::async_trait;
 
 use base64::Engine as _;
 use base64::prelude::BASE64_URL_SAFE_NO_PAD;
@@ -10,7 +11,7 @@ use rand::distr::{Alphanumeric, SampleString as _};
 
 use rand::rngs::StdRng;
 use rand::{Rng as _, SeedableRng as _};
-use reqwest::{Client, ClientBuilder, RequestBuilder};
+use reqwest::{Client, RequestBuilder};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use url::Url;
@@ -92,7 +93,8 @@ impl<R: RandomStringGenerator> OAuth<R> {
     }
 
     /// Creates a S256 code challenge.
-    fn create_s256_code_challenge(code_verifier: &str) -> String {
+    #[must_use]
+    pub fn create_s256_code_challenge(code_verifier: &str) -> String {
         let digest = Sha256::digest(code_verifier.as_bytes());
         let code_challenge = BASE64_URL_SAFE_NO_PAD.encode(digest);
         code_challenge
@@ -120,7 +122,7 @@ impl<R: RandomStringGenerator> OAuth<R> {
     }
 }
 #[derive(Debug, Deserialize)]
-pub struct OAuth2TokenResponse {
+pub struct OAuth2TokenResp {
     pub access_token: Option<String>,
     pub expires_in: Option<u64>,
     pub scope: Option<String>,
@@ -136,6 +138,89 @@ pub struct Oauth2TokenClaims {
     pub exp: usize,
 }
 
+pub struct UserInfo {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+}
+
+#[async_trait]
+pub trait OAuthProvider {
+    const TOKEN_ENDPOINT: &'static str;
+    const AUTH_ENDPOINT: &'static str;
+
+    fn client_id(&self) -> &str;
+
+    fn client_secret(&self) -> &str;
+
+    fn redirect_uri(&self) -> &str;
+
+    fn scopes(&self) -> Vec<&'static str>;
+
+    async fn fetch_user_info(&self, token: &str) -> Result<UserInfo, Box<dyn Error>>;
+
+    fn generate_authorization_url(
+        &self,
+        state: String,
+        code_challenge: String,
+    ) -> Result<String, Box<dyn Error>> {
+        let mut params = vec![
+            ("response_type", String::from("code")),
+            ("client_id", self.client_id().to_owned()),
+            ("redirect_uri", self.redirect_uri().to_owned()),
+            ("state", state),
+        ];
+
+        if !code_challenge.is_empty() {
+            params.push(("code_challenge_method", String::from("S256")));
+            params.push(("code_challenge", code_challenge));
+        }
+
+        let scopes = self.scopes().join(" ");
+        if !scopes.is_empty() {
+            params.push(("scope", scopes));
+        }
+
+        let authorization_url = Url::parse_with_params(Self::AUTH_ENDPOINT, &params)?;
+
+        Ok(authorization_url.into())
+    }
+
+    async fn validate_authorization_code(
+        &self,
+        code: &str,
+        code_verifier: &str,
+    ) -> Result<OAuth2TokenResp, Box<dyn Error>> {
+        let mut params = HashMap::new();
+        params.insert("client_id".to_string(), self.client_id().to_owned());
+        params.insert("client_secret".to_string(), self.client_secret().to_owned());
+        params.insert("grant_type".to_string(), "authorization_code".to_string());
+        params.insert("redirect_uri".to_string(), self.redirect_uri().to_owned());
+        params.insert("code".to_string(), code.to_owned());
+        if !code_verifier.is_empty() {
+            params.insert("code_verifier".to_string(), code_verifier.to_owned());
+        }
+
+        let body_str = serde_urlencoded::to_string(params)?;
+        let body_bytes = body_str.as_bytes();
+
+        let client = reqwest::Client::new();
+
+        let request = client
+            .post(Self::TOKEN_ENDPOINT)
+            .basic_auth(&self.client_id(), Some(&self.client_secret()))
+            .body(body_bytes.to_vec())
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .header("Accept", "application/json")
+            .header("User-Agent", "rust-svelte-setup")
+            .header("Content-Length", body_bytes.len().to_string());
+
+        let response: OAuth2TokenResp = request.send().await?.json().await?;
+
+        Ok(response)
+    }
+}
+
 #[derive(Clone, Default)]
 pub(crate) struct GoogleOAuth<R> {
     client_id: String,
@@ -145,10 +230,6 @@ pub(crate) struct GoogleOAuth<R> {
 }
 
 impl<R: RandomStringGenerator> GoogleOAuth<R> {
-    const AUTHORIZATION_ENDPOINT: &'static str = "https://accounts.google.com/o/oauth2/v2/auth";
-    const TOKEN_ENDPOINT: &'static str = "https://oauth2.googleapis.com/token";
-    const JWKS_ENDPOINT: &'static str = "https://www.googleapis.com/oauth2/v3/certs";
-
     /// Creates a new [Google] oauth client.
     pub fn new(client_id: String, client_secret: String, redirect_uri: String) -> Self {
         Self {
@@ -158,59 +239,46 @@ impl<R: RandomStringGenerator> GoogleOAuth<R> {
             _phantom: PhantomData,
         }
     }
+}
 
-    /// Generates the google authorization url.
-    #[must_use]
-    pub fn generate_authorization_url(
-        &self,
-        state: &str,
-        code_verifier: &str,
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        let scopes = ["openid", "profile", "email"];
-        let code_challenge = OAuth::<R>::create_s256_code_challenge(code_verifier);
-        let params = [
-            ("response_type", "code"),
-            ("client_id", &self.client_id),
-            ("redirect_uri", &self.redirect_uri),
-            ("state", state),
-            ("code_challenge_method", "S256"),
-            ("code_challenge", &code_challenge),
-            ("scope", &scopes.join(" ")),
-        ];
-        Ok(Url::parse_with_params(Self::AUTHORIZATION_ENDPOINT, &params)?.into())
+#[async_trait]
+impl<R> OAuthProvider for GoogleOAuth<R>
+where
+    R: RandomStringGenerator,
+{
+    const AUTH_ENDPOINT: &'static str = "https://accounts.google.com/o/oauth2/v2/auth";
+    const TOKEN_ENDPOINT: &'static str = "https://oauth2.googleapis.com/token";
+
+    fn client_id(&self) -> &str {
+        &self.client_id
     }
 
-    // Validates the authorization code.
-    pub async fn validate_authorization_code(
-        &self,
-        code: &str,
-        code_verifier: &str,
-    ) -> Result<OAuth2TokenResponse, Box<dyn Error>> {
-        let token_endpoint = Self::TOKEN_ENDPOINT;
-
-        let mut params = HashMap::new();
-        params.insert("grant_type".to_string(), "authorization_code".to_string());
-        params.insert("redirect_uri".to_string(), self.redirect_uri.to_owned());
-        params.insert("code".to_string(), code.to_owned());
-        params.insert("code_verifier".to_string(), code_verifier.to_owned());
-
-        let request = OAuth::<R>::create_oauth2_request(token_endpoint, params)?;
-        let request = request
-            .basic_auth(&self.client_id, Some(&self.client_secret))
-            .build()?;
-
-        let client = ClientBuilder::new().build()?;
-        let response = client.execute(request).await?;
-
-        Ok(response.json().await?)
+    fn client_secret(&self) -> &str {
+        &self.client_secret
     }
 
-    // Decodes the id token and returns the token claims.
-    pub async fn decode_id_token(&self, token: &str) -> Result<Oauth2TokenClaims, Box<dyn Error>> {
+    fn redirect_uri(&self) -> &str {
+        &self.redirect_uri
+    }
+
+    fn scopes(&self) -> Vec<&'static str> {
+        vec!["openid", "profile", "email"]
+    }
+
+    async fn fetch_user_info(&self, token: &str) -> Result<UserInfo, Box<dyn Error>> {
+        const JWKS_CERTS_ENDPOINT: &'static str = "https://www.googleapis.com/oauth2/v3/certs";
+
+        #[derive(Debug, Deserialize)]
+        pub struct TokenClaims {
+            pub sub: String,
+            pub email: String,
+            pub name: String,
+        }
+
         let header = decode_header(token)?;
         let kid = header.kid.ok_or("missing 'kid' in token header")?;
 
-        let jwks = get_jwks(Self::JWKS_ENDPOINT).await?;
+        let jwks = get_jwks(JWKS_CERTS_ENDPOINT).await?;
 
         let jwk = jwks
             .keys
@@ -223,9 +291,13 @@ impl<R: RandomStringGenerator> GoogleOAuth<R> {
         let mut validation = Validation::new(Algorithm::RS256);
         validation.set_audience(&[self.client_id.clone()]);
 
-        let token_data = decode::<Oauth2TokenClaims>(token, &decoding_key, &validation)?;
+        let token_data = decode::<TokenClaims>(token, &decoding_key, &validation)?;
 
-        Ok(token_data.claims)
+        Ok(UserInfo {
+            id: token_data.claims.sub,
+            name: token_data.claims.name,
+            email: token_data.claims.email,
+        })
     }
 }
 
@@ -251,51 +323,36 @@ impl<R: RandomStringGenerator> GithubOAuth<R> {
             _phantom: PhantomData,
         }
     }
+}
 
-    /// Generates the authorization url.
-    #[must_use]
-    pub fn generate_authorization_url(
-        &self,
-        state: &str,
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        let scopes = ["user", "user:email"];
-        let params = [
-            ("response_type", "code"),
-            ("client_id", &self.client_id),
-            ("redirect_uri", &self.redirect_uri),
-            ("state", state),
-            ("scope", &scopes.join(" ")),
-        ];
+#[async_trait]
+impl<R> OAuthProvider for GithubOAuth<R>
+where
+    R: RandomStringGenerator,
+{
+    const AUTH_ENDPOINT: &'static str = "https://github.com/login/oauth/authorize";
+    const TOKEN_ENDPOINT: &'static str = "https://github.com/login/oauth/access_token";
 
-        Ok(Url::parse_with_params(Self::AUTHORIZATION_ENDPOINT, &params)?.into())
+    fn client_id(&self) -> &str {
+        &self.client_id
     }
 
-    // Validates the authorization code.
-    pub async fn validate_authorization_code(
-        &self,
-        code: &str,
-    ) -> Result<OAuth2TokenResponse, Box<dyn Error>> {
-        let token_endpoint = Self::TOKEN_ENDPOINT;
-
-        let mut params = HashMap::new();
-        params.insert("client_id".to_string(), self.client_id.to_owned());
-        params.insert("client_secret".to_string(), self.client_secret.to_owned());
-        params.insert("grant_type".to_string(), "authorization_code".to_string());
-        params.insert("redirect_uri".to_string(), self.redirect_uri.to_owned());
-        params.insert("code".to_string(), code.to_owned());
-
-        let request = OAuth::<R>::create_oauth2_request(token_endpoint, params)?;
-        let request = request
-            .basic_auth(&self.client_id, Some(&self.client_secret))
-            .build()?;
-
-        let client = ClientBuilder::new().build()?;
-        let response = client.execute(request).await?;
-
-        Ok(response.json().await?)
+    fn client_secret(&self) -> &str {
+        &self.client_secret
     }
 
-    pub async fn get_user(&self, access_token: &str) -> Result<(String, String), Box<dyn Error>> {
+    fn redirect_uri(&self) -> &str {
+        &self.redirect_uri
+    }
+
+    fn scopes(&self) -> Vec<&'static str> {
+        vec!["user", "user:email"]
+    }
+
+    async fn fetch_user_info(&self, token: &str) -> Result<UserInfo, Box<dyn Error>> {
+        const GET_USER_ENDPOINT: &'static str = "https://api.github.com/user";
+        const LIST_EMAILS_ENDPOINT: &'static str = "https://api.github.com/user/emails";
+
         #[derive(Debug, Deserialize)]
         pub struct GithubUser {
             pub id: u64,
@@ -303,20 +360,7 @@ impl<R: RandomStringGenerator> GithubOAuth<R> {
             pub name: Option<String>,
             pub email: Option<String>,
         }
-        let client = Client::new();
-        let response = client
-            .get(Self::GET_USER_ENDPOINT)
-            .header("Authorization", format!("Bearer {}", access_token))
-            .header("User-Agent", "rust-svelte-setup")
-            .send()
-            .await?;
 
-        let user: GithubUser = response.json().await?;
-
-        Ok((user.id.to_string(), user.name.unwrap_or(user.login)))
-    }
-
-    pub async fn get_primary_email(&self, access_token: &str) -> Result<String, Box<dyn Error>> {
         #[derive(Debug, Deserialize)]
         struct GitHubEmail {
             email: String,
@@ -325,19 +369,37 @@ impl<R: RandomStringGenerator> GithubOAuth<R> {
 
         let client = Client::new();
         let response = client
-            .get(Self::LIST_USER_EMAILS_ENDPOINT)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .get(Self::GET_USER_ENDPOINT)
+            .header("Authorization", format!("Bearer {}", token))
             .header("User-Agent", "rust-svelte-setup")
             .send()
             .await?;
 
-        let emails: Vec<GitHubEmail> = response.json().await?;
+        let user: GithubUser = response.json().await?;
+        let id = user.id.to_string();
+        let name = user.name.unwrap_or(user.login);
+        let email = match user.email {
+            Some(email) => email,
+            None => {
+                let client = Client::new();
+                let response = client
+                    .get(Self::LIST_USER_EMAILS_ENDPOINT)
+                    .header("Authorization", format!("Bearer {}", token))
+                    .header("User-Agent", "rust-svelte-setup")
+                    .send()
+                    .await?;
 
-        if let Some(primary) = emails.iter().find(|e| e.primary) {
-            Ok(primary.email.to_string())
-        } else {
-            Err(Box::from("no primary email found for this user"))
-        }
+                let emails: Vec<GitHubEmail> = response.json().await?;
+
+                if let Some(primary) = emails.iter().find(|e| e.primary) {
+                    primary.email.to_string()
+                } else {
+                    return Err(Box::from("no primary email found for this user"));
+                }
+            }
+        };
+
+        Ok(UserInfo { id, name, email })
     }
 }
 

@@ -42,61 +42,69 @@ pub struct DeleteSessionReq {
 pub struct DeleteSessionResp {}
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct StartGoogleLoginReq {}
+pub struct StartOauthLoginReq {
+    #[prost(enumeration = "OauthProvider", tag = "1")]
+    pub provider: i32,
+}
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StartGoogleLoginResp {
+pub struct StartOauthLoginResp {
     #[prost(string, tag = "1")]
     pub state: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub code_verifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
     pub authorization_url: ::prost::alloc::string::String,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct HandleGoogleCallbackReq {
-    #[prost(string, tag = "1")]
-    pub code: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
+    #[prost(string, tag = "3")]
     pub code_verifier: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct HandleGoogleCallbackResp {
+pub struct HandleOauthCallbackReq {
+    #[prost(enumeration = "OauthProvider", tag = "1")]
+    pub provider: i32,
+    #[prost(string, tag = "2")]
+    pub code: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub code_verifier: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HandleOauthCallbackResp {
     #[prost(string, tag = "1")]
-    pub google_id: ::prost::alloc::string::String,
+    pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub email: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub name: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct StartGithubLoginReq {}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StartGithubLoginResp {
-    #[prost(string, tag = "1")]
-    pub state: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub authorization_url: ::prost::alloc::string::String,
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum OauthProvider {
+    Unspecified = 0,
+    Google = 1,
+    Github = 2,
 }
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct HandleGithubCallbackReq {
-    #[prost(string, tag = "1")]
-    pub code: ::prost::alloc::string::String,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct HandleGithubCallbackResp {
-    #[prost(string, tag = "1")]
-    pub github_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub email: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub name: ::prost::alloc::string::String,
+impl OauthProvider {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "OAUTH_PROVIDER_UNSPECIFIED",
+            Self::Google => "OAUTH_PROVIDER_GOOGLE",
+            Self::Github => "OAUTH_PROVIDER_GITHUB",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "OAUTH_PROVIDER_UNSPECIFIED" => Some(Self::Unspecified),
+            "OAUTH_PROVIDER_GOOGLE" => Some(Self::Google),
+            "OAUTH_PROVIDER_GITHUB" => Some(Self::Github),
+            _ => None,
+        }
+    }
 }
 /// Generated client implementations.
 pub mod api_service_client {
@@ -261,11 +269,11 @@ pub mod api_service_client {
                 .insert(GrpcMethod::new("proto.ApiService", "DeleteSession"));
             self.inner.unary(req, path, codec).await
         }
-        pub async fn start_google_login(
+        pub async fn start_oauth_login(
             &mut self,
-            request: impl tonic::IntoRequest<super::StartGoogleLoginReq>,
+            request: impl tonic::IntoRequest<super::StartOauthLoginReq>,
         ) -> std::result::Result<
-            tonic::Response<super::StartGoogleLoginResp>,
+            tonic::Response<super::StartOauthLoginResp>,
             tonic::Status,
         > {
             self.inner
@@ -278,18 +286,18 @@ pub mod api_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/StartGoogleLogin",
+                "/proto.ApiService/StartOauthLogin",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "StartGoogleLogin"));
+                .insert(GrpcMethod::new("proto.ApiService", "StartOauthLogin"));
             self.inner.unary(req, path, codec).await
         }
-        pub async fn handle_google_callback(
+        pub async fn handle_oauth_callback(
             &mut self,
-            request: impl tonic::IntoRequest<super::HandleGoogleCallbackReq>,
+            request: impl tonic::IntoRequest<super::HandleOauthCallbackReq>,
         ) -> std::result::Result<
-            tonic::Response<super::HandleGoogleCallbackResp>,
+            tonic::Response<super::HandleOauthCallbackResp>,
             tonic::Status,
         > {
             self.inner
@@ -302,59 +310,11 @@ pub mod api_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/HandleGoogleCallback",
+                "/proto.ApiService/HandleOauthCallback",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "HandleGoogleCallback"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn start_github_login(
-            &mut self,
-            request: impl tonic::IntoRequest<super::StartGithubLoginReq>,
-        ) -> std::result::Result<
-            tonic::Response<super::StartGithubLoginResp>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/StartGithubLogin",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "StartGithubLogin"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn handle_github_callback(
-            &mut self,
-            request: impl tonic::IntoRequest<super::HandleGithubCallbackReq>,
-        ) -> std::result::Result<
-            tonic::Response<super::HandleGithubCallbackResp>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/HandleGithubCallback",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "HandleGithubCallback"));
+                .insert(GrpcMethod::new("proto.ApiService", "HandleOauthCallback"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -393,32 +353,18 @@ pub mod api_service_server {
             tonic::Response<super::DeleteSessionResp>,
             tonic::Status,
         >;
-        async fn start_google_login(
+        async fn start_oauth_login(
             &self,
-            request: tonic::Request<super::StartGoogleLoginReq>,
+            request: tonic::Request<super::StartOauthLoginReq>,
         ) -> std::result::Result<
-            tonic::Response<super::StartGoogleLoginResp>,
+            tonic::Response<super::StartOauthLoginResp>,
             tonic::Status,
         >;
-        async fn handle_google_callback(
+        async fn handle_oauth_callback(
             &self,
-            request: tonic::Request<super::HandleGoogleCallbackReq>,
+            request: tonic::Request<super::HandleOauthCallbackReq>,
         ) -> std::result::Result<
-            tonic::Response<super::HandleGoogleCallbackResp>,
-            tonic::Status,
-        >;
-        async fn start_github_login(
-            &self,
-            request: tonic::Request<super::StartGithubLoginReq>,
-        ) -> std::result::Result<
-            tonic::Response<super::StartGithubLoginResp>,
-            tonic::Status,
-        >;
-        async fn handle_github_callback(
-            &self,
-            request: tonic::Request<super::HandleGithubCallbackReq>,
-        ) -> std::result::Result<
-            tonic::Response<super::HandleGithubCallbackResp>,
+            tonic::Response<super::HandleOauthCallbackResp>,
             tonic::Status,
         >;
     }
@@ -633,25 +579,25 @@ pub mod api_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/proto.ApiService/StartGoogleLogin" => {
+                "/proto.ApiService/StartOauthLogin" => {
                     #[allow(non_camel_case_types)]
-                    struct StartGoogleLoginSvc<T: ApiService>(pub Arc<T>);
+                    struct StartOauthLoginSvc<T: ApiService>(pub Arc<T>);
                     impl<
                         T: ApiService,
-                    > tonic::server::UnaryService<super::StartGoogleLoginReq>
-                    for StartGoogleLoginSvc<T> {
-                        type Response = super::StartGoogleLoginResp;
+                    > tonic::server::UnaryService<super::StartOauthLoginReq>
+                    for StartOauthLoginSvc<T> {
+                        type Response = super::StartOauthLoginResp;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::StartGoogleLoginReq>,
+                            request: tonic::Request<super::StartOauthLoginReq>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::start_google_login(&inner, request).await
+                                <T as ApiService>::start_oauth_login(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -662,7 +608,7 @@ pub mod api_service_server {
                     let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = StartGoogleLoginSvc(inner);
+                        let method = StartOauthLoginSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -678,25 +624,25 @@ pub mod api_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/proto.ApiService/HandleGoogleCallback" => {
+                "/proto.ApiService/HandleOauthCallback" => {
                     #[allow(non_camel_case_types)]
-                    struct HandleGoogleCallbackSvc<T: ApiService>(pub Arc<T>);
+                    struct HandleOauthCallbackSvc<T: ApiService>(pub Arc<T>);
                     impl<
                         T: ApiService,
-                    > tonic::server::UnaryService<super::HandleGoogleCallbackReq>
-                    for HandleGoogleCallbackSvc<T> {
-                        type Response = super::HandleGoogleCallbackResp;
+                    > tonic::server::UnaryService<super::HandleOauthCallbackReq>
+                    for HandleOauthCallbackSvc<T> {
+                        type Response = super::HandleOauthCallbackResp;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::HandleGoogleCallbackReq>,
+                            request: tonic::Request<super::HandleOauthCallbackReq>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::handle_google_callback(&inner, request)
+                                <T as ApiService>::handle_oauth_callback(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -708,98 +654,7 @@ pub mod api_service_server {
                     let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = HandleGoogleCallbackSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/proto.ApiService/StartGithubLogin" => {
-                    #[allow(non_camel_case_types)]
-                    struct StartGithubLoginSvc<T: ApiService>(pub Arc<T>);
-                    impl<
-                        T: ApiService,
-                    > tonic::server::UnaryService<super::StartGithubLoginReq>
-                    for StartGithubLoginSvc<T> {
-                        type Response = super::StartGithubLoginResp;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::StartGithubLoginReq>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as ApiService>::start_github_login(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let method = StartGithubLoginSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/proto.ApiService/HandleGithubCallback" => {
-                    #[allow(non_camel_case_types)]
-                    struct HandleGithubCallbackSvc<T: ApiService>(pub Arc<T>);
-                    impl<
-                        T: ApiService,
-                    > tonic::server::UnaryService<super::HandleGithubCallbackReq>
-                    for HandleGithubCallbackSvc<T> {
-                        type Response = super::HandleGithubCallbackResp;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::HandleGithubCallbackReq>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as ApiService>::handle_github_callback(&inner, request)
-                                    .await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let method = HandleGithubCallbackSvc(inner);
+                        let method = HandleOauthCallbackSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

@@ -1,12 +1,11 @@
 pub mod proto;
 
 use crate::proto::{
-    CreateSessionReq, CreateSessionResp, DeleteSessionReq, DeleteSessionResp,
-    HandleGoogleCallbackReq, HandleGoogleCallbackResp, StartGoogleLoginReq, StartGoogleLoginResp,
-    ValidateSessionReq, ValidateSessionResp, api_service_client::ApiServiceClient,
+    CreateSessionReq, CreateSessionResp, DeleteSessionReq, DeleteSessionResp, ValidateSessionReq,
+    ValidateSessionResp, api_service_client::ApiServiceClient,
 };
 use crate::proto::{
-    HandleGithubCallbackReq, HandleGithubCallbackResp, StartGithubLoginReq, StartGithubLoginResp,
+    HandleOauthCallbackReq, HandleOauthCallbackResp, StartOauthLoginReq, StartOauthLoginResp,
 };
 use shared::middleware::auth::AuthenticatedSession;
 use shared::middleware::tracing::TracingServiceClient;
@@ -62,36 +61,52 @@ impl AuthClient {
         self.0.validate_session(req).await
     }
 
-    /// Starts a google login flow and returns the redirect URL.
-    pub async fn start_google_login(
+    // /// Starts a google login flow and returns the redirect URL.
+    // pub async fn start_google_login(
+    //     &mut self,
+    //     req: Request<StartGoogleLoginReq>,
+    // ) -> Result<Response<StartGoogleLoginResp>, Status> {
+    //     self.0.start_google_login(req).await
+    // }
+    //
+    // /// Handles google's OAuth callback and finalizes login.
+    // pub async fn handle_google_callback(
+    //     &mut self,
+    //     req: Request<HandleGoogleCallbackReq>,
+    // ) -> Result<Response<HandleGoogleCallbackResp>, Status> {
+    //     self.0.handle_google_callback(req).await
+    // }
+    //
+    // /// Starts a github login flow and returns the redirect URL.
+    // pub async fn start_github_login(
+    //     &mut self,
+    //     req: Request<StartGithubLoginReq>,
+    // ) -> Result<Response<StartGithubLoginResp>, Status> {
+    //     self.0.start_github_login(req).await
+    // }
+    //
+    // /// Handles github's OAuth callback and finalizes login.
+    // pub async fn handle_github_callback(
+    //     &mut self,
+    //     req: Request<HandleGithubCallbackReq>,
+    // ) -> Result<Response<HandleGithubCallbackResp>, Status> {
+    //     self.0.handle_github_callback(req).await
+    // }
+
+    /// Starts a oauth login flow and returns the redirect URL.
+    pub async fn start_oauth_login(
         &mut self,
-        req: Request<StartGoogleLoginReq>,
-    ) -> Result<Response<StartGoogleLoginResp>, Status> {
-        self.0.start_google_login(req).await
+        req: Request<StartOauthLoginReq>,
+    ) -> Result<Response<StartOauthLoginResp>, Status> {
+        self.0.start_oauth_login(req).await
     }
 
-    /// Handles google's OAuth callback and finalizes login.
-    pub async fn handle_google_callback(
+    /// Handles OAuth callback and finalizes login.
+    pub async fn handle_oauth_callback(
         &mut self,
-        req: Request<HandleGoogleCallbackReq>,
-    ) -> Result<Response<HandleGoogleCallbackResp>, Status> {
-        self.0.handle_google_callback(req).await
-    }
-
-    /// Starts a github login flow and returns the redirect URL.
-    pub async fn start_github_login(
-        &mut self,
-        req: Request<StartGithubLoginReq>,
-    ) -> Result<Response<StartGithubLoginResp>, Status> {
-        self.0.start_github_login(req).await
-    }
-
-    /// Handles github's OAuth callback and finalizes login.
-    pub async fn handle_github_callback(
-        &mut self,
-        req: Request<HandleGithubCallbackReq>,
-    ) -> Result<Response<HandleGithubCallbackResp>, Status> {
-        self.0.handle_github_callback(req).await
+        req: Request<HandleOauthCallbackReq>,
+    ) -> Result<Response<HandleOauthCallbackResp>, Status> {
+        self.0.handle_oauth_callback(req).await
     }
 }
 

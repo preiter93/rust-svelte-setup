@@ -1,5 +1,5 @@
 import type * as grpc from '@grpc/grpc-js';
-import type { MessageTypeDefinition } from '@grpc/proto-loader';
+import type { EnumTypeDefinition, MessageTypeDefinition } from '@grpc/proto-loader';
 
 import type { ApiServiceClient as _proto_ApiServiceClient, ApiServiceDefinition as _proto_ApiServiceDefinition } from './proto/ApiService';
 
@@ -19,15 +19,12 @@ export interface ProtoGrpcType {
     CreateSessionResp: MessageTypeDefinition
     DeleteSessionReq: MessageTypeDefinition
     DeleteSessionResp: MessageTypeDefinition
-    HandleGithubCallbackReq: MessageTypeDefinition
-    HandleGithubCallbackResp: MessageTypeDefinition
-    HandleGoogleCallbackReq: MessageTypeDefinition
-    HandleGoogleCallbackResp: MessageTypeDefinition
+    HandleOauthCallbackReq: MessageTypeDefinition
+    HandleOauthCallbackResp: MessageTypeDefinition
+    OauthProvider: EnumTypeDefinition
     Session: MessageTypeDefinition
-    StartGithubLoginReq: MessageTypeDefinition
-    StartGithubLoginResp: MessageTypeDefinition
-    StartGoogleLoginReq: MessageTypeDefinition
-    StartGoogleLoginResp: MessageTypeDefinition
+    StartOauthLoginReq: MessageTypeDefinition
+    StartOauthLoginResp: MessageTypeDefinition
     ValidateSessionReq: MessageTypeDefinition
     ValidateSessionResp: MessageTypeDefinition
   }

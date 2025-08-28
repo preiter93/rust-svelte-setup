@@ -4,9 +4,8 @@ use tonic::Code;
 
 use crate::error::OAuthError;
 
-pub(crate) const GOOGLE_STATE: &'static str = "google_state";
-pub(crate) const GOOGLE_CODE_VERIFIER: &'static str = "google_code_verifier";
-pub(crate) const GITHUB_STATE: &'static str = "github_state";
+pub(crate) const OAUTH_STATE: &'static str = "oauth_state";
+pub(crate) const OAUTH_CODE_VERIFIER: &'static str = "oauth_code_verifier";
 
 /// Maps grpc codes to http status codes.
 ///
