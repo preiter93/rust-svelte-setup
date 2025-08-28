@@ -1,28 +1,23 @@
-use crate::error::ApiError;
-use crate::error::OAuthError;
+use crate::error::{ApiError, OAuthError};
 use crate::service::create_user_if_not_found;
-use crate::utils::OAUTH_CODE_VERIFIER;
-use crate::utils::OAUTH_STATE;
-use crate::utils::OauthCookieJar;
+use crate::utils::{OAUTH_CODE_VERIFIER, OAUTH_STATE, OauthCookieJar};
 use auth::AuthClient;
-use auth::proto::OauthProvider;
-use auth::proto::{CreateSessionReq, DeleteSessionReq, HandleOauthCallbackReq, StartOauthLoginReq};
-use axum::Extension;
-use axum::body::Body;
-use axum::extract::Path;
-use axum::extract::Query;
-use axum::http::HeaderMap;
-use axum::http::StatusCode;
-use axum::http::header::LOCATION;
-use axum::{Json, extract::State, response::Response};
+use auth::proto::{
+    CreateSessionReq, DeleteSessionReq, HandleOauthCallbackReq, OauthProvider, StartOauthLoginReq,
+};
+use axum::{
+    Extension, Json,
+    body::Body,
+    extract::{Path, Query, State},
+    http::{HeaderMap, StatusCode, header::LOCATION},
+    response::Response,
+};
 use axum_macros::debug_handler;
 use serde::Deserialize;
-use shared::cookie::ResponseCookies;
-use shared::cookie::create_expired_cookie;
-use shared::cookie::create_oauth_cookie;
-use shared::cookie::create_session_token_cookie;
-use shared::cookie::expire_session_token_cookie;
-use shared::cookie::extract_session_token_cookie;
+use shared::cookie::{
+    ResponseCookies, create_expired_cookie, create_oauth_cookie, create_session_token_cookie,
+    expire_session_token_cookie, extract_session_token_cookie,
+};
 use shared::session::SessionState;
 use tonic::{Code, Request};
 use tracing::instrument;
