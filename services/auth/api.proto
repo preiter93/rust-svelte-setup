@@ -11,6 +11,7 @@ service ApiService {
 
   rpc StartOauthLogin(StartOauthLoginReq) returns (StartOauthLoginResp) {}
   rpc HandleOauthCallback(HandleOauthCallbackReq) returns (HandleOauthCallbackResp);
+  rpc LinkOauthAccount(LinkOauthAccountReq) returns (LinkOauthAccountResp) {}
 }
 
 message Session {
@@ -64,7 +65,15 @@ message HandleOauthCallbackReq {
 }
 
 message HandleOauthCallbackResp {
-  string id = 1;
-  string email = 2;
-  string name = 3;
+  string oauth_account_id = 1;
+  string user_email = 2;
+  string user_name = 3;
+  string user_id = 4;
 }
+
+message LinkOauthAccountReq {
+  string oauth_account_id = 1;
+  string user_id = 2;
+}
+
+message LinkOauthAccountResp { }

@@ -1,16 +1,14 @@
 use uuid::Uuid;
 
 pub trait UuidGenerator: Send + Sync + 'static {
-    fn new(&self) -> Uuid;
-}
-
-pub struct UuidV4Generator;
-
-impl UuidGenerator for UuidV4Generator {
     fn new(&self) -> Uuid {
         Uuid::new_v4()
     }
 }
+
+pub struct UuidV4Generator;
+
+impl UuidGenerator for UuidV4Generator {}
 
 #[cfg(test)]
 pub mod test {
@@ -55,8 +53,6 @@ pub mod test {
         let mut user = CreateUserReq {
             name: "name".to_string(),
             email: "email".to_string(),
-            google_id: "google-id".to_string(),
-            github_id: "github-id".to_string(),
         };
         func(&mut user);
         user

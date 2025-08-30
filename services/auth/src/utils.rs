@@ -1,22 +1,24 @@
+use auth::SERVICE_NAME;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use std::collections::HashMap;
 use std::error::Error;
 use std::marker::PhantomData;
 use tonic::async_trait;
+use uuid::Uuid;
 
 use base64::Engine as _;
 use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use chrono::{DateTime, Utc};
 use rand::distr::{Alphanumeric, SampleString as _};
-
 use rand::rngs::StdRng;
 use rand::{Rng as _, SeedableRng as _};
 use reqwest::{Client, RequestBuilder};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use tokio_postgres::Row;
 use url::Url;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct Session {
     pub id: String,
     pub secret_hash: Vec<u8>,
@@ -25,14 +27,69 @@ pub struct Session {
     pub user_id: String,
 }
 
+impl TryFrom<&Row> for Session {
+    type Error = tokio_postgres::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        Ok(Session {
+            id: row.try_get("id")?,
+            secret_hash: row.try_get("secret_hash")?,
+            created_at: row.try_get("created_at")?,
+            expires_at: row.try_get("expires_at")?,
+            user_id: row.try_get("user_id")?,
+        })
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct OAuthAccount {
+    pub id: String,
+    pub provider: i32,
+    pub provider_user_id: String,
+    pub access_token: Option<String>,
+    pub refresh_token: Option<String>,
+    pub user_id: Option<String>,
+}
+
+impl TryFrom<&Row> for OAuthAccount {
+    type Error = tokio_postgres::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        Ok(OAuthAccount {
+            id: row.try_get("id")?,
+            provider: row.try_get("provider")?,
+            provider_user_id: row.try_get("provider_user_id")?,
+            access_token: row.try_get("access_token")?,
+            refresh_token: row.try_get("refresh_token")?,
+            user_id: row.try_get("user_id")?,
+        })
+    }
+}
+
 /// Trait for generating cryptographically secure random strings.
-pub trait RandomStringGenerator: Send + Sync + 'static {
+pub trait RandomValueGeneratorTrait: Send + Sync + 'static {
     /// Generates a cryptographically secure random alphanumeric string.
-    fn generate_secure_random_string() -> String;
+    fn generate_secure_random_string() -> String {
+        let mut rng = StdRng::from_os_rng();
+        Alphanumeric.sample_string(&mut rng, 24)
+    }
 
     /// Generates the oauth state/csrf token.
-    fn generate_random_base64_encoded_string(num_bytes: usize) -> String;
+    fn generate_random_base64_encoded_string(num_bytes: usize) -> String {
+        let random_bytes: Vec<u8> = (0..num_bytes).map(|_| rand::rng().random()).collect();
+        BASE64_URL_SAFE_NO_PAD.encode(&random_bytes)
+    }
+
+    /// Generates a random uuid
+    fn generate_uuid() -> Uuid {
+        Uuid::new_v4()
+    }
 }
+
+/// The default random value generator.
+pub struct RandomValueGenerator;
+
+impl RandomValueGeneratorTrait for RandomValueGenerator {}
 
 /// Trait for providing the current UTC time.
 pub trait Now: Send + Sync + 'static {
@@ -49,31 +106,12 @@ impl Now for SystemNow {
     }
 }
 
-/// The default random string generator using [`StdRng`].
-pub struct StdRandomStringGenerator;
-
-impl RandomStringGenerator for StdRandomStringGenerator {
-    /// Generates cryptographically secure random strings.
-    ///
-    /// [`Documentation`]: https://lucia-auth.com/sessions/basic
-    fn generate_secure_random_string() -> String {
-        let mut rng = StdRng::from_os_rng();
-        Alphanumeric.sample_string(&mut rng, 24)
-    }
-
-    /// Generates the oauth state/csrf token.
-    fn generate_random_base64_encoded_string(num_bytes: usize) -> String {
-        let random_bytes: Vec<u8> = (0..num_bytes).map(|_| rand::rng().random()).collect();
-        BASE64_URL_SAFE_NO_PAD.encode(&random_bytes)
-    }
-}
-
 #[derive(Default, Clone)]
 pub(crate) struct OAuth<R> {
     _phantom: PhantomData<R>,
 }
 
-impl<R: RandomStringGenerator> OAuth<R> {
+impl<R: RandomValueGeneratorTrait> OAuth<R> {
     pub(crate) fn new() -> Self {
         Self {
             _phantom: PhantomData,
@@ -115,7 +153,6 @@ impl<R: RandomStringGenerator> OAuth<R> {
             .body(body_bytes.to_vec())
             .header("Content-Type", "application/x-www-form-urlencoded")
             .header("Accept", "application/json")
-            .header("User-Agent", "rust-svelte-setup")
             .header("Content-Length", body_bytes.len().to_string());
 
         Ok(req)
@@ -138,10 +175,10 @@ pub struct Oauth2TokenClaims {
     pub exp: usize,
 }
 
-pub struct UserInfo {
-    pub id: String,
-    pub name: String,
-    pub email: String,
+pub struct OauthInfo {
+    pub user_id: String,
+    pub user_name: String,
+    pub user_email: String,
 }
 
 #[async_trait]
@@ -157,7 +194,7 @@ pub trait OAuthProvider {
 
     fn scopes(&self) -> Vec<&'static str>;
 
-    async fn fetch_user_info(&self, token: &str) -> Result<UserInfo, Box<dyn Error>>;
+    async fn fetch_user_info(&self, token: &str) -> Result<OauthInfo, Box<dyn Error>>;
 
     fn generate_authorization_url(
         &self,
@@ -212,7 +249,6 @@ pub trait OAuthProvider {
             .body(body_bytes.to_vec())
             .header("Content-Type", "application/x-www-form-urlencoded")
             .header("Accept", "application/json")
-            .header("User-Agent", "rust-svelte-setup")
             .header("Content-Length", body_bytes.len().to_string());
 
         let response: OAuth2TokenResp = request.send().await?.json().await?;
@@ -229,7 +265,7 @@ pub(crate) struct GoogleOAuth<R> {
     _phantom: PhantomData<R>,
 }
 
-impl<R: RandomStringGenerator> GoogleOAuth<R> {
+impl<R: RandomValueGeneratorTrait> GoogleOAuth<R> {
     /// Creates a new [Google] oauth client.
     pub fn new(client_id: String, client_secret: String, redirect_uri: String) -> Self {
         Self {
@@ -244,7 +280,7 @@ impl<R: RandomStringGenerator> GoogleOAuth<R> {
 #[async_trait]
 impl<R> OAuthProvider for GoogleOAuth<R>
 where
-    R: RandomStringGenerator,
+    R: RandomValueGeneratorTrait,
 {
     const AUTH_ENDPOINT: &'static str = "https://accounts.google.com/o/oauth2/v2/auth";
     const TOKEN_ENDPOINT: &'static str = "https://oauth2.googleapis.com/token";
@@ -265,7 +301,7 @@ where
         vec!["openid", "profile", "email"]
     }
 
-    async fn fetch_user_info(&self, token: &str) -> Result<UserInfo, Box<dyn Error>> {
+    async fn fetch_user_info(&self, token: &str) -> Result<OauthInfo, Box<dyn Error>> {
         const JWKS_CERTS_ENDPOINT: &'static str = "https://www.googleapis.com/oauth2/v3/certs";
 
         #[derive(Debug, Deserialize)]
@@ -293,10 +329,10 @@ where
 
         let token_data = decode::<TokenClaims>(token, &decoding_key, &validation)?;
 
-        Ok(UserInfo {
-            id: token_data.claims.sub,
-            name: token_data.claims.name,
-            email: token_data.claims.email,
+        Ok(OauthInfo {
+            user_id: token_data.claims.sub,
+            user_name: token_data.claims.name,
+            user_email: token_data.claims.email,
         })
     }
 }
@@ -309,7 +345,7 @@ pub(crate) struct GithubOAuth<R> {
     _phantom: PhantomData<R>,
 }
 
-impl<R: RandomStringGenerator> GithubOAuth<R> {
+impl<R: RandomValueGeneratorTrait> GithubOAuth<R> {
     const AUTHORIZATION_ENDPOINT: &'static str = "https://github.com/login/oauth/authorize";
     const TOKEN_ENDPOINT: &'static str = "https://github.com/login/oauth/access_token";
     const GET_USER_ENDPOINT: &'static str = "https://api.github.com/user";
@@ -328,7 +364,7 @@ impl<R: RandomStringGenerator> GithubOAuth<R> {
 #[async_trait]
 impl<R> OAuthProvider for GithubOAuth<R>
 where
-    R: RandomStringGenerator,
+    R: RandomValueGeneratorTrait,
 {
     const AUTH_ENDPOINT: &'static str = "https://github.com/login/oauth/authorize";
     const TOKEN_ENDPOINT: &'static str = "https://github.com/login/oauth/access_token";
@@ -349,7 +385,7 @@ where
         vec!["user", "user:email"]
     }
 
-    async fn fetch_user_info(&self, token: &str) -> Result<UserInfo, Box<dyn Error>> {
+    async fn fetch_user_info(&self, token: &str) -> Result<OauthInfo, Box<dyn Error>> {
         const GET_USER_ENDPOINT: &'static str = "https://api.github.com/user";
         const LIST_EMAILS_ENDPOINT: &'static str = "https://api.github.com/user/emails";
 
@@ -371,35 +407,41 @@ where
         let response = client
             .get(Self::GET_USER_ENDPOINT)
             .header("Authorization", format!("Bearer {}", token))
-            .header("User-Agent", "rust-svelte-setup")
+            .header("User-Agent", SERVICE_NAME)
             .send()
             .await?;
 
         let user: GithubUser = response.json().await?;
-        let id = user.id.to_string();
-        let name = user.name.unwrap_or(user.login);
-        let email = match user.email {
-            Some(email) => email,
-            None => {
-                let client = Client::new();
-                let response = client
-                    .get(Self::LIST_USER_EMAILS_ENDPOINT)
-                    .header("Authorization", format!("Bearer {}", token))
-                    .header("User-Agent", "rust-svelte-setup")
-                    .send()
-                    .await?;
+        let user_id = user.id.to_string();
+        let user_name = user.name.unwrap_or(user.login);
 
-                let emails: Vec<GitHubEmail> = response.json().await?;
+        if let Some(user_email) = user.email {
+            return Ok(OauthInfo {
+                user_id,
+                user_name,
+                user_email,
+            });
+        }
 
-                if let Some(primary) = emails.iter().find(|e| e.primary) {
-                    primary.email.to_string()
-                } else {
-                    return Err(Box::from("no primary email found for this user"));
-                }
-            }
+        let client = Client::new();
+        let response = client
+            .get(Self::LIST_USER_EMAILS_ENDPOINT)
+            .header("Authorization", format!("Bearer {}", token))
+            .header("User-Agent", SERVICE_NAME)
+            .send()
+            .await?;
+
+        let emails: Vec<GitHubEmail> = response.json().await?;
+
+        let Some(user_email) = emails.iter().find(|e| e.primary).map(|e| e.email.clone()) else {
+            return Err(Box::from("no primary email found for this user"));
         };
 
-        Ok(UserInfo { id, name, email })
+        Ok(OauthInfo {
+            user_id,
+            user_name,
+            user_email,
+        })
     }
 }
 
@@ -462,6 +504,8 @@ pub(crate) mod tests {
     use chrono::TimeZone;
     use tonic::{Code, Response, Status};
 
+    use crate::utils::OAuthAccount;
+
     use super::*;
 
     pub(crate) fn fixture_token() -> String {
@@ -484,15 +528,19 @@ pub(crate) mod tests {
     }
 
     #[derive(Default)]
-    pub(crate) struct MockRandomStringGenerator;
+    pub(crate) struct MockRandomValueGenerator;
 
-    impl RandomStringGenerator for MockRandomStringGenerator {
+    impl RandomValueGeneratorTrait for MockRandomValueGenerator {
         fn generate_secure_random_string() -> String {
             "secret".to_string()
         }
 
         fn generate_random_base64_encoded_string(_: usize) -> String {
             "secret-encoded".to_string()
+        }
+
+        fn generate_uuid() -> Uuid {
+            Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
         }
     }
 
@@ -514,5 +562,21 @@ pub(crate) mod tests {
             (Ok(got), Err(want)) => panic!("left: {got:?}\nright: {want}"),
             (Err(got), Ok(want)) => panic!("left: {got}\nright: {want:?}"),
         }
+    }
+
+    pub(crate) fn fixture_db_oauth_account<F>(mut func: F) -> OAuthAccount
+    where
+        F: FnMut(&mut OAuthAccount),
+    {
+        let mut token = OAuthAccount {
+            id: "oauth-id".to_string(),
+            provider_user_id: "provider-user-id".to_string(),
+            provider: 0,
+            access_token: None,
+            refresh_token: None,
+            user_id: None,
+        };
+        func(&mut token);
+        token
     }
 }

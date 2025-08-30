@@ -12,12 +12,15 @@ use std::marker::PhantomData;
 
 use crate::{
     db::DBClient,
-    error::{DeleteSessionErr, HandleOauthCallbackErr, StartOauthLoginErr},
+    error::{DeleteSessionErr, HandleOauthCallbackErr, LinkOauthAccountErr, StartOauthLoginErr},
     proto::{
-        HandleOauthCallbackReq, HandleOauthCallbackResp, OauthProvider, StartOauthLoginReq,
-        StartOauthLoginResp,
+        HandleOauthCallbackReq, HandleOauthCallbackResp, LinkOauthAccountReq, LinkOauthAccountResp,
+        OauthProvider, StartOauthLoginReq, StartOauthLoginResp,
     },
-    utils::{GithubOAuth, Now, OAuthProvider, RandomStringGenerator, SystemNow},
+    utils::{
+        GithubOAuth, Now, OAuthAccount, OAuthProvider, RandomValueGeneratorTrait, Session,
+        SystemNow,
+    },
 };
 use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
 use tonic::{Request, Response, Status};
@@ -57,7 +60,7 @@ type SessionToken = String;
 impl<D, R, N> ApiService for Handler<D, R, N>
 where
     D: DBClient,
-    R: RandomStringGenerator,
+    R: RandomValueGeneratorTrait,
     N: Now,
 {
     /// Creates a new session.
@@ -79,16 +82,22 @@ where
 
         let id = R::generate_secure_random_string();
         let secret = R::generate_secure_random_string();
-        let secret_hash = hash_secret(&secret);
+        let token = format!("{id}.{secret}");
+
+        let session = Session {
+            id,
+            secret_hash: hash_secret(&secret),
+            created_at: N::now(),
+            user_id: req.user_id,
+            ..Default::default()
+        };
 
         self.db
-            .insert_session(&id, &secret_hash, &req.user_id, N::now())
+            .insert_session(session)
             .await
             .map_err(CreateSessionErr::Database)?;
 
-        Ok(Response::new(CreateSessionResp {
-            token: format!("{id}.{secret}"),
-        }))
+        Ok(Response::new(CreateSessionResp { token }))
     }
 
     /// Validates a sessions token by parsing out the id and secret
@@ -235,6 +244,7 @@ where
     /// # Errors
     /// - validating authorization code
     /// - decoding the id token
+    /// - upserting oauth token (db)
     #[instrument(skip(self), err)]
     async fn handle_oauth_callback(
         &self,
@@ -242,7 +252,7 @@ where
     ) -> Result<Response<HandleOauthCallbackResp>, Status> {
         let req = req.into_inner();
 
-        let user = match req.provider() {
+        let oauth_info = match req.provider() {
             OauthProvider::Google => {
                 let tokens = self
                     .google
@@ -278,11 +288,56 @@ where
             _ => return Err(HandleOauthCallbackErr::UnsupportedOauthProvider.into()),
         };
 
+        let oauth_account = self
+            .db
+            .upsert_oauth_account(&OAuthAccount {
+                id: R::generate_uuid().to_string(),
+                provider_user_id: oauth_info.user_id.clone(),
+                provider: req.provider,
+                access_token: None,
+                refresh_token: None,
+                user_id: None,
+            })
+            .await
+            .map_err(HandleOauthCallbackErr::Database)?;
+
         return Ok(Response::new(HandleOauthCallbackResp {
-            id: user.id,
-            name: user.name,
-            email: user.email,
+            oauth_account_id: oauth_account.id,
+            user_name: oauth_info.user_name,
+            user_email: oauth_info.user_email,
+            user_id: oauth_account.user_id.unwrap_or_default(),
         }));
+    }
+
+    /// Links a user_id to an oauth token.
+    ///
+    /// # Errors
+    /// - missing oauth token id
+    /// - missing user id
+    /// - updating oauth token (db)
+    #[instrument(skip(self), err)]
+    async fn link_oauth_account(
+        &self,
+        req: Request<LinkOauthAccountReq>,
+    ) -> Result<Response<LinkOauthAccountResp>, Status> {
+        let req = req.into_inner();
+
+        let oauth_account_id = req.oauth_account_id;
+        if oauth_account_id.is_empty() {
+            return Err(LinkOauthAccountErr::MissingOauthAccountID.into());
+        }
+
+        let user_id = req.user_id;
+        if user_id.is_empty() {
+            return Err(LinkOauthAccountErr::MissingUserID.into());
+        }
+
+        self.db
+            .update_oauth_account(&oauth_account_id, &user_id)
+            .await
+            .map_err(LinkOauthAccountErr::Database)?;
+
+        Ok(Response::new(LinkOauthAccountResp {}))
     }
 }
 
@@ -291,7 +346,7 @@ pub(crate) mod tests {
     use crate::utils::{
         Session,
         tests::{
-            MockNow, MockRandomStringGenerator, assert_response, fixture_session, fixture_token,
+            MockNow, MockRandomValueGenerator, assert_response, fixture_session, fixture_token,
         },
     };
     use chrono::TimeZone;
@@ -331,8 +386,8 @@ pub(crate) mod tests {
             };
             let service = Handler {
                 db,
-                google: GoogleOAuth::<MockRandomStringGenerator>::default(),
-                github: GithubOAuth::<MockRandomStringGenerator>::default(),
+                google: GoogleOAuth::<MockRandomValueGenerator>::default(),
+                github: GithubOAuth::<MockRandomValueGenerator>::default(),
                 _now: PhantomData::<MockNow>,
             };
 
@@ -405,8 +460,8 @@ pub(crate) mod tests {
             };
             let service = Handler {
                 db,
-                google: GoogleOAuth::<MockRandomStringGenerator>::default(),
-                github: GithubOAuth::<MockRandomStringGenerator>::default(),
+                google: GoogleOAuth::<MockRandomValueGenerator>::default(),
+                github: GithubOAuth::<MockRandomValueGenerator>::default(),
                 _now: PhantomData::<MockNow>,
             };
 
@@ -501,8 +556,8 @@ pub(crate) mod tests {
             };
             let service = Handler {
                 db,
-                google: GoogleOAuth::<MockRandomStringGenerator>::default(),
-                github: GithubOAuth::<MockRandomStringGenerator>::default(),
+                google: GoogleOAuth::<MockRandomValueGenerator>::default(),
+                github: GithubOAuth::<MockRandomValueGenerator>::default(),
                 _now: PhantomData::<MockNow>,
             };
 

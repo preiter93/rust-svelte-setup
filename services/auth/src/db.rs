@@ -1,4 +1,7 @@
-use crate::{error::DBError, utils::Session};
+use crate::{
+    error::DBError,
+    utils::{OAuthAccount, Session},
+};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
@@ -6,19 +9,20 @@ use tonic::async_trait;
 
 #[async_trait]
 pub trait DBClient: Send + Sync + 'static {
-    async fn insert_session(
-        &self,
-        id: &str,
-        secret_hash: &[u8],
-        user_id: &str,
-        created_at: DateTime<Utc>,
-    ) -> Result<(), DBError>;
+    async fn insert_session(&self, session: Session) -> Result<(), DBError>;
 
     async fn get_session(&self, id: &str) -> Result<Session, DBError>;
 
     async fn delete_session(&self, id: &str) -> Result<(), DBError>;
 
     async fn update_session(&self, id: &str, expires_at: &DateTime<Utc>) -> Result<(), DBError>;
+
+    async fn upsert_oauth_account(
+        &self,
+        oauth_account: &OAuthAccount,
+    ) -> Result<OAuthAccount, DBError>;
+
+    async fn update_oauth_account(&self, id: &str, user_id: &str) -> Result<OAuthAccount, DBError>;
 }
 
 #[derive(Clone)]
@@ -41,20 +45,16 @@ impl DBClient for PostgresDBClient {
     /// # Errors
     /// - database connection cannot be established
     /// - executing database statement fails
-    async fn insert_session(
-        &self,
-        id: &str,
-        secret_hash: &[u8],
-        user_id: &str,
-        created_at: DateTime<Utc>,
-    ) -> Result<(), DBError> {
+    async fn insert_session(&self, session: Session) -> Result<(), DBError> {
         let client = self.pool.get().await?;
-        let expires_at = created_at.checked_add_signed(SESSION_TOKEN_EXPIRY_DURATION);
+        let expires_at = session
+            .created_at
+            .checked_add_signed(SESSION_TOKEN_EXPIRY_DURATION);
 
         client
             .execute(
                 "INSERT INTO sessions (id, secret_hash, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4, $5)",
-                &[&id, &secret_hash, &user_id, &created_at, &expires_at],
+                &[&session.id, &session.secret_hash, &session.user_id, &session.created_at, &expires_at],
             )
             .await?;
 
@@ -78,34 +78,9 @@ impl DBClient for PostgresDBClient {
             return Err(DBError::NotFound);
         };
 
-        let id: String = row.try_get("id")?;
-        let secret_hash: Vec<u8> = row.try_get("secret_hash")?;
-        let created_at: DateTime<Utc> = row.try_get("created_at")?;
-        let expires_at: DateTime<Utc> = row.try_get("expires_at")?;
-        let user_id: String = row.try_get("user_id")?;
+        let session = Session::try_from(&row)?;
 
-        Ok(Session {
-            id,
-            secret_hash,
-            created_at,
-            expires_at,
-            user_id,
-        })
-    }
-
-    /// Deletes a session from the database.
-    ///
-    /// # Errors
-    /// - database connection cannot be established
-    /// - executing database statement fails
-    async fn delete_session(&self, id: &str) -> Result<(), DBError> {
-        let client = self.pool.get().await?;
-
-        client
-            .execute("DELETE FROM sessions WHERE id = $1", &[&id])
-            .await?;
-
-        Ok(())
+        Ok(session)
     }
 
     /// Updates a session in the database.
@@ -125,22 +100,93 @@ impl DBClient for PostgresDBClient {
 
         Ok(())
     }
+
+    /// Deletes a session from the database.
+    ///
+    /// # Errors
+    /// - database connection cannot be established
+    /// - executing database statement fails
+    async fn delete_session(&self, id: &str) -> Result<(), DBError> {
+        let client = self.pool.get().await?;
+
+        client
+            .execute("DELETE FROM sessions WHERE id = $1", &[&id])
+            .await?;
+
+        Ok(())
+    }
+
+    /// Inserts or updates an oauth account. Returns the current user_id after upsert.
+    ///
+    /// # Errors
+    /// - database connection cannot be established
+    /// - executing database statement fails
+    async fn upsert_oauth_account(&self, token: &OAuthAccount) -> Result<OAuthAccount, DBError> {
+        let client = self.pool.get().await?;
+
+        let row = client
+            .query_one(
+                "INSERT INTO oauth_accounts (id, provider, provider_user_id, access_token, refresh_token, user_id)
+                 VALUES ($1, $2, $3, $4, $5, $6)
+                 ON CONFLICT (provider_user_id) DO UPDATE SET
+                    access_token = EXCLUDED.access_token,
+                    refresh_token = EXCLUDED.refresh_token,
+                    updated_at = NOW()
+                 RETURNING id, provider, provider_user_id, access_token, refresh_token, user_id",
+                &[
+                    &token.id,
+                    &token.provider,
+                    &token.provider_user_id,
+                    &token.access_token,
+                    &token.refresh_token,
+                    &token.user_id,
+                ],
+            )
+            .await?;
+
+        let oauth_account = OAuthAccount::try_from(&row)?;
+
+        Ok(oauth_account)
+    }
+
+    /// Updates the user id of an oauth account.
+    ///
+    /// # Errors
+    /// - database connection cannot be established
+    /// - not found if the row does not exist
+    /// - executing database statement fails
+    async fn update_oauth_account(&self, id: &str, user_id: &str) -> Result<OAuthAccount, DBError> {
+        let client = self.pool.get().await?;
+
+        let row = client
+            .query_opt(
+                "UPDATE oauth_accounts 
+                 SET user_id = $2, updated_at = NOW()
+                 WHERE id = $1 
+                 RETURNING id, provider, provider_user_id, access_token, refresh_token, user_id",
+                &[&id, &user_id],
+            )
+            .await?;
+        let Some(row) = row else {
+            return Err(DBError::NotFound);
+        };
+
+        let oauth_account = OAuthAccount::try_from(&row)?;
+
+        Ok(oauth_account)
+    }
 }
 
 #[cfg(test)]
 pub(crate) mod test {
-    use crate::SERVICE_NAME;
-    use crate::utils::tests::fixture_session;
+    use super::*;
+    use crate::utils::tests::{fixture_db_oauth_account, fixture_session};
+    use crate::{SERVICE_NAME, error::DBError};
     use chrono::TimeZone;
     use shared::test_utils::get_test_db;
     use std::sync::Arc;
-
     use tokio::sync::Mutex;
     use tonic::async_trait;
-
-    use super::*;
-
-    use crate::error::DBError;
 
     pub(crate) struct MockDBClient {
         pub(crate) insert_session: Mutex<Option<Result<(), DBError>>>,
@@ -149,6 +195,8 @@ pub(crate) mod test {
         pub(crate) update_session: Mutex<Option<Result<(), DBError>>>,
         pub(crate) update_session_count: Arc<Mutex<usize>>,
         pub(crate) delete_session_count: Arc<Mutex<usize>>,
+        pub(crate) upsert_oauth_account: Mutex<Option<Result<OAuthAccount, DBError>>>,
+        pub(crate) update_oauth_account: Mutex<Option<Result<OAuthAccount, DBError>>>,
     }
 
     impl Default for MockDBClient {
@@ -160,19 +208,15 @@ pub(crate) mod test {
                 update_session: Mutex::new(None),
                 update_session_count: Arc::new(Mutex::new(0)),
                 delete_session_count: Arc::new(Mutex::new(0)),
+                upsert_oauth_account: Mutex::new(None),
+                update_oauth_account: Mutex::new(None),
             }
         }
     }
 
     #[async_trait]
     impl DBClient for MockDBClient {
-        async fn insert_session(
-            &self,
-            _: &str,
-            _: &[u8],
-            _: &str,
-            _: DateTime<Utc>,
-        ) -> Result<(), DBError> {
+        async fn insert_session(&self, _: Session) -> Result<(), DBError> {
             self.insert_session.lock().await.take().unwrap()
         }
 
@@ -191,9 +235,17 @@ pub(crate) mod test {
             *count += 1;
             self.update_session.lock().await.take().unwrap()
         }
+
+        async fn upsert_oauth_account(&self, _: &OAuthAccount) -> Result<OAuthAccount, DBError> {
+            self.upsert_oauth_account.lock().await.take().unwrap()
+        }
+
+        async fn update_oauth_account(&self, _: &str, _: &str) -> Result<OAuthAccount, DBError> {
+            self.update_oauth_account.lock().await.take().unwrap()
+        }
     }
 
-    async fn run_db_test<F, Fut>(given_sessions: Vec<Session>, test_fn: F)
+    async fn run_db_session_test<F, Fut>(given_sessions: Vec<Session>, test_fn: F)
     where
         F: FnOnce(PostgresDBClient) -> Fut,
         Fut: std::future::Future<Output = ()>,
@@ -206,14 +258,30 @@ pub(crate) mod test {
 
         for session in given_sessions {
             db_client
-                .insert_session(
-                    &session.id,
-                    &session.secret_hash,
-                    &session.user_id,
-                    session.created_at,
-                )
+                .insert_session(session)
                 .await
                 .expect("failed to insert session");
+        }
+
+        test_fn(db_client).await;
+    }
+
+    async fn run_db_oauth_accounts_test<F, Fut>(given_tokens: Vec<OAuthAccount>, test_fn: F)
+    where
+        F: FnOnce(PostgresDBClient) -> Fut,
+        Fut: std::future::Future<Output = ()>,
+    {
+        let migrations = std::fs::canonicalize("./migrations").unwrap();
+        let db = get_test_db(SERVICE_NAME, migrations)
+            .await
+            .expect("failed to get test db client");
+        let db_client = PostgresDBClient::new(db.pool.clone());
+
+        for token in given_tokens {
+            db_client
+                .upsert_oauth_account(&token)
+                .await
+                .expect("failed to insert token");
         }
 
         test_fn(db_client).await;
@@ -224,7 +292,7 @@ pub(crate) mod test {
         let session_id = "session-id-get";
         let session = fixture_session(|s| s.id = session_id.to_string());
 
-        run_db_test(vec![session.clone()], |db_client| async move {
+        run_db_session_test(vec![session.clone()], |db_client| async move {
             let got_session = db_client
                 .get_session(session_id)
                 .await
@@ -240,7 +308,7 @@ pub(crate) mod test {
         let session_id = "session-id-update";
         let mut session = fixture_session(|s| s.id = session_id.to_string());
 
-        run_db_test(vec![session.clone()], |db_client| async move {
+        run_db_session_test(vec![session.clone()], |db_client| async move {
             session.expires_at = chrono::Utc.with_ymd_and_hms(2020, 1, 9, 0, 0, 0).unwrap();
             db_client
                 .update_session(session_id, &session.expires_at)
@@ -262,7 +330,7 @@ pub(crate) mod test {
         let session_id = "session-id-delete";
         let session = fixture_session(|s| s.id = session_id.to_string());
 
-        run_db_test(vec![session.clone()], |db_client| async move {
+        run_db_session_test(vec![session.clone()], |db_client| async move {
             db_client
                 .delete_session(session_id)
                 .await
@@ -271,6 +339,62 @@ pub(crate) mod test {
             let got_result = db_client.get_session(session_id).await;
 
             assert!(matches!(got_result, Err(DBError::NotFound)));
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_get_oauth_account() {
+        let oauth_id = "oauth-id-get";
+        let provider_user_id = "provider-user-id-get";
+
+        run_db_oauth_accounts_test(vec![], |db_client| async move {
+            let token = fixture_db_oauth_account(|v| {
+                v.id = oauth_id.to_string();
+                v.provider_user_id = provider_user_id.to_string();
+            });
+            let got_token = db_client
+                .upsert_oauth_account(&token)
+                .await
+                .expect("failed to insert token");
+
+            assert_eq!(got_token, token);
+
+            let new_token = fixture_db_oauth_account(|v| {
+                v.id = oauth_id.to_string();
+                v.provider_user_id = provider_user_id.to_string();
+                v.access_token = Some(String::from("access-token"));
+            });
+            let got_token = db_client
+                .upsert_oauth_account(&new_token)
+                .await
+                .expect("failed to upsert token");
+
+            assert_eq!(got_token, new_token);
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_update_oauth_account() {
+        let oauth_id = "oauth-id-update";
+        let provider_user_id = "provider-user-id-update";
+
+        let mut token = fixture_db_oauth_account(|v| {
+            v.id = oauth_id.to_string();
+            v.provider_user_id = provider_user_id.to_string();
+        });
+
+        run_db_oauth_accounts_test(vec![token.clone()], |db_client| async move {
+            let user_id = "new-user-id";
+            token.user_id = Some(user_id.to_string());
+
+            let got_token = db_client
+                .update_oauth_account(&oauth_id, &user_id)
+                .await
+                .expect("failed to update token");
+
+            assert_eq!(got_token, token);
         })
         .await;
     }

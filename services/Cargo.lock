@@ -109,6 +109,7 @@ dependencies = [
  "tonic",
  "tracing",
  "url",
+ "uuid",
 ]
 
 [[package]]

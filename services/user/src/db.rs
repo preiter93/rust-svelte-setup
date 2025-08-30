@@ -1,4 +1,4 @@
-use crate::{error::DBError, proto::OauthProvider};
+use crate::error::DBError;
 use deadpool_postgres::Pool;
 use std::fmt::Debug;
 use tokio_postgres::Row;
@@ -9,22 +9,9 @@ use crate::proto::User;
 
 #[async_trait]
 pub trait DBClient: Send + Sync + 'static {
-    async fn insert_user(
-        &self,
-        id: Uuid,
-        name: &str,
-        email: &str,
-        google_id: &str,
-        github_id: &str,
-    ) -> Result<(), DBError>;
+    async fn insert_user(&self, id: Uuid, name: &str, email: &str) -> Result<(), DBError>;
 
     async fn get_user(&self, id: Uuid) -> Result<User, DBError>;
-
-    async fn get_user_id_from_oauth_id(
-        &self,
-        oauth_id: &str,
-        provider: OauthProvider,
-    ) -> Result<Uuid, DBError>;
 }
 
 #[derive(Clone, Debug)]
@@ -44,20 +31,13 @@ impl DBClient for PostgresDBClient {
     /// # Errors
     /// - if the database connection cannot be established
     /// - if the database query fails
-    async fn insert_user(
-        &self,
-        id: Uuid,
-        name: &str,
-        email: &str,
-        google_id: &str,
-        github_id: &str,
-    ) -> Result<(), DBError> {
+    async fn insert_user(&self, id: Uuid, name: &str, email: &str) -> Result<(), DBError> {
         let client = self.pool.get().await?;
 
         client
             .execute(
-                "INSERT INTO users (id, name, email, google_id, github_id) VALUES ($1, $2, $3, $4, $5)",
-                &[&id, &name, &email, &google_id, &github_id],
+                "INSERT INTO users (id, name, email) VALUES ($1, $2, $3)",
+                &[&id, &name, &email],
             )
             .await?;
 
@@ -82,38 +62,6 @@ impl DBClient for PostgresDBClient {
         let user: User = User::try_from(row)?;
 
         Ok(user)
-    }
-
-    /// # Errors
-    /// - if the database connection cannot be established
-    /// - if the database query fails
-    /// - If the user is not found
-    async fn get_user_id_from_oauth_id(
-        &self,
-        oauth_id: &str,
-        provider: OauthProvider,
-    ) -> Result<Uuid, DBError> {
-        let client = self.pool.get().await?;
-
-        let column = match provider {
-            OauthProvider::Google => "google_id",
-            OauthProvider::Github => "github_id",
-            OauthProvider::Unspecified => {
-                return Err(DBError::Unknown);
-            }
-        };
-
-        let query = format!("SELECT id FROM users WHERE {} = $1", column);
-        let stmt = client.prepare(&query).await?;
-
-        let row = client.query_opt(&stmt, &[&oauth_id]).await?;
-        let Some(row) = row else {
-            return Err(DBError::NotFound);
-        };
-
-        let id: Uuid = row.try_get("id")?;
-
-        Ok(id)
     }
 }
 
@@ -166,27 +114,12 @@ pub mod test {
 
     #[async_trait]
     impl DBClient for MockDBClient {
-        async fn insert_user(
-            &self,
-            _: Uuid,
-            _: &str,
-            _: &str,
-            _: &str,
-            _: &str,
-        ) -> Result<(), DBError> {
+        async fn insert_user(&self, _: Uuid, _: &str, _: &str) -> Result<(), DBError> {
             self.insert_user.lock().await.take().unwrap()
         }
 
         async fn get_user(&self, _: Uuid) -> Result<User, DBError> {
             self.get_user.lock().await.take().unwrap()
-        }
-
-        async fn get_user_id_from_oauth_id(
-            &self,
-            _: &str,
-            _: OauthProvider,
-        ) -> Result<Uuid, DBError> {
-            self.get_user_id_from_oauth_id.lock().await.take().unwrap()
         }
     }
 
@@ -195,8 +128,6 @@ pub mod test {
         id: Uuid,
         name: &'static str,
         email: &'static str,
-        google_id: &'static str,
-        github_id: &'static str,
     }
 
     fn fixture_db_user<F>(mut func: F) -> DBUser
@@ -207,8 +138,6 @@ pub mod test {
             id: fixture_uuid(),
             name: "name",
             email: "email",
-            google_id: "google-id",
-            github_id: "github-id",
         };
         func(&mut user);
         user
@@ -227,13 +156,7 @@ pub mod test {
 
         for user in given_user {
             db_client
-                .insert_user(
-                    user.id.clone(),
-                    &user.name,
-                    &user.email,
-                    &user.google_id,
-                    &user.github_id,
-                )
+                .insert_user(user.id.clone(), &user.name, &user.email)
                 .await
                 .expect("failed to insert user");
         }
@@ -254,25 +177,6 @@ pub mod test {
                 .expect("failed to get user");
 
             assert_eq!(got_user, want_user);
-        })
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_get_user_id_from_oauth_id() {
-        let user_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
-        let given_user = fixture_db_user(|u| {
-            u.id = user_id;
-            u.google_id = "google-id-1";
-        });
-
-        run_db_test(vec![given_user.clone()], |db_client| async move {
-            let got_user_id = db_client
-                .get_user_id_from_oauth_id(given_user.google_id, OauthProvider::Google)
-                .await
-                .expect("failed to get user id from google id");
-
-            assert_eq!(got_user_id, user_id);
         })
         .await;
     }

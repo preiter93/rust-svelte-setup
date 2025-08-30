@@ -1,6 +1,5 @@
 mod error;
 mod handler;
-mod service;
 mod utils;
 
 use crate::handler::{

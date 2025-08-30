@@ -6,15 +6,11 @@ service ApiService {
     rpc CreateUser(CreateUserReq) returns (CreateUserResp) {}
     // Resolves the user by its user id.
     rpc GetUser(GetUserReq) returns (GetUserResp) {}
-    // Resolves the user id from the oauth id.
-    rpc GetUserIdFromOauthId(GetUserIdFromOauthIdReq) returns (GetUserIdFromOauthIdResp);
 }
 
 message CreateUserReq {
     string name = 1;
     string email = 2;
-    string google_id = 3;
-    string github_id = 4;
 }
 
 message CreateUserResp {
@@ -27,21 +23,6 @@ message GetUserReq {
 
 message GetUserResp {
     User user = 1;
-}
-
-message GetUserIdFromOauthIdReq {
-  string oauth_id = 1;
-  OauthProvider provider = 2;
-}
-
-message GetUserIdFromOauthIdResp {
-  string id = 1;
-}
-
-enum OauthProvider {
-    OAUTH_PROVIDER_UNSPECIFIED = 0;
-    OAUTH_PROVIDER_GOOGLE = 1;
-    OAUTH_PROVIDER_GITHUB = 2;
 }
 
 message User {

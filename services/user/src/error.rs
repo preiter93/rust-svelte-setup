@@ -54,35 +54,6 @@ impl From<GetUserErr> for Status {
     }
 }
 
-/// Error for [`crate::proto::api_service_server::ApiService::get_user_id_from_oauth_id`]
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum GetUserIdFromOauthIdErr {
-    #[error("missing oauth id")]
-    MissingOAuthId,
-
-    #[error("unspecified oauth provider")]
-    UnspecifiedOauthProvider,
-
-    #[error("user not found")]
-    NotFound,
-
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
-}
-
-impl From<GetUserIdFromOauthIdErr> for Status {
-    fn from(err: GetUserIdFromOauthIdErr) -> Self {
-        let code = match err {
-            GetUserIdFromOauthIdErr::MissingOAuthId
-            | GetUserIdFromOauthIdErr::UnspecifiedOauthProvider => Code::InvalidArgument,
-            GetUserIdFromOauthIdErr::NotFound => Code::NotFound,
-            GetUserIdFromOauthIdErr::Database(_) => Code::Internal,
-        };
-        Status::new(code, err.to_string())
-    }
-}
-
 // Database error
 #[derive(Debug, Error)]
 pub enum DBError {

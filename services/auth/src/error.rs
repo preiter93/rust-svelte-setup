@@ -215,10 +215,36 @@ pub enum HandleOauthCallbackErr {
 
     #[error("oauth provider is not supported")]
     UnsupportedOauthProvider,
+
+    #[error("database error: {0}")]
+    Database(#[from] DBError),
 }
 
 impl From<HandleOauthCallbackErr> for Status {
     fn from(err: HandleOauthCallbackErr) -> Self {
+        let code = match err {
+            _ => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
+}
+
+/// Error for `start_{provider}_login`
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum LinkOauthAccountErr {
+    #[error("missing oauth token id")]
+    MissingOauthAccountID,
+
+    #[error("missing user id")]
+    MissingUserID,
+
+    #[error("database error: {0}")]
+    Database(#[from] DBError),
+}
+
+impl From<LinkOauthAccountErr> for Status {
+    fn from(err: LinkOauthAccountErr) -> Self {
         let code = match err {
             _ => Code::Internal,
         };
@@ -243,4 +269,7 @@ pub enum DBError {
 
     #[error("conversion error: {0}")]
     Conversion(String),
+
+    #[error("invalid input")]
+    InvalidInput,
 }

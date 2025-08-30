@@ -3,7 +3,7 @@ use crate::{
     db::PostgresDBClient,
     handler::Handler,
     proto::api_service_server::ApiServiceServer,
-    utils::{GithubOAuth, GoogleOAuth, StdRandomStringGenerator},
+    utils::{GithubOAuth, GoogleOAuth, RandomValueGenerator},
 };
 use auth::{GRPC_PORT, SERVICE_NAME};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
@@ -34,12 +34,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let server = Handler::new(
         PostgresDBClient::new(pool),
-        GoogleOAuth::<StdRandomStringGenerator>::new(
+        GoogleOAuth::<RandomValueGenerator>::new(
             cfg.google_client_id,
             cfg.google_client_secret,
             cfg.google_redirect_uri,
         ),
-        GithubOAuth::<StdRandomStringGenerator>::new(
+        GithubOAuth::<RandomValueGenerator>::new(
             cfg.github_client_id,
             cfg.github_client_secret,
             cfg.github_redirect_uri,

@@ -1,9 +1,9 @@
 use crate::error::{ApiError, OAuthError};
-use crate::service::create_user_if_not_found;
-use crate::utils::{OAUTH_CODE_VERIFIER, OAUTH_STATE, OauthCookieJar};
+use crate::utils::{OAUTH_CODE_VERIFIER, OAUTH_STATE, OauthCookieJar, parse_provider};
 use auth::AuthClient;
 use auth::proto::{
-    CreateSessionReq, DeleteSessionReq, HandleOauthCallbackReq, OauthProvider, StartOauthLoginReq,
+    CreateSessionReq, DeleteSessionReq, HandleOauthCallbackReq, LinkOauthAccountReq,
+    StartOauthLoginReq,
 };
 use axum::{
     Extension, Json,
@@ -19,11 +19,12 @@ use shared::cookie::{
     expire_session_token_cookie, extract_session_token_cookie,
 };
 use shared::session::SessionState;
-use tonic::{Code, Request};
+use tonic::{Code, Request, Status};
 use tracing::instrument;
+use user::proto::CreateUserReq;
 use user::{
     UserClient,
-    proto::{GetUserIdFromOauthIdReq, GetUserReq, GetUserResp},
+    proto::{GetUserReq, GetUserResp},
 };
 
 #[derive(Clone)]
@@ -89,11 +90,7 @@ pub async fn start_oauth_login(
     Path(provider): Path<String>,
     State(mut h): State<Handler>,
 ) -> Result<Response, ApiError> {
-    let provider = match provider.as_ref() {
-        "google" => OauthProvider::Google,
-        "github" => OauthProvider::Github,
-        _ => OauthProvider::Unspecified,
-    };
+    let provider = parse_provider(provider);
     let req = Request::new(StartOauthLoginReq {
         provider: provider.into(),
     });
@@ -127,11 +124,7 @@ pub async fn handle_oauth_callback(
     Query(query): Query<OauthCallbackQuery>,
     headers: HeaderMap,
 ) -> Result<Response, OAuthError> {
-    let provider = match provider.as_ref() {
-        "google" => OauthProvider::Google,
-        "github" => OauthProvider::Github,
-        _ => OauthProvider::Unspecified,
-    };
+    let provider = parse_provider(provider);
 
     let jar = OauthCookieJar::from_headers(&headers)?;
     let stored_state = jar.extract(OAUTH_STATE)?;
@@ -149,24 +142,25 @@ pub async fn handle_oauth_callback(
     let callback_resp = h.auth_client.handle_oauth_callback(callback_req).await?;
     let callback_data = callback_resp.into_inner();
 
-    let oauth_id = callback_data.id.to_string();
-    let name = callback_data.name.to_string();
-    let email = callback_data.email.to_string();
+    let oauth_account_id = callback_data.oauth_account_id;
+    let name = callback_data.user_name;
+    let email = callback_data.user_email;
 
-    let user_req = Request::new(GetUserIdFromOauthIdReq {
-        oauth_id: oauth_id.clone(),
-        provider: provider.into(),
-    });
-    let user_resp = h.user_client.get_user_id_from_oauth_id(user_req).await;
-    let user_id = match user_resp {
-        Ok(resp) => resp.into_inner().id,
-        Err(ref status) if status.code() == Code::NotFound => {
-            // TODO: Do not safe oauth id on user table
-            create_user_if_not_found(&mut h.user_client, oauth_id, String::new(), name, email)
-                .await?
-        }
-        Err(err) => return Err(OAuthError::RequestError(err)),
-    };
+    let mut user_id = callback_data.user_id;
+    if user_id.is_empty() {
+        let req = Request::new(CreateUserReq { name, email });
+        let resp = h.user_client.create_user(req).await?;
+        let user = resp.into_inner().user.ok_or_else(|| {
+            OAuthError::RequestError(Status::new(Code::Internal, "failed to create user"))
+        })?;
+        user_id = user.id;
+
+        let req = Request::new(LinkOauthAccountReq {
+            oauth_account_id,
+            user_id: user_id.clone(),
+        });
+        let _ = h.auth_client.link_oauth_account(req).await?;
+    }
 
     let session_req = Request::new(CreateSessionReq { user_id });
     let session_resp = h.auth_client.create_session(session_req).await?;

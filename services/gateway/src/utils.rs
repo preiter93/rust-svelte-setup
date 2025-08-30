@@ -1,3 +1,4 @@
+use auth::proto::OauthProvider;
 use axum::http::{HeaderMap, StatusCode, header::COOKIE};
 use shared::cookie::extract_cookie_by_name;
 use tonic::Code;
@@ -43,5 +44,13 @@ impl<'a> OauthCookieJar<'a> {
     pub(crate) fn extract(&self, name: &'static str) -> Result<String, OAuthError> {
         let cookies = self.0.get(COOKIE).unwrap();
         extract_cookie_by_name(name, cookies).ok_or(OAuthError::MissingCookie(name))
+    }
+}
+
+pub fn parse_provider<S: AsRef<str>>(provider: S) -> OauthProvider {
+    match provider.as_ref() {
+        "google" => OauthProvider::Google,
+        "github" => OauthProvider::Github,
+        _ => OauthProvider::Unspecified,
     }
 }
