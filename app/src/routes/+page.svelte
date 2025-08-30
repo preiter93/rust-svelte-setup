@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 	import { UserService } from '$lib/user/service';
 	import type { PageProps } from './$types';
 

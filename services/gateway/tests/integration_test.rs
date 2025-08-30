@@ -16,7 +16,7 @@ async fn test_get_current_user_authenticated() {
         .await
         .expect("failed to send request");
 
-    assert_eq!(resp.status(), 200,);
+    assert_eq!(resp.status(), 200);
 }
 
 #[tokio::test]
@@ -30,7 +30,7 @@ async fn test_get_current_user_unauthenticated() {
         .await
         .expect("failed to send request");
 
-    assert_eq!(resp.status(), 401,);
+    assert_eq!(resp.status(), 401);
 }
 
 #[tokio::test]
@@ -46,7 +46,7 @@ async fn test_logout_user() {
         .await
         .expect("failed to send request");
 
-    assert_eq!(resp.status(), 200,);
+    assert_eq!(resp.status(), 200);
 
     let resp = Client::new()
         .get(format!("{uri}/user/me"))
@@ -55,5 +55,5 @@ async fn test_logout_user() {
         .await
         .expect("failed to send request");
 
-    assert_eq!(resp.status(), 401,);
+    assert_eq!(resp.status(), 401);
 }
