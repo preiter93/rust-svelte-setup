@@ -13,9 +13,13 @@ use tracing_subscriber::util::SubscriberInitExt as _;
 ///
 /// It allows tracing spans to be exported to backends like Jaeger.
 pub fn init_tracer(service_name: &'static str) -> Result<SdkTracerProvider, Box<dyn Error>> {
+    let mut endpoint = "http://otel-collector:4317";
+    if std::env::var("APP_ENV").unwrap_or_default() == "local" {
+        endpoint = "http://localhost:4317";
+    }
     let span_exporter = SpanExporter::builder()
         .with_tonic()
-        .with_endpoint("http://otel-collector:4317")
+        .with_endpoint(endpoint)
         .build()?;
     let tracer_provider = SdkTracerProvider::builder()
         .with_resource(Resource::builder().with_service_name(service_name).build())

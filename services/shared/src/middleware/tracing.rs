@@ -104,8 +104,8 @@ pub struct MakeSpan;
 
 impl<B> tower_http::trace::MakeSpan<B> for MakeSpan {
     /// Creates a new tracing span for an incoming request.
-    fn make_span(&mut self, _: &Request<B>) -> Span {
-        info_span!("request", trace_id = field::Empty)
+    fn make_span(&mut self, req: &Request<B>) -> Span {
+        info_span!("request", uri = %req.uri(), trace_id = field::Empty)
     }
 }
 
