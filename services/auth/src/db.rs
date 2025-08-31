@@ -126,18 +126,22 @@ impl DBClient for PostgresDBClient {
 
         let row = client
             .query_one(
-                "INSERT INTO oauth_accounts (id, provider, provider_user_id, access_token, refresh_token, user_id)
-                 VALUES ($1, $2, $3, $4, $5, $6)
+                "INSERT INTO oauth_accounts (id, provider, provider_user_id, provider_user_name, provider_user_email, access_token, access_token_expires_at, refresh_token, user_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                  ON CONFLICT (provider_user_id) DO UPDATE SET
                     access_token = EXCLUDED.access_token,
+                    access_token_expires_at = EXCLUDED.access_token_expires_at,
                     refresh_token = EXCLUDED.refresh_token,
                     updated_at = NOW()
-                 RETURNING id, provider, provider_user_id, access_token, refresh_token, user_id",
+                 RETURNING id, provider, provider_user_id, provider_user_name, provider_user_email, access_token, access_token_expires_at, refresh_token, user_id",
                 &[
                     &token.id,
                     &token.provider,
                     &token.provider_user_id,
+                    &token.provider_user_name,
+                    &token.provider_user_email,
                     &token.access_token,
+                    &token.access_token_expires_at,
                     &token.refresh_token,
                     &token.user_id,
                 ],
@@ -163,7 +167,7 @@ impl DBClient for PostgresDBClient {
                 "UPDATE oauth_accounts 
                  SET user_id = $2, updated_at = NOW()
                  WHERE id = $1 
-                 RETURNING id, provider, provider_user_id, access_token, refresh_token, user_id",
+                 RETURNING id, provider, provider_user_id, provider_user_name, provider_user_email, access_token, access_token_expires_at, refresh_token, user_id",
                 &[&id, &user_id],
             )
             .await?;

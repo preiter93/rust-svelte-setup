@@ -42,10 +42,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     router = router.layer(SessionAuthLayer::new(
         auth_client.clone(),
         vec![
-            String::from("/auth/google/login"),
-            String::from("/auth/google/callback"),
-            String::from("/auth/github/login"),
-            String::from("/auth/github/callback"),
+            String::from("/auth/*/login"),
+            String::from("/auth/*/callback"),
         ],
     ));
     router = router.layer(cors).layer(TracingHttpServiceLayer);

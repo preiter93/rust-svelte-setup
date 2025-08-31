@@ -12,7 +12,7 @@ pub enum CreateUserErr {
     #[error("missing email")]
     MissingEmail,
 
-    #[error("missing email")]
+    #[error("missing name")]
     MissingName,
 }
 

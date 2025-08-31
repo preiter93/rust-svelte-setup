@@ -7,15 +7,15 @@ pub enum CreateSessionErr {
     #[error("missing user id")]
     MissingUserUID,
 
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
+    #[error("insert session error: {0}")]
+    InsertSession(#[from] DBError),
 }
 
 impl From<CreateSessionErr> for Status {
     fn from(err: CreateSessionErr) -> Self {
         let code = match err {
             CreateSessionErr::MissingUserUID => Code::InvalidArgument,
-            CreateSessionErr::Database(_) => Code::Internal,
+            CreateSessionErr::InsertSession(_) => Code::Internal,
         };
         Status::new(code, err.to_string())
     }
@@ -40,8 +40,11 @@ pub enum ValidateSessionErr {
     #[error("token not found")]
     NotFound,
 
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
+    #[error("get session error: {0}")]
+    GetSession(DBError),
+
+    #[error("delete session error: {0}")]
+    DeleteSession(DBError),
 }
 
 impl From<ValidateSessionErr> for Status {
@@ -53,7 +56,9 @@ impl From<ValidateSessionErr> for Status {
             ValidateSessionErr::SecretMismatch
             | ValidateSessionErr::Expired
             | ValidateSessionErr::NotFound => Code::Unauthenticated,
-            ValidateSessionErr::Database(_) => Code::Internal,
+            ValidateSessionErr::GetSession(_) | ValidateSessionErr::DeleteSession(_) => {
+                Code::Internal
+            }
         };
         Status::new(code, err.to_string())
     }
@@ -69,8 +74,8 @@ pub enum DeleteSessionErr {
     #[error("invalid token format")]
     InvalidFormat,
 
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
+    #[error("delete session error: {0}")]
+    DeleteSession(#[from] DBError),
 }
 
 impl From<DeleteSessionErr> for Status {
@@ -79,7 +84,7 @@ impl From<DeleteSessionErr> for Status {
             DeleteSessionErr::MissingToken | DeleteSessionErr::InvalidFormat => {
                 Code::InvalidArgument
             }
-            DeleteSessionErr::Database(_) => Code::Internal,
+            DeleteSessionErr::DeleteSession(_) => Code::Internal,
         };
         Status::new(code, err.to_string())
     }
@@ -176,7 +181,7 @@ impl From<HandleGithubCallbackErr> for Status {
 #[non_exhaustive]
 pub enum StartOauthLoginErr {
     #[error("failed to generate authorization url")]
-    GenerateAuthorizationUrl,
+    GenerateAuthorizationUrl(#[from] url::ParseError),
 
     #[error("oauth provider is not supported")]
     UnsupportedOauthProvider,
@@ -195,29 +200,14 @@ impl From<StartOauthLoginErr> for Status {
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum HandleOauthCallbackErr {
-    #[error("failed to validate authorization code")]
-    ValidateAuthorizationCode,
-
-    #[error("missing id token")]
-    MissingIDToken,
-
-    #[error("failed to decode id token")]
-    DecodeIdToken,
-
-    #[error("missing access token")]
-    MissingAccessToken,
-
-    #[error("failed to fetch user information")]
-    FetchUserInformation,
-
-    #[error("failed to fetch email information")]
-    FetchEmailInformation,
+    #[error("failed to exchange code: {0}")]
+    ExchangeCode(#[from] ExchangeCodeErr),
 
     #[error("oauth provider is not supported")]
     UnsupportedOauthProvider,
 
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
+    #[error("upsert oauth account error: {0}")]
+    UpsertOauthAccount(#[from] DBError),
 }
 
 impl From<HandleOauthCallbackErr> for Status {
@@ -227,6 +217,41 @@ impl From<HandleOauthCallbackErr> for Status {
         };
         Status::new(code, err.to_string())
     }
+}
+
+/// Error for `exchange_code`
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum ExchangeCodeErr {
+    #[error("failed to build request body")]
+    BuildRequestBody(#[from] serde_urlencoded::ser::Error),
+
+    #[error("failed to build http client")]
+    BuildHttpClient,
+
+    #[error("failed to send request")]
+    SendRequest(#[from] reqwest::Error),
+
+    #[error("failed to validate authorization code")]
+    ValidateAuthorizationCode,
+
+    #[error("missing id token")]
+    MissingIDToken,
+
+    #[error("failed to decode id token")]
+    DecodeIdToken(#[from] jsonwebtoken::errors::Error),
+
+    #[error("missing kid in token")]
+    MissingKID,
+
+    #[error("no matchin jwks found")]
+    NoMatchingJWKS,
+
+    #[error("missing access token")]
+    MissingAccessToken,
+
+    #[error("no email found")]
+    NoEmailFound,
 }
 
 /// Error for `start_{provider}_login`
@@ -239,8 +264,8 @@ pub enum LinkOauthAccountErr {
     #[error("missing user id")]
     MissingUserID,
 
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
+    #[error("update oauth account error: {0}")]
+    UpdateOauthAccount(#[from] DBError),
 }
 
 impl From<LinkOauthAccountErr> for Status {

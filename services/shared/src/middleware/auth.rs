@@ -104,7 +104,8 @@ where
         }
 
         // Allow certain paths with no auth
-        if self.no_auth.contains(&request.uri().path().to_string()) {
+        let req_path = request.uri().path();
+        if self.no_auth.iter().any(|p| matches_pattern(p, req_path)) {
             return Box::pin(self.inner.call(request));
         }
 
@@ -163,6 +164,25 @@ pub enum AuthenticateSessionErr {
 
     #[error("internal error")]
     Internal,
+}
+
+fn matches_pattern(pattern: &str, path: &str) -> bool {
+    let pattern_parts: Vec<&str> = pattern.split('/').collect();
+    let path_parts: Vec<&str> = path.split('/').collect();
+
+    if pattern_parts.len() != path_parts.len() {
+        return false;
+    }
+
+    for (pattern, path) in pattern_parts.iter().zip(path_parts.iter()) {
+        if *pattern == "*" {
+            continue;
+        }
+        if pattern != path {
+            return false;
+        }
+    }
+    true
 }
 
 #[cfg(test)]
@@ -266,6 +286,18 @@ mod tests {
         TestCase {
             given_request: Request::builder().uri("/no-auth").body(()).unwrap(),
             given_no_auth: vec![String::from("/no-auth")],
+            want_status_code: StatusCode::OK,
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_skip_no_auth_endpoints_with_wildcard() {
+        TestCase {
+            given_request: Request::builder().uri("/google/no-auth").body(()).unwrap(),
+            given_no_auth: vec![String::from("/*/no-auth")],
             want_status_code: StatusCode::OK,
             ..Default::default()
         }

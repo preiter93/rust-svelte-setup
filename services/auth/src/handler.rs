@@ -17,23 +17,19 @@ use crate::{
         HandleOauthCallbackReq, HandleOauthCallbackResp, LinkOauthAccountReq, LinkOauthAccountResp,
         OauthProvider, StartOauthLoginReq, StartOauthLoginResp,
     },
-    utils::{
-        GithubOAuth, Now, OAuthAccount, OAuthProvider, RandomValueGeneratorTrait, Session,
-        SystemNow,
-    },
+    utils::{GithubOAuth, Now, OAuthProvider, RandomValueGeneratorTrait, Session, SystemNow},
 };
-use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
-use tonic::{Request, Response, Status};
-use tracing::instrument;
-
 use crate::{
     error::{CreateSessionErr, DBError, ValidateSessionErr},
     proto::{
         CreateSessionReq, CreateSessionResp, DeleteSessionReq, DeleteSessionResp,
         ValidateSessionReq, ValidateSessionResp, api_service_server::ApiService,
     },
-    utils::{GoogleOAuth, OAuth, constant_time_equal, hash_secret},
+    utils::{GoogleOAuth, OAuthHelper, constant_time_equal, hash_secret},
 };
+use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
+use tonic::{Request, Response, Status};
+use tracing::instrument;
 
 #[derive(Clone)]
 pub struct Handler<D, R, N> {
@@ -60,7 +56,7 @@ type SessionToken = String;
 impl<D, R, N> ApiService for Handler<D, R, N>
 where
     D: DBClient,
-    R: RandomValueGeneratorTrait,
+    R: RandomValueGeneratorTrait + Clone,
     N: Now,
 {
     /// Creates a new session.
@@ -95,7 +91,7 @@ where
         self.db
             .insert_session(session)
             .await
-            .map_err(CreateSessionErr::Database)?;
+            .map_err(CreateSessionErr::InsertSession)?;
 
         Ok(Response::new(CreateSessionResp { token }))
     }
@@ -133,12 +129,12 @@ where
 
         let session = self.db.get_session(session_id).await.map_err(|e| match e {
             DBError::NotFound => ValidateSessionErr::NotFound,
-            _ => ValidateSessionErr::Database(e),
+            _ => ValidateSessionErr::GetSession(e),
         })?;
 
         if N::now() >= session.expires_at {
             let result = self.db.delete_session(&session.id).await;
-            result.map_err(ValidateSessionErr::Database)?;
+            result.map_err(ValidateSessionErr::DeleteSession)?;
             return Err(ValidateSessionErr::Expired.into());
         }
 
@@ -191,7 +187,7 @@ where
         self.db
             .delete_session(session_id)
             .await
-            .map_err(DeleteSessionErr::Database)?;
+            .map_err(DeleteSessionErr::DeleteSession)?;
 
         Ok(Response::new(DeleteSessionResp {}))
     }
@@ -207,25 +203,24 @@ where
     ) -> Result<Response<StartOauthLoginResp>, Status> {
         let req = req.into_inner();
 
-        let state = OAuth::<R>::generate_state();
-
+        let state = OAuthHelper::<R>::generate_state();
         let (code_verifier, authorization_url) = match req.provider() {
             OauthProvider::Google => {
-                let code_verifier = OAuth::<R>::generate_code_verifier();
-                let code_challenge = OAuth::<R>::create_s256_code_challenge(&code_verifier);
+                let code_verifier = OAuthHelper::<R>::generate_code_verifier();
+                let code_challenge = OAuthHelper::<R>::create_s256_code_challenge(&code_verifier);
 
                 let authorization_url = self
                     .google
-                    .generate_authorization_url(state.clone(), code_challenge)
-                    .map_err(|_| StartOauthLoginErr::GenerateAuthorizationUrl)?;
+                    .generate_authorization_url(&state, &code_challenge)
+                    .map_err(StartOauthLoginErr::GenerateAuthorizationUrl)?;
 
                 (code_verifier, authorization_url)
             }
             OauthProvider::Github => {
                 let authorization_url = self
                     .github
-                    .generate_authorization_url(state.clone(), String::new())
-                    .map_err(|_| StartOauthLoginErr::GenerateAuthorizationUrl)?;
+                    .generate_authorization_url(&state, "")
+                    .map_err(StartOauthLoginErr::GenerateAuthorizationUrl)?;
 
                 (String::new(), authorization_url)
             }
@@ -252,60 +247,26 @@ where
     ) -> Result<Response<HandleOauthCallbackResp>, Status> {
         let req = req.into_inner();
 
-        let oauth_info = match req.provider() {
-            OauthProvider::Google => {
-                let tokens = self
-                    .google
-                    .validate_authorization_code(&req.code, &req.code_verifier)
-                    .await
-                    .map_err(|_| HandleOauthCallbackErr::ValidateAuthorizationCode)?;
+        let (code, code_verifier) = (&req.code, &req.code_verifier);
 
-                let Some(id_token) = tokens.id_token else {
-                    return Err(HandleOauthCallbackErr::MissingIDToken.into());
-                };
-
-                self.google
-                    .fetch_user_info(&id_token)
-                    .await
-                    .map_err(|_| HandleOauthCallbackErr::FetchUserInformation)?
-            }
-            OauthProvider::Github => {
-                let tokens = self
-                    .github
-                    .validate_authorization_code(&req.code, &req.code_verifier)
-                    .await
-                    .map_err(|_| HandleOauthCallbackErr::ValidateAuthorizationCode)?;
-
-                let Some(access_token) = tokens.access_token else {
-                    return Err(HandleOauthCallbackErr::MissingAccessToken.into());
-                };
-
-                self.github
-                    .fetch_user_info(&access_token)
-                    .await
-                    .map_err(|_| HandleOauthCallbackErr::FetchUserInformation)?
-            }
+        let account = match req.provider() {
+            OauthProvider::Google => self.google.exchange_code(code, code_verifier).await,
+            OauthProvider::Github => self.github.exchange_code(code, code_verifier).await,
             _ => return Err(HandleOauthCallbackErr::UnsupportedOauthProvider.into()),
-        };
+        }
+        .map_err(HandleOauthCallbackErr::ExchangeCode)?;
 
-        let oauth_account = self
+        let account = self
             .db
-            .upsert_oauth_account(&OAuthAccount {
-                id: R::generate_uuid().to_string(),
-                provider_user_id: oauth_info.user_id.clone(),
-                provider: req.provider,
-                access_token: None,
-                refresh_token: None,
-                user_id: None,
-            })
+            .upsert_oauth_account(&account)
             .await
-            .map_err(HandleOauthCallbackErr::Database)?;
+            .map_err(HandleOauthCallbackErr::UpsertOauthAccount)?;
 
         return Ok(Response::new(HandleOauthCallbackResp {
-            oauth_account_id: oauth_account.id,
-            user_name: oauth_info.user_name,
-            user_email: oauth_info.user_email,
-            user_id: oauth_account.user_id.unwrap_or_default(),
+            account_id: account.id,
+            provider_user_name: account.provider_user_name.unwrap_or_default(),
+            provider_user_email: account.provider_user_email.unwrap_or_default(),
+            user_id: account.user_id.unwrap_or_default(),
         }));
     }
 
@@ -322,8 +283,8 @@ where
     ) -> Result<Response<LinkOauthAccountResp>, Status> {
         let req = req.into_inner();
 
-        let oauth_account_id = req.oauth_account_id;
-        if oauth_account_id.is_empty() {
+        let account_id = req.account_id;
+        if account_id.is_empty() {
             return Err(LinkOauthAccountErr::MissingOauthAccountID.into());
         }
 
@@ -333,9 +294,9 @@ where
         }
 
         self.db
-            .update_oauth_account(&oauth_account_id, &user_id)
+            .update_oauth_account(&account_id, &user_id)
             .await
-            .map_err(LinkOauthAccountErr::Database)?;
+            .map_err(LinkOauthAccountErr::UpdateOauthAccount)?;
 
         Ok(Response::new(LinkOauthAccountResp {}))
     }

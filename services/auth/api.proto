@@ -65,14 +65,14 @@ message HandleOauthCallbackReq {
 }
 
 message HandleOauthCallbackResp {
-  string oauth_account_id = 1;
-  string user_email = 2;
-  string user_name = 3;
+  string account_id = 1;
+  string provider_user_email = 2;
+  string provider_user_name = 3;
   string user_id = 4;
 }
 
 message LinkOauthAccountReq {
-  string oauth_account_id = 1;
+  string account_id = 1;
   string user_id = 2;
 }
 

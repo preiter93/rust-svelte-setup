@@ -142,9 +142,9 @@ pub async fn handle_oauth_callback(
     let callback_resp = h.auth_client.handle_oauth_callback(callback_req).await?;
     let callback_data = callback_resp.into_inner();
 
-    let oauth_account_id = callback_data.oauth_account_id;
-    let name = callback_data.user_name;
-    let email = callback_data.user_email;
+    let account_id = callback_data.account_id;
+    let name = callback_data.provider_user_name;
+    let email = callback_data.provider_user_email;
 
     let mut user_id = callback_data.user_id;
     if user_id.is_empty() {
@@ -156,7 +156,7 @@ pub async fn handle_oauth_callback(
         user_id = user.id;
 
         let req = Request::new(LinkOauthAccountReq {
-            oauth_account_id,
+            account_id,
             user_id: user_id.clone(),
         });
         let _ = h.auth_client.link_oauth_account(req).await?;
