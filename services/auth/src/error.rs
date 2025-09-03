@@ -37,8 +37,8 @@ pub enum ValidateSessionErr {
     #[error("token expired")]
     Expired,
 
-    #[error("token not found")]
-    NotFound,
+    #[error("token not found for session {0}")]
+    NotFound(String),
 
     #[error("get session error: {0}")]
     GetSession(DBError),
@@ -55,7 +55,7 @@ impl From<ValidateSessionErr> for Status {
             }
             ValidateSessionErr::SecretMismatch
             | ValidateSessionErr::Expired
-            | ValidateSessionErr::NotFound => Code::Unauthenticated,
+            | ValidateSessionErr::NotFound(_) => Code::Unauthenticated,
             ValidateSessionErr::GetSession(_) | ValidateSessionErr::DeleteSession(_) => {
                 Code::Internal
             }
@@ -254,7 +254,7 @@ pub enum ExchangeCodeErr {
     NoEmailFound,
 }
 
-/// Error for `start_{provider}_login`
+/// Error for [`crate::proto::api_service_server::ApiService::link_oauth_account`]
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum LinkOauthAccountErr {
@@ -271,6 +271,29 @@ pub enum LinkOauthAccountErr {
 impl From<LinkOauthAccountErr> for Status {
     fn from(err: LinkOauthAccountErr) -> Self {
         let code = match err {
+            LinkOauthAccountErr::MissingUserID => Code::InvalidArgument,
+            LinkOauthAccountErr::MissingOauthAccountID => Code::InvalidArgument,
+            _ => Code::Internal,
+        };
+        Status::new(code, err.to_string())
+    }
+}
+
+/// Error for [`crate::proto::api_service_server::ApiService::get_oauth_account`]
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum GetOauthAccountErr {
+    #[error("missing user id")]
+    MissingUserID,
+
+    #[error("get oauth account error: {0}")]
+    GetOauthAccount(#[from] DBError),
+}
+
+impl From<GetOauthAccountErr> for Status {
+    fn from(err: GetOauthAccountErr) -> Self {
+        let code = match err {
+            GetOauthAccountErr::MissingUserID => Code::InvalidArgument,
             _ => Code::Internal,
         };
         Status::new(code, err.to_string())
@@ -289,8 +312,8 @@ pub enum DBError {
     #[error("connection pool error: {0}")]
     Pool(#[from] deadpool_postgres::PoolError),
 
-    #[error("entity not found")]
-    NotFound,
+    #[error("entity not found: {0}")]
+    NotFound(String),
 
     #[error("conversion error: {0}")]
     Conversion(String),

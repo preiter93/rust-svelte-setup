@@ -612,7 +612,7 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) fn fixture_db_oauth_account<F>(mut func: F) -> OAuthAccount
+    pub(crate) fn fixture_oauth_account<F>(mut func: F) -> OAuthAccount
     where
         F: FnMut(&mut OAuthAccount),
     {
@@ -622,7 +622,7 @@ pub(crate) mod tests {
             provider_user_name: Some("provider-user-name".to_string()),
             provider_user_email: Some("provider-user-email".to_string()),
             provider: 0,
-            access_token: None,
+            access_token: Some("access-token".to_string()),
             access_token_expires_at: None,
             refresh_token: None,
             user_id: None,

@@ -12,10 +12,14 @@ use std::marker::PhantomData;
 
 use crate::{
     db::DBClient,
-    error::{DeleteSessionErr, HandleOauthCallbackErr, LinkOauthAccountErr, StartOauthLoginErr},
+    error::{
+        DeleteSessionErr, GetOauthAccountErr, HandleOauthCallbackErr, LinkOauthAccountErr,
+        StartOauthLoginErr,
+    },
     proto::{
-        HandleOauthCallbackReq, HandleOauthCallbackResp, LinkOauthAccountReq, LinkOauthAccountResp,
-        OauthProvider, StartOauthLoginReq, StartOauthLoginResp,
+        GetOauthAccountReq, GetOauthAccountResp, HandleOauthCallbackReq, HandleOauthCallbackResp,
+        LinkOauthAccountReq, LinkOauthAccountResp, OauthProvider, StartOauthLoginReq,
+        StartOauthLoginResp,
     },
     utils::{GithubOAuth, Now, OAuthProvider, RandomValueGeneratorTrait, Session, SystemNow},
 };
@@ -128,7 +132,7 @@ where
         let session_secret = token_parts[1];
 
         let session = self.db.get_session(session_id).await.map_err(|e| match e {
-            DBError::NotFound => ValidateSessionErr::NotFound,
+            DBError::NotFound(e) => ValidateSessionErr::NotFound(e),
             _ => ValidateSessionErr::GetSession(e),
         })?;
 
@@ -300,14 +304,36 @@ where
 
         Ok(Response::new(LinkOauthAccountResp {}))
     }
+
+    #[instrument(skip(self), err)]
+    async fn get_oauth_account(
+        &self,
+        req: Request<GetOauthAccountReq>,
+    ) -> Result<Response<GetOauthAccountResp>, Status> {
+        let req = req.into_inner();
+        if req.user_id.is_empty() {
+            return Err(GetOauthAccountErr::MissingUserID.into());
+        }
+
+        let account = self
+            .db
+            .get_oauth_account(&req.user_id, req.provider())
+            .await
+            .map_err(GetOauthAccountErr::GetOauthAccount)?;
+
+        Ok(Response::new(GetOauthAccountResp {
+            access_token: account.access_token.unwrap_or_default(),
+        }))
+    }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
     use crate::utils::{
-        Session,
+        OAuthAccount, Session,
         tests::{
-            MockNow, MockRandomValueGenerator, assert_response, fixture_session, fixture_token,
+            MockNow, MockRandomValueGenerator, assert_response, fixture_oauth_account,
+            fixture_session, fixture_token,
         },
     };
     use chrono::TimeZone;
@@ -581,7 +607,7 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn test_validate_session_not_found() {
         ValidateSessionTestCase {
-            given_db_get_session: Err(DBError::NotFound),
+            given_db_get_session: Err(DBError::NotFound(String::new())),
             want_resp: Err(Code::Unauthenticated),
             ..Default::default()
         }
@@ -638,6 +664,73 @@ pub(crate) mod tests {
         ValidateSessionTestCase {
             given_db_get_session: Err(DBError::Unknown),
             want_resp: Err(Code::Internal),
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    struct GetOauthAccountTestCase {
+        given_req: GetOauthAccountReq,
+        given_get_oauth_account: Result<OAuthAccount, DBError>,
+        want_resp: Result<GetOauthAccountResp, Code>,
+    }
+
+    impl Default for GetOauthAccountTestCase {
+        fn default() -> Self {
+            Self {
+                given_req: GetOauthAccountReq {
+                    user_id: "user-id".to_string(),
+                    provider: OauthProvider::Google as i32,
+                },
+                want_resp: Ok(GetOauthAccountResp {
+                    access_token: "access-token".to_string(),
+                }),
+                given_get_oauth_account: Ok(fixture_oauth_account(|_| {})),
+            }
+        }
+    }
+
+    impl GetOauthAccountTestCase {
+        async fn run(self) {
+            // given
+            let db = MockDBClient {
+                get_oauth_account: Mutex::new(Some(self.given_get_oauth_account)),
+                ..Default::default()
+            };
+            let service = Handler {
+                db,
+                google: GoogleOAuth::<MockRandomValueGenerator>::default(),
+                github: GithubOAuth::<MockRandomValueGenerator>::default(),
+                _now: PhantomData::<MockNow>,
+            };
+
+            // when
+            let req = Request::new(self.given_req);
+            let got = service.get_oauth_account(req).await;
+
+            // then
+            assert_response(got, self.want_resp);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_oauth_account_happy_path() {
+        GetOauthAccountTestCase {
+            ..Default::default()
+        }
+        .run()
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_get_oauth_account_missing_user_id() {
+        GetOauthAccountTestCase {
+            given_req: GetOauthAccountReq {
+                user_id: String::new(),
+                ..Default::default()
+            },
+            want_resp: Err(Code::InvalidArgument),
             ..Default::default()
         }
         .run()

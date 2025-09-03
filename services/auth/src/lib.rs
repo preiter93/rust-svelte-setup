@@ -5,8 +5,8 @@ use crate::proto::{
     ValidateSessionResp, api_service_client::ApiServiceClient,
 };
 use crate::proto::{
-    HandleOauthCallbackReq, HandleOauthCallbackResp, LinkOauthAccountReq, LinkOauthAccountResp,
-    StartOauthLoginReq, StartOauthLoginResp,
+    GetOauthAccountReq, GetOauthAccountResp, HandleOauthCallbackReq, HandleOauthCallbackResp,
+    LinkOauthAccountReq, LinkOauthAccountResp, StartOauthLoginReq, StartOauthLoginResp,
 };
 use shared::middleware::auth::AuthenticatedSession;
 use shared::middleware::tracing::TracingServiceClient;
@@ -116,6 +116,14 @@ impl AuthClient {
         req: Request<LinkOauthAccountReq>,
     ) -> Result<Response<LinkOauthAccountResp>, Status> {
         self.0.link_oauth_account(req).await
+    }
+
+    /// Fetch an oauth access token from a user id and a provider.
+    pub async fn get_oauth_account(
+        &mut self,
+        req: Request<GetOauthAccountReq>,
+    ) -> Result<Response<GetOauthAccountResp>, Status> {
+        self.0.get_oauth_account(req).await
     }
 }
 
