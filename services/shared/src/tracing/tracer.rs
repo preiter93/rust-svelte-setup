@@ -29,7 +29,7 @@ pub fn init_tracer(service_name: &'static str) -> Result<SdkTracerProvider, Box<
     global::set_text_map_propagator(TraceContextPropagator::new());
     global::set_tracer_provider(tracer_provider.clone());
 
-    let env_filter = EnvFilter::new("trace,h2=error,tonic=error,tower=error,tower_http=error");
+    let env_filter = EnvFilter::new("info,h2=error,tonic=error,tower=error,tower_http=error");
 
     let tracer = tracer_provider.tracer(service_name);
     let otel_layer = tracing_opentelemetry::layer().with_tracer(tracer);
