@@ -1,6 +1,6 @@
 ARG SERVICE_NAME
 
-FROM lukemathwalker/cargo-chef:latest-rust-1.88-bookworm as chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.88-slim-bookworm as chef
 WORKDIR /services
 
 # Prepare dependency graph
