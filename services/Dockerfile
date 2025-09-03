@@ -5,8 +5,6 @@ WORKDIR /services
 
 # Prepare dependency graph
 FROM chef as planner
-ARG SERVICE_NAME
-ENV SERVICE_NAME=${SERVICE_NAME}
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
