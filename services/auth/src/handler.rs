@@ -145,7 +145,7 @@ where
         let mut should_refresh_cookie = false;
         if session.expires_at.signed_duration_since(N::now()) < SESSION_TOKEN_EXPIRY_DURATION / 2 {
             if let Some(new_expiry) = N::now().checked_add_signed(SESSION_TOKEN_EXPIRY_DURATION) {
-                let _ = self.db.update_session(&session_id, &new_expiry).await;
+                let _ = self.db.update_session(session_id, &new_expiry).await;
                 should_refresh_cookie = true;
             }
         }

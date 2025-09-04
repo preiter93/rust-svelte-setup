@@ -145,8 +145,7 @@ impl<R: RandomValueGeneratorTrait> OAuthHelper<R> {
     #[must_use]
     pub fn create_s256_code_challenge(code_verifier: &str) -> String {
         let digest = Sha256::digest(code_verifier.as_bytes());
-        let code_challenge = BASE64_URL_SAFE_NO_PAD.encode(digest);
-        code_challenge
+        BASE64_URL_SAFE_NO_PAD.encode(digest)
     }
 
     fn generate_authorization_url(
@@ -305,7 +304,7 @@ where
         state: &str,
         code_challenge: &str,
     ) -> Result<String, url::ParseError> {
-        const AUTH_ENDPOINT: &'static str = "https://accounts.google.com/o/oauth2/v2/auth";
+        const AUTH_ENDPOINT: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 
         let authorization_url = OAuthHelper::<R>::generate_authorization_url(
             AUTH_ENDPOINT,
@@ -323,8 +322,8 @@ where
         code: &str,
         code_verifier: &str,
     ) -> Result<OAuthAccount, ExchangeCodeErr> {
-        const JWKS_CERTS_ENDPOINT: &'static str = "https://www.googleapis.com/oauth2/v3/certs";
-        const TOKEN_ENDPOINT: &'static str = "https://oauth2.googleapis.com/token";
+        const JWKS_CERTS_ENDPOINT: &str = "https://www.googleapis.com/oauth2/v3/certs";
+        const TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
 
         let token = OAuthHelper::<R>::validate_authorization_code(
             TOKEN_ENDPOINT,
@@ -337,7 +336,7 @@ where
         .await?;
 
         let Some(id_token) = token.id_token else {
-            return Err(ExchangeCodeErr::MissingIDToken.into());
+            return Err(ExchangeCodeErr::MissingIDToken);
         };
 
         let claims =
@@ -384,7 +383,7 @@ where
         state: &str,
         code_challenge: &str,
     ) -> Result<String, url::ParseError> {
-        const AUTH_ENDPOINT: &'static str = "https://github.com/login/oauth/authorize";
+        const AUTH_ENDPOINT: &str = "https://github.com/login/oauth/authorize";
 
         let authorization_url = OAuthHelper::<R>::generate_authorization_url(
             AUTH_ENDPOINT,
@@ -402,9 +401,9 @@ where
         code: &str,
         code_verifier: &str,
     ) -> Result<OAuthAccount, ExchangeCodeErr> {
-        const GET_USER_ENDPOINT: &'static str = "https://api.github.com/user";
-        const LIST_EMAILS_ENDPOINT: &'static str = "https://api.github.com/user/emails";
-        const TOKEN_ENDPOINT: &'static str = "https://github.com/login/oauth/access_token";
+        const GET_USER_ENDPOINT: &str = "https://api.github.com/user";
+        const LIST_EMAILS_ENDPOINT: &str = "https://api.github.com/user/emails";
+        const TOKEN_ENDPOINT: &str = "https://github.com/login/oauth/access_token";
 
         #[derive(Debug, Deserialize)]
         pub struct GithubUser {
@@ -431,7 +430,7 @@ where
         .await?;
 
         let Some(access_token) = token.access_token else {
-            return Err(ExchangeCodeErr::MissingAccessToken.into());
+            return Err(ExchangeCodeErr::MissingAccessToken);
         };
 
         let client = Client::new();

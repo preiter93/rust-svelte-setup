@@ -11,7 +11,7 @@ use tonic::{
 };
 
 pub const GRPC_PORT: u16 = 50051;
-pub const SERVICE_NAME: &'static str = "user";
+pub const SERVICE_NAME: &str = "user";
 
 #[derive(Clone)]
 pub struct UserClient(ApiServiceClient<TracingServiceClient<Channel>>);

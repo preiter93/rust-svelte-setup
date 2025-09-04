@@ -6,10 +6,12 @@ import type { CreateSessionReq as _proto_CreateSessionReq, CreateSessionReq__Out
 import type { CreateSessionResp as _proto_CreateSessionResp, CreateSessionResp__Output as _proto_CreateSessionResp__Output } from '../proto/CreateSessionResp';
 import type { DeleteSessionReq as _proto_DeleteSessionReq, DeleteSessionReq__Output as _proto_DeleteSessionReq__Output } from '../proto/DeleteSessionReq';
 import type { DeleteSessionResp as _proto_DeleteSessionResp, DeleteSessionResp__Output as _proto_DeleteSessionResp__Output } from '../proto/DeleteSessionResp';
+import type { GetOauthAccountReq as _proto_GetOauthAccountReq, GetOauthAccountReq__Output as _proto_GetOauthAccountReq__Output } from '../proto/GetOauthAccountReq';
+import type { GetOauthAccountResp as _proto_GetOauthAccountResp, GetOauthAccountResp__Output as _proto_GetOauthAccountResp__Output } from '../proto/GetOauthAccountResp';
 import type { HandleOauthCallbackReq as _proto_HandleOauthCallbackReq, HandleOauthCallbackReq__Output as _proto_HandleOauthCallbackReq__Output } from '../proto/HandleOauthCallbackReq';
 import type { HandleOauthCallbackResp as _proto_HandleOauthCallbackResp, HandleOauthCallbackResp__Output as _proto_HandleOauthCallbackResp__Output } from '../proto/HandleOauthCallbackResp';
-import type { LinkOauthTokenReq as _proto_LinkOauthTokenReq, LinkOauthTokenReq__Output as _proto_LinkOauthTokenReq__Output } from '../proto/LinkOauthTokenReq';
-import type { LinkOauthTokenResp as _proto_LinkOauthTokenResp, LinkOauthTokenResp__Output as _proto_LinkOauthTokenResp__Output } from '../proto/LinkOauthTokenResp';
+import type { LinkOauthAccountReq as _proto_LinkOauthAccountReq, LinkOauthAccountReq__Output as _proto_LinkOauthAccountReq__Output } from '../proto/LinkOauthAccountReq';
+import type { LinkOauthAccountResp as _proto_LinkOauthAccountResp, LinkOauthAccountResp__Output as _proto_LinkOauthAccountResp__Output } from '../proto/LinkOauthAccountResp';
 import type { StartOauthLoginReq as _proto_StartOauthLoginReq, StartOauthLoginReq__Output as _proto_StartOauthLoginReq__Output } from '../proto/StartOauthLoginReq';
 import type { StartOauthLoginResp as _proto_StartOauthLoginResp, StartOauthLoginResp__Output as _proto_StartOauthLoginResp__Output } from '../proto/StartOauthLoginResp';
 import type { ValidateSessionReq as _proto_ValidateSessionReq, ValidateSessionReq__Output as _proto_ValidateSessionReq__Output } from '../proto/ValidateSessionReq';
@@ -34,6 +36,15 @@ export interface ApiServiceClient extends grpc.Client {
   deleteSession(argument: _proto_DeleteSessionReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_DeleteSessionResp__Output>): grpc.ClientUnaryCall;
   deleteSession(argument: _proto_DeleteSessionReq, callback: grpc.requestCallback<_proto_DeleteSessionResp__Output>): grpc.ClientUnaryCall;
   
+  GetOauthAccount(argument: _proto_GetOauthAccountReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  GetOauthAccount(argument: _proto_GetOauthAccountReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_GetOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  GetOauthAccount(argument: _proto_GetOauthAccountReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  GetOauthAccount(argument: _proto_GetOauthAccountReq, callback: grpc.requestCallback<_proto_GetOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  getOauthAccount(argument: _proto_GetOauthAccountReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  getOauthAccount(argument: _proto_GetOauthAccountReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_GetOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  getOauthAccount(argument: _proto_GetOauthAccountReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_GetOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  getOauthAccount(argument: _proto_GetOauthAccountReq, callback: grpc.requestCallback<_proto_GetOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  
   HandleOauthCallback(argument: _proto_HandleOauthCallbackReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_HandleOauthCallbackResp__Output>): grpc.ClientUnaryCall;
   HandleOauthCallback(argument: _proto_HandleOauthCallbackReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_HandleOauthCallbackResp__Output>): grpc.ClientUnaryCall;
   HandleOauthCallback(argument: _proto_HandleOauthCallbackReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_HandleOauthCallbackResp__Output>): grpc.ClientUnaryCall;
@@ -43,14 +54,14 @@ export interface ApiServiceClient extends grpc.Client {
   handleOauthCallback(argument: _proto_HandleOauthCallbackReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_HandleOauthCallbackResp__Output>): grpc.ClientUnaryCall;
   handleOauthCallback(argument: _proto_HandleOauthCallbackReq, callback: grpc.requestCallback<_proto_HandleOauthCallbackResp__Output>): grpc.ClientUnaryCall;
   
-  LinkOauthToken(argument: _proto_LinkOauthTokenReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_LinkOauthTokenResp__Output>): grpc.ClientUnaryCall;
-  LinkOauthToken(argument: _proto_LinkOauthTokenReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_LinkOauthTokenResp__Output>): grpc.ClientUnaryCall;
-  LinkOauthToken(argument: _proto_LinkOauthTokenReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_LinkOauthTokenResp__Output>): grpc.ClientUnaryCall;
-  LinkOauthToken(argument: _proto_LinkOauthTokenReq, callback: grpc.requestCallback<_proto_LinkOauthTokenResp__Output>): grpc.ClientUnaryCall;
-  linkOauthToken(argument: _proto_LinkOauthTokenReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_LinkOauthTokenResp__Output>): grpc.ClientUnaryCall;
-  linkOauthToken(argument: _proto_LinkOauthTokenReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_LinkOauthTokenResp__Output>): grpc.ClientUnaryCall;
-  linkOauthToken(argument: _proto_LinkOauthTokenReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_LinkOauthTokenResp__Output>): grpc.ClientUnaryCall;
-  linkOauthToken(argument: _proto_LinkOauthTokenReq, callback: grpc.requestCallback<_proto_LinkOauthTokenResp__Output>): grpc.ClientUnaryCall;
+  LinkOauthAccount(argument: _proto_LinkOauthAccountReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_LinkOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  LinkOauthAccount(argument: _proto_LinkOauthAccountReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_LinkOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  LinkOauthAccount(argument: _proto_LinkOauthAccountReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_LinkOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  LinkOauthAccount(argument: _proto_LinkOauthAccountReq, callback: grpc.requestCallback<_proto_LinkOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  linkOauthAccount(argument: _proto_LinkOauthAccountReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_LinkOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  linkOauthAccount(argument: _proto_LinkOauthAccountReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_LinkOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  linkOauthAccount(argument: _proto_LinkOauthAccountReq, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_LinkOauthAccountResp__Output>): grpc.ClientUnaryCall;
+  linkOauthAccount(argument: _proto_LinkOauthAccountReq, callback: grpc.requestCallback<_proto_LinkOauthAccountResp__Output>): grpc.ClientUnaryCall;
   
   StartOauthLogin(argument: _proto_StartOauthLoginReq, metadata: grpc.Metadata, options: grpc.CallOptions, callback: grpc.requestCallback<_proto_StartOauthLoginResp__Output>): grpc.ClientUnaryCall;
   StartOauthLogin(argument: _proto_StartOauthLoginReq, metadata: grpc.Metadata, callback: grpc.requestCallback<_proto_StartOauthLoginResp__Output>): grpc.ClientUnaryCall;
@@ -77,9 +88,11 @@ export interface ApiServiceHandlers extends grpc.UntypedServiceImplementation {
   
   DeleteSession: grpc.handleUnaryCall<_proto_DeleteSessionReq__Output, _proto_DeleteSessionResp>;
   
+  GetOauthAccount: grpc.handleUnaryCall<_proto_GetOauthAccountReq__Output, _proto_GetOauthAccountResp>;
+  
   HandleOauthCallback: grpc.handleUnaryCall<_proto_HandleOauthCallbackReq__Output, _proto_HandleOauthCallbackResp>;
   
-  LinkOauthToken: grpc.handleUnaryCall<_proto_LinkOauthTokenReq__Output, _proto_LinkOauthTokenResp>;
+  LinkOauthAccount: grpc.handleUnaryCall<_proto_LinkOauthAccountReq__Output, _proto_LinkOauthAccountResp>;
   
   StartOauthLogin: grpc.handleUnaryCall<_proto_StartOauthLoginReq__Output, _proto_StartOauthLoginResp>;
   
@@ -90,8 +103,9 @@ export interface ApiServiceHandlers extends grpc.UntypedServiceImplementation {
 export interface ApiServiceDefinition extends grpc.ServiceDefinition {
   CreateSession: MethodDefinition<_proto_CreateSessionReq, _proto_CreateSessionResp, _proto_CreateSessionReq__Output, _proto_CreateSessionResp__Output>
   DeleteSession: MethodDefinition<_proto_DeleteSessionReq, _proto_DeleteSessionResp, _proto_DeleteSessionReq__Output, _proto_DeleteSessionResp__Output>
+  GetOauthAccount: MethodDefinition<_proto_GetOauthAccountReq, _proto_GetOauthAccountResp, _proto_GetOauthAccountReq__Output, _proto_GetOauthAccountResp__Output>
   HandleOauthCallback: MethodDefinition<_proto_HandleOauthCallbackReq, _proto_HandleOauthCallbackResp, _proto_HandleOauthCallbackReq__Output, _proto_HandleOauthCallbackResp__Output>
-  LinkOauthToken: MethodDefinition<_proto_LinkOauthTokenReq, _proto_LinkOauthTokenResp, _proto_LinkOauthTokenReq__Output, _proto_LinkOauthTokenResp__Output>
+  LinkOauthAccount: MethodDefinition<_proto_LinkOauthAccountReq, _proto_LinkOauthAccountResp, _proto_LinkOauthAccountReq__Output, _proto_LinkOauthAccountResp__Output>
   StartOauthLogin: MethodDefinition<_proto_StartOauthLoginReq, _proto_StartOauthLoginResp, _proto_StartOauthLoginReq__Output, _proto_StartOauthLoginResp__Output>
   ValidateSession: MethodDefinition<_proto_ValidateSessionReq, _proto_ValidateSessionResp, _proto_ValidateSessionReq__Output, _proto_ValidateSessionResp__Output>
 }

@@ -1,3 +1,4 @@
+#![allow(clippy::result_large_err)]
 use auth::proto::OauthProvider;
 use axum::http::{HeaderMap, StatusCode, header::COOKIE};
 use shared::cookie::extract_cookie_by_name;
@@ -5,8 +6,8 @@ use tonic::Code;
 
 use crate::error::OAuthError;
 
-pub(crate) const OAUTH_STATE: &'static str = "oauth_state";
-pub(crate) const OAUTH_CODE_VERIFIER: &'static str = "oauth_code_verifier";
+pub(crate) const OAUTH_STATE: &str = "oauth_state";
+pub(crate) const OAUTH_CODE_VERIFIER: &str = "oauth_code_verifier";
 
 /// Maps grpc codes to http status codes.
 ///

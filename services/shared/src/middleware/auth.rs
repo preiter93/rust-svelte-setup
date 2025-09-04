@@ -142,7 +142,7 @@ where
                         set_session_token_cookie(&mut resp, &token);
                     }
 
-                    return Ok(resp);
+                    Ok(resp)
                 }
                 Err(err) => Ok(Response::builder()
                     .status(StatusCode::UNAUTHORIZED)

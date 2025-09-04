@@ -2,15 +2,15 @@
 
 
 export interface HandleOauthCallbackResp {
-  'oauth_token_id'?: (string);
-  'user_email'?: (string);
-  'user_name'?: (string);
+  'account_id'?: (string);
+  'provider_user_email'?: (string);
+  'provider_user_name'?: (string);
   'user_id'?: (string);
 }
 
 export interface HandleOauthCallbackResp__Output {
-  'oauth_token_id': (string);
-  'user_email': (string);
-  'user_name': (string);
+  'account_id': (string);
+  'provider_user_email': (string);
+  'provider_user_name': (string);
   'user_id': (string);
 }

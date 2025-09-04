@@ -1,7 +1,7 @@
 use chrono::Duration;
 
 /// The session token cookie key.
-pub const SESSION_TOKEN_COOKIE_KEY: &'static str = "session_token";
+pub const SESSION_TOKEN_COOKIE_KEY: &str = "session_token";
 
 /// The session token expiry duration.
 pub const SESSION_TOKEN_EXPIRY_DURATION: Duration = Duration::days(7);

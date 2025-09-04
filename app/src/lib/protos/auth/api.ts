@@ -19,10 +19,12 @@ export interface ProtoGrpcType {
     CreateSessionResp: MessageTypeDefinition
     DeleteSessionReq: MessageTypeDefinition
     DeleteSessionResp: MessageTypeDefinition
+    GetOauthAccountReq: MessageTypeDefinition
+    GetOauthAccountResp: MessageTypeDefinition
     HandleOauthCallbackReq: MessageTypeDefinition
     HandleOauthCallbackResp: MessageTypeDefinition
-    LinkOauthTokenReq: MessageTypeDefinition
-    LinkOauthTokenResp: MessageTypeDefinition
+    LinkOauthAccountReq: MessageTypeDefinition
+    LinkOauthAccountResp: MessageTypeDefinition
     OauthProvider: EnumTypeDefinition
     Session: MessageTypeDefinition
     StartOauthLoginReq: MessageTypeDefinition

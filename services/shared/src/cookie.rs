@@ -28,12 +28,6 @@ pub struct Cookie {
     same_site: SameSite,
 }
 
-impl Into<HeaderValue> for &Cookie {
-    fn into(self) -> HeaderValue {
-        HeaderValue::from_str(&self.to_string()).unwrap()
-    }
-}
-
 impl fmt::Display for Cookie {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}={}", self.name, self.value)?;

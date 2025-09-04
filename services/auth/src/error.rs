@@ -100,10 +100,7 @@ pub enum StartGoogleLoginErr {
 
 impl From<StartGoogleLoginErr> for Status {
     fn from(err: StartGoogleLoginErr) -> Self {
-        let code = match err {
-            _ => Code::Internal,
-        };
-        Status::new(code, err.to_string())
+        Status::new(Code::Internal, err.to_string())
     }
 }
 
@@ -123,10 +120,7 @@ pub enum HandleGoogleCallbackErr {
 
 impl From<HandleGoogleCallbackErr> for Status {
     fn from(err: HandleGoogleCallbackErr) -> Self {
-        let code = match err {
-            _ => Code::Internal,
-        };
-        Status::new(code, err.to_string())
+        Status::new(Code::Internal, err.to_string())
     }
 }
 
@@ -140,10 +134,7 @@ pub enum StartGithubLoginErr {
 
 impl From<StartGithubLoginErr> for Status {
     fn from(err: StartGithubLoginErr) -> Self {
-        let code = match err {
-            _ => Code::Internal,
-        };
-        Status::new(code, err.to_string())
+        Status::new(Code::Internal, err.to_string())
     }
 }
 
@@ -169,10 +160,7 @@ pub enum HandleGithubCallbackErr {
 
 impl From<HandleGithubCallbackErr> for Status {
     fn from(err: HandleGithubCallbackErr) -> Self {
-        let code = match err {
-            _ => Code::Internal,
-        };
-        Status::new(code, err.to_string())
+        Status::new(Code::Internal, err.to_string())
     }
 }
 
@@ -189,10 +177,7 @@ pub enum StartOauthLoginErr {
 
 impl From<StartOauthLoginErr> for Status {
     fn from(err: StartOauthLoginErr) -> Self {
-        let code = match err {
-            _ => Code::Internal,
-        };
-        Status::new(code, err.to_string())
+        Status::new(Code::Internal, err.to_string())
     }
 }
 
@@ -212,10 +197,7 @@ pub enum HandleOauthCallbackErr {
 
 impl From<HandleOauthCallbackErr> for Status {
     fn from(err: HandleOauthCallbackErr) -> Self {
-        let code = match err {
-            _ => Code::Internal,
-        };
-        Status::new(code, err.to_string())
+        Status::new(Code::Internal, err.to_string())
     }
 }
 

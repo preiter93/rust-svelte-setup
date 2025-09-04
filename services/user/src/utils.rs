@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 pub trait UuidGenerator: Send + Sync + 'static {
-    fn new(&self) -> Uuid {
+    fn generate(&self) -> Uuid {
         Uuid::new_v4()
     }
 }
@@ -24,7 +24,7 @@ pub mod test {
     }
 
     impl UuidGenerator for MockUuidGenerator {
-        fn new(&self) -> Uuid {
+        fn generate(&self) -> Uuid {
             self.uuid
         }
     }

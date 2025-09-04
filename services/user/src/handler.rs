@@ -35,7 +35,7 @@ where
         req: Request<CreateUserReq>,
     ) -> Result<Response<CreateUserResp>, Status> {
         let req = req.into_inner();
-        let id = self.uuid.new();
+        let id = self.uuid.generate();
 
         let name = req.name;
         if name.is_empty() {
