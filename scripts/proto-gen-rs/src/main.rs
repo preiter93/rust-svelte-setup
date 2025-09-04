@@ -12,7 +12,7 @@ fn main() -> std::io::Result<()> {
     src_dir.push("src");
 
     if !proto_files.is_empty() {
-        tonic_build::configure()
+        tonic_prost_build::configure()
             .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
             .compile_well_known_types(false)
             .extern_path(".google.protobuf.Timestamp", "::prost_wkt_types::Timestamp")
