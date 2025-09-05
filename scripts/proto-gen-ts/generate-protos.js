@@ -1,11 +1,21 @@
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import { join, resolve, dirname } from "path";
+import { readdirSync, statSync } from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const services = ["user", "auth"];
+const servicesRoot = resolve(__dirname, "../../services");
+
+const services = readdirSync(servicesRoot)
+  .filter(name => {
+    const dir = join(servicesRoot, name);
+    if (!statSync(dir).isDirectory()) return false;
+
+    const files = readdirSync(dir);
+    return files.some(f => f.endsWith(".proto"));
+  });
 
 services.forEach(service => {
   const PROTO_SRC = join(__dirname, `../../services/${service}/*proto`);
