@@ -4,6 +4,7 @@ members = [
     "gateway",
     "user",
     "shared", 
+    "dummy",
 ]
 
 resolver = "2"

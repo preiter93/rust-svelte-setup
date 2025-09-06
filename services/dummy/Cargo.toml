@@ -1,0 +1,24 @@
+[package]
+name = "dummy"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = { workspace = true }
+deadpool-postgres = { workspace = true }
+dotenv = { workspace = true }
+prost = { workspace = true }
+refinery = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-postgres = { workspace = true }
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+uuid = { workspace = true }
+tracing = {workspace = true }
+
+shared = { version = "0.1", path = "../shared" }
+
+[dev-dependencies]
+shared = { version = "0.1", path = "../shared", features = ["test-utils"] }

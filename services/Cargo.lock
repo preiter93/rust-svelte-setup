@@ -516,6 +516,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
+name = "dummy"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "deadpool-postgres",
+ "dotenv",
+ "prost 0.14.1",
+ "refinery",
+ "serde",
+ "shared",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-postgres",
+ "tonic 0.14.2",
+ "tonic-prost",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"

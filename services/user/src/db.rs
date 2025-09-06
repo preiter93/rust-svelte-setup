@@ -59,9 +59,7 @@ impl DBClient for PostgresDBClient {
             return Err(DBError::NotFound);
         };
 
-        let user: User = User::try_from(row)?;
-
-        Ok(user)
+        Ok(User::try_from(row)?)
     }
 }
 
@@ -166,15 +164,12 @@ pub mod test {
 
     #[tokio::test]
     async fn test_get_user() {
-        let user_id = fixture_uuid();
-        let given_user = fixture_db_user(|u| u.id = user_id);
-        let want_user = fixture_user(|u| u.id = user_id.to_string());
+        let id = fixture_uuid();
+        let given_user = fixture_db_user(|u| u.id = id);
+        let want_user = fixture_user(|u| u.id = id.to_string());
 
         run_db_test(vec![given_user], |db_client| async move {
-            let got_user = db_client
-                .get_user(user_id)
-                .await
-                .expect("failed to get user");
+            let got_user = db_client.get_user(id).await.expect("failed to get user");
 
             assert_eq!(got_user, want_user);
         })
@@ -183,10 +178,10 @@ pub mod test {
 
     #[tokio::test]
     async fn test_get_user_not_found() {
-        let user_id = Uuid::parse_str("99999999-9999-9999-9999-999999999999").unwrap();
+        let id = Uuid::parse_str("99999999-9999-9999-9999-999999999999").unwrap();
 
         run_db_test(vec![], |db_client| async move {
-            let got_result = db_client.get_user(user_id).await;
+            let got_result = db_client.get_user(id).await;
 
             assert!(matches!(got_result, Err(DBError::NotFound)));
         })

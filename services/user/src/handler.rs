@@ -73,6 +73,7 @@ where
         if req.id.is_empty() {
             return Err(GetUserErr::MissingUserId.into());
         }
+
         let id = Uuid::from_str(&req.id).map_err(|_| GetUserErr::NotAUUID)?;
 
         let user = self.db.get_user(id).await.map_err(|e| match e {
@@ -80,8 +81,7 @@ where
             _ => GetUserErr::Database(e),
         })?;
 
-        let response = GetUserResp { user: Some(user) };
-        Ok(Response::new(response))
+        Ok(Response::new(GetUserResp { user: Some(user) }))
     }
 }
 
