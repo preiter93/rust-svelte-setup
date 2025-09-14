@@ -37,93 +37,102 @@ impl AuthClient {
         let client = ApiServiceClient::new(client);
         Ok(Self(client))
     }
+}
 
+#[async_trait]
+pub trait IAuthClient: Send + Sync + 'static {
+    async fn create_session(
+        &self,
+        req: Request<CreateSessionReq>,
+    ) -> Result<Response<CreateSessionResp>, Status>;
+
+    async fn delete_session(
+        &self,
+        req: Request<DeleteSessionReq>,
+    ) -> Result<Response<DeleteSessionResp>, Status>;
+
+    async fn validate_session(
+        &self,
+        req: Request<ValidateSessionReq>,
+    ) -> Result<Response<ValidateSessionResp>, Status>;
+
+    async fn start_oauth_login(
+        &self,
+        req: Request<StartOauthLoginReq>,
+    ) -> Result<Response<StartOauthLoginResp>, Status>;
+
+    async fn handle_oauth_callback(
+        &self,
+        req: Request<HandleOauthCallbackReq>,
+    ) -> Result<Response<HandleOauthCallbackResp>, Status>;
+
+    async fn link_oauth_account(
+        &self,
+        req: Request<LinkOauthAccountReq>,
+    ) -> Result<Response<LinkOauthAccountResp>, Status>;
+
+    async fn get_oauth_account(
+        &self,
+        req: Request<GetOauthAccountReq>,
+    ) -> Result<Response<GetOauthAccountResp>, Status>;
+}
+
+#[async_trait]
+impl IAuthClient for AuthClient {
     /// Creates a new user session.
-    pub async fn create_session(
-        &mut self,
+    async fn create_session(
+        &self,
         req: Request<CreateSessionReq>,
     ) -> Result<Response<CreateSessionResp>, Status> {
-        self.0.create_session(req).await
+        self.0.clone().create_session(req).await
     }
 
     /// Deletes a user session.
-    pub async fn delete_session(
-        &mut self,
+    async fn delete_session(
+        &self,
         req: Request<DeleteSessionReq>,
     ) -> Result<Response<DeleteSessionResp>, Status> {
-        self.0.delete_session(req).await
+        self.0.clone().delete_session(req).await
     }
 
     /// Validates a session token and returns the session state.
-    pub async fn validate_session(
-        &mut self,
+    async fn validate_session(
+        &self,
         req: Request<ValidateSessionReq>,
     ) -> Result<Response<ValidateSessionResp>, Status> {
-        self.0.validate_session(req).await
+        self.0.clone().validate_session(req).await
     }
 
-    // /// Starts a google login flow and returns the redirect URL.
-    // pub async fn start_google_login(
-    //     &mut self,
-    //     req: Request<StartGoogleLoginReq>,
-    // ) -> Result<Response<StartGoogleLoginResp>, Status> {
-    //     self.0.start_google_login(req).await
-    // }
-    //
-    // /// Handles google's OAuth callback and finalizes login.
-    // pub async fn handle_google_callback(
-    //     &mut self,
-    //     req: Request<HandleGoogleCallbackReq>,
-    // ) -> Result<Response<HandleGoogleCallbackResp>, Status> {
-    //     self.0.handle_google_callback(req).await
-    // }
-    //
-    // /// Starts a github login flow and returns the redirect URL.
-    // pub async fn start_github_login(
-    //     &mut self,
-    //     req: Request<StartGithubLoginReq>,
-    // ) -> Result<Response<StartGithubLoginResp>, Status> {
-    //     self.0.start_github_login(req).await
-    // }
-    //
-    // /// Handles github's OAuth callback and finalizes login.
-    // pub async fn handle_github_callback(
-    //     &mut self,
-    //     req: Request<HandleGithubCallbackReq>,
-    // ) -> Result<Response<HandleGithubCallbackResp>, Status> {
-    //     self.0.handle_github_callback(req).await
-    // }
-
     /// Starts a oauth login flow and returns the redirect URL.
-    pub async fn start_oauth_login(
-        &mut self,
+    async fn start_oauth_login(
+        &self,
         req: Request<StartOauthLoginReq>,
     ) -> Result<Response<StartOauthLoginResp>, Status> {
-        self.0.start_oauth_login(req).await
+        self.0.clone().start_oauth_login(req).await
     }
 
     /// Handles OAuth callback and finalizes login.
-    pub async fn handle_oauth_callback(
-        &mut self,
+    async fn handle_oauth_callback(
+        &self,
         req: Request<HandleOauthCallbackReq>,
     ) -> Result<Response<HandleOauthCallbackResp>, Status> {
-        self.0.handle_oauth_callback(req).await
+        self.0.clone().handle_oauth_callback(req).await
     }
 
     /// Links a user id to an oauth token.
-    pub async fn link_oauth_account(
-        &mut self,
+    async fn link_oauth_account(
+        &self,
         req: Request<LinkOauthAccountReq>,
     ) -> Result<Response<LinkOauthAccountResp>, Status> {
-        self.0.link_oauth_account(req).await
+        self.0.clone().link_oauth_account(req).await
     }
 
     /// Fetch an oauth access token from a user id and a provider.
-    pub async fn get_oauth_account(
-        &mut self,
+    async fn get_oauth_account(
+        &self,
         req: Request<GetOauthAccountReq>,
     ) -> Result<Response<GetOauthAccountResp>, Status> {
-        self.0.get_oauth_account(req).await
+        self.0.clone().get_oauth_account(req).await
     }
 }
 
@@ -149,5 +158,130 @@ impl SessionAuthClient for AuthClient {
             session_state: SessionState::new(resp.user_id),
             should_refresh_cookie: resp.should_refresh_cookie,
         })
+    }
+}
+
+#[cfg(feature = "test-utils")]
+pub mod test_utils {
+    use tokio::sync::Mutex;
+
+    use super::*;
+
+    #[derive(Default)]
+    pub struct MockAuthClient {
+        pub create_session_req: Mutex<Option<CreateSessionReq>>,
+        pub create_session_resp: Mutex<Option<Result<CreateSessionResp, Status>>>,
+
+        pub delete_session_req: Mutex<Option<DeleteSessionReq>>,
+        pub delete_session_resp: Mutex<Option<Result<DeleteSessionResp, Status>>>,
+
+        pub validate_session_req: Mutex<Option<ValidateSessionReq>>,
+        pub validate_session_resp: Mutex<Option<Result<ValidateSessionResp, Status>>>,
+
+        pub start_oauth_login_req: Mutex<Option<StartOauthLoginReq>>,
+        pub start_oauth_login_resp: Mutex<Option<Result<StartOauthLoginResp, Status>>>,
+
+        pub handle_oauth_callback_req: Mutex<Option<HandleOauthCallbackReq>>,
+        pub handle_oauth_callback_resp: Mutex<Option<Result<HandleOauthCallbackResp, Status>>>,
+
+        pub link_oauth_account_req: Mutex<Option<LinkOauthAccountReq>>,
+        pub link_oauth_account_resp: Mutex<Option<Result<LinkOauthAccountResp, Status>>>,
+
+        pub get_oauth_account_req: Mutex<Option<GetOauthAccountReq>>,
+        pub get_oauth_account_resp: Mutex<Option<Result<GetOauthAccountResp, Status>>>,
+    }
+
+    #[async_trait]
+    impl IAuthClient for MockAuthClient {
+        async fn create_session(
+            &self,
+            req: Request<CreateSessionReq>,
+        ) -> Result<Response<CreateSessionResp>, Status> {
+            *self.create_session_req.lock().await = Some(req.into_inner());
+            self.create_session_resp
+                .lock()
+                .await
+                .take()
+                .unwrap()
+                .map(Response::new)
+        }
+
+        async fn delete_session(
+            &self,
+            req: Request<DeleteSessionReq>,
+        ) -> Result<Response<DeleteSessionResp>, Status> {
+            *self.delete_session_req.lock().await = Some(req.into_inner());
+            self.delete_session_resp
+                .lock()
+                .await
+                .take()
+                .unwrap()
+                .map(Response::new)
+        }
+
+        async fn validate_session(
+            &self,
+            req: Request<ValidateSessionReq>,
+        ) -> Result<Response<ValidateSessionResp>, Status> {
+            *self.validate_session_req.lock().await = Some(req.into_inner());
+            self.validate_session_resp
+                .lock()
+                .await
+                .take()
+                .unwrap()
+                .map(Response::new)
+        }
+
+        async fn start_oauth_login(
+            &self,
+            req: Request<StartOauthLoginReq>,
+        ) -> Result<Response<StartOauthLoginResp>, Status> {
+            *self.start_oauth_login_req.lock().await = Some(req.into_inner());
+            self.start_oauth_login_resp
+                .lock()
+                .await
+                .take()
+                .unwrap()
+                .map(Response::new)
+        }
+
+        async fn handle_oauth_callback(
+            &self,
+            req: Request<HandleOauthCallbackReq>,
+        ) -> Result<Response<HandleOauthCallbackResp>, Status> {
+            *self.handle_oauth_callback_req.lock().await = Some(req.into_inner());
+            self.handle_oauth_callback_resp
+                .lock()
+                .await
+                .take()
+                .unwrap()
+                .map(Response::new)
+        }
+
+        async fn link_oauth_account(
+            &self,
+            req: Request<LinkOauthAccountReq>,
+        ) -> Result<Response<LinkOauthAccountResp>, Status> {
+            *self.link_oauth_account_req.lock().await = Some(req.into_inner());
+            self.link_oauth_account_resp
+                .lock()
+                .await
+                .take()
+                .unwrap()
+                .map(Response::new)
+        }
+
+        async fn get_oauth_account(
+            &self,
+            req: Request<GetOauthAccountReq>,
+        ) -> Result<Response<GetOauthAccountResp>, Status> {
+            *self.get_oauth_account_req.lock().await = Some(req.into_inner());
+            self.get_oauth_account_resp
+                .lock()
+                .await
+                .take()
+                .unwrap()
+                .map(Response::new)
+        }
     }
 }

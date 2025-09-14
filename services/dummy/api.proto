@@ -2,18 +2,12 @@ syntax = "proto3";
 package proto;
 
 service ApiService {
-    rpc CreateEntity(CreateEntityReq) returns (CreateEntityResp) {}
     rpc GetEntity(GetEntityReq) returns (GetEntityResp) {}
-}
-
-message CreateEntityReq { }
-
-message CreateEntityResp {
-    string id = 1;
 }
 
 message GetEntityReq {
     string id = 1;
+    string user_id = 2;
 }
 
 message GetEntityResp {

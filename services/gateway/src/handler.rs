@@ -1,10 +1,10 @@
 use crate::error::{ApiError, OAuthError};
 use crate::utils::{OAUTH_CODE_VERIFIER, OAUTH_STATE, OauthCookieJar, parse_provider};
-use auth::AuthClient;
 use auth::proto::{
     CreateSessionReq, DeleteSessionReq, HandleOauthCallbackReq, LinkOauthAccountReq,
     StartOauthLoginReq,
 };
+use auth::{AuthClient, IAuthClient};
 use axum::{
     Extension, Json,
     body::Body,
@@ -21,6 +21,7 @@ use shared::cookie::{
 use shared::session::SessionState;
 use tonic::{Code, Request, Status};
 use tracing::instrument;
+use user::IUserClient;
 use user::proto::CreateUserReq;
 use user::{
     UserClient,
@@ -54,7 +55,7 @@ impl Handler {
 #[debug_handler]
 #[instrument(skip(h), err)]
 pub async fn get_current_user(
-    State(mut h): State<Handler>,
+    State(h): State<Handler>,
     Extension(SessionState { user_id }): Extension<SessionState>,
 ) -> Result<Json<GetUserResp>, ApiError> {
     let req = Request::new(GetUserReq { id: user_id });
@@ -66,7 +67,7 @@ pub async fn get_current_user(
 #[debug_handler]
 #[instrument(skip(h), err)]
 pub async fn logout_user(
-    State(mut h): State<Handler>,
+    State(h): State<Handler>,
     headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let Some(cookie_header) = headers.get("cookie") else {
@@ -94,7 +95,7 @@ pub async fn logout_user(
 #[instrument(skip(h), err)]
 pub async fn start_oauth_login(
     Path(provider): Path<String>,
-    State(mut h): State<Handler>,
+    State(h): State<Handler>,
 ) -> Result<Response, ApiError> {
     let provider = parse_provider(provider);
     let req = Request::new(StartOauthLoginReq {
@@ -126,7 +127,7 @@ pub struct OauthCallbackQuery {
 #[instrument(skip(h, query), err)]
 pub async fn handle_oauth_callback(
     Path(provider): Path<String>,
-    State(mut h): State<Handler>,
+    State(h): State<Handler>,
     Query(query): Query<OauthCallbackQuery>,
     headers: HeaderMap,
 ) -> Result<Response, OAuthError> {

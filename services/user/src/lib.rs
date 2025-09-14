@@ -6,7 +6,7 @@ use crate::proto::{
 use shared::{middleware::tracing::TracingServiceClient, patched_host};
 use std::{error::Error, str::FromStr as _};
 use tonic::{
-    Request, Response, Status,
+    Request, Response, Status, async_trait,
     transport::{Channel, Endpoint},
 };
 
@@ -26,18 +26,84 @@ impl UserClient {
 
         Ok(Self(client))
     }
+}
 
-    pub async fn get_user(
-        &mut self,
-        req: Request<GetUserReq>,
-    ) -> Result<Response<GetUserResp>, Status> {
-        self.0.get_user(req).await
+#[async_trait]
+pub trait IUserClient {
+    async fn get_user(&self, req: Request<GetUserReq>) -> Result<Response<GetUserResp>, Status>;
+
+    async fn create_user(
+        &self,
+        req: Request<CreateUserReq>,
+    ) -> Result<Response<CreateUserResp>, Status>;
+}
+
+#[async_trait]
+impl IUserClient for UserClient {
+    async fn get_user(&self, req: Request<GetUserReq>) -> Result<Response<GetUserResp>, Status> {
+        self.0.clone().get_user(req).await
     }
 
-    pub async fn create_user(
-        &mut self,
+    async fn create_user(
+        &self,
         req: Request<CreateUserReq>,
     ) -> Result<Response<CreateUserResp>, Status> {
-        self.0.create_user(req).await
+        self.0.clone().create_user(req).await
+    }
+}
+
+#[cfg(feature = "test-utils")]
+pub mod test_utils {
+    use super::*;
+    use tokio::sync::Mutex;
+    use tonic::{Request, Response, Status};
+
+    pub struct MockUserClient {
+        pub get_user_req: Mutex<Option<GetUserReq>>,
+        pub get_user_resp: Mutex<Option<Result<GetUserResp, Status>>>,
+        pub create_user_req: Mutex<Option<CreateUserReq>>,
+        pub create_user_resp: Mutex<Option<Result<CreateUserResp, Status>>>,
+    }
+
+    impl Default for MockUserClient {
+        fn default() -> Self {
+            Self {
+                get_user_req: Mutex::new(None),
+                get_user_resp: Mutex::new(None),
+                create_user_req: Mutex::new(None),
+                create_user_resp: Mutex::new(None),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl IUserClient for MockUserClient {
+        async fn get_user(
+            &self,
+            req: Request<GetUserReq>,
+        ) -> Result<Response<GetUserResp>, Status> {
+            *self.get_user_req.lock().await = Some(req.into_inner());
+
+            self.get_user_resp
+                .lock()
+                .await
+                .take()
+                .unwrap()
+                .map(Response::new)
+        }
+
+        async fn create_user(
+            &self,
+            req: Request<CreateUserReq>,
+        ) -> Result<Response<CreateUserResp>, Status> {
+            *self.create_user_req.lock().await = Some(req.into_inner());
+
+            self.create_user_resp
+                .lock()
+                .await
+                .take()
+                .unwrap()
+                .map(Response::new)
+        }
     }
 }

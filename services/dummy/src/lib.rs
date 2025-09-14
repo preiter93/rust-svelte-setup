@@ -1,13 +1,10 @@
 pub mod proto;
 
-use crate::proto::{
-    CreateEntityReq, CreateEntityResp, GetEntityReq, GetEntityResp,
-    api_service_client::ApiServiceClient,
-};
+use crate::proto::{GetEntityReq, GetEntityResp, api_service_client::ApiServiceClient};
 use shared::{middleware::tracing::TracingServiceClient, patched_host};
 use std::{error::Error, str::FromStr as _};
 use tonic::{
-    Request, Response, Status,
+    Request, Response, Status, async_trait,
     transport::{Channel, Endpoint},
 };
 
@@ -27,18 +24,60 @@ impl DummyClient {
 
         Ok(Self(client))
     }
+}
 
-    pub async fn get_entity(
-        &mut self,
+#[async_trait]
+pub trait IDummyClient {
+    async fn get_entity(
+        &self,
+        req: Request<GetEntityReq>,
+    ) -> Result<Response<GetEntityResp>, Status>;
+}
+
+#[async_trait]
+impl IDummyClient for DummyClient {
+    async fn get_entity(
+        &self,
         req: Request<GetEntityReq>,
     ) -> Result<Response<GetEntityResp>, Status> {
-        self.0.get_entity(req).await
+        self.0.clone().get_entity(req).await
+    }
+}
+
+#[cfg(feature = "test-utils")]
+pub mod test_utils {
+    use super::*;
+    use tokio::sync::Mutex;
+    use tonic::{Request, Response, Status};
+
+    pub struct MockDummyClient {
+        pub get_entity_req: Mutex<Option<GetEntityReq>>,
+        pub get_entity_resp: Mutex<Option<Result<GetEntityResp, Status>>>,
     }
 
-    pub async fn create_entity(
-        &mut self,
-        req: Request<CreateEntityReq>,
-    ) -> Result<Response<CreateEntityResp>, Status> {
-        self.0.create_entity(req).await
+    impl Default for MockDummyClient {
+        fn default() -> Self {
+            Self {
+                get_entity_req: Mutex::new(None),
+                get_entity_resp: Mutex::new(None),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl IDummyClient for MockDummyClient {
+        async fn get_entity(
+            &self,
+            req: Request<GetEntityReq>,
+        ) -> Result<Response<GetEntityResp>, Status> {
+            *self.get_entity_req.lock().await = Some(req.into_inner());
+
+            self.get_entity_resp
+                .lock()
+                .await
+                .take()
+                .unwrap()
+                .map(Response::new)
+        }
     }
 }
