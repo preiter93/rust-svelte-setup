@@ -1,54 +1,34 @@
 use thiserror::Error;
-use tonic::Code;
-use tonic::Status;
+use tonic::{Code, Status};
 
-/// Error for [`crate::proto::api_service_server::ApiService::create_user`]
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
-pub enum CreateUserErr {
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
-
-    #[error("missing email")]
-    MissingEmail,
-
-    #[error("missing name")]
-    MissingName,
-}
-
-impl From<CreateUserErr> for Status {
-    fn from(err: CreateUserErr) -> Self {
-        let code = match err {
-            CreateUserErr::MissingName | CreateUserErr::MissingEmail => Code::InvalidArgument,
-            CreateUserErr::Database(_) => Code::Internal,
-        };
-        Status::new(code, err.to_string())
-    }
-}
-
-/// Error for [`crate::proto::api_service_server::ApiService::get_user`]
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum GetUserErr {
+pub enum Error {
     #[error("missing user id")]
     MissingUserId,
-
-    #[error("not a uuid")]
-    NotAUUID,
-
-    #[error("user not found")]
-    NotFound,
-
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
+    #[error("invalid id: {0}")]
+    InvalidId(String),
+    #[error("missing user name")]
+    MissingUserName,
+    #[error("missing user email")]
+    MissingUserEmail,
+    #[error("user not found: {0}")]
+    UserNotFound(String),
+    #[error("get user error: {0}")]
+    GetUser(DBError),
+    #[error("insert user error: {0}")]
+    InsertUser(DBError),
 }
 
-impl From<GetUserErr> for Status {
-    fn from(err: GetUserErr) -> Self {
+impl From<Error> for Status {
+    fn from(err: Error) -> Self {
         let code = match err {
-            GetUserErr::MissingUserId | GetUserErr::NotAUUID => Code::InvalidArgument,
-            GetUserErr::NotFound => Code::NotFound,
-            GetUserErr::Database(_) => Code::Internal,
+            Error::MissingUserName
+            | Error::MissingUserEmail
+            | Error::MissingUserId
+            | Error::InvalidId(_) => Code::InvalidArgument,
+            Error::UserNotFound(_) => Code::NotFound,
+            Error::GetUser(_) | Error::InsertUser(_) => Code::Internal,
         };
         Status::new(code, err.to_string())
     }
@@ -57,18 +37,12 @@ impl From<GetUserErr> for Status {
 // Database error
 #[derive(Debug, Error)]
 pub enum DBError {
-    #[error("An unknown error occured")]
+    #[error("unknown error occured")]
     Unknown,
-
-    #[error("Database error: {0}")]
-    Error(#[from] tokio_postgres::Error),
-
-    #[error("Connection pool error: {0}")]
-    Pool(#[from] deadpool_postgres::PoolError),
-
-    #[error("Entity not found")]
+    #[error("internal database error: {0}")]
+    Internal(#[from] tokio_postgres::Error),
+    #[error("connection error: {0}")]
+    Connection(#[from] deadpool_postgres::PoolError),
+    #[error("entity not found")]
     NotFound,
-
-    #[error("Conversion error: {0}")]
-    Conversion(String),
 }

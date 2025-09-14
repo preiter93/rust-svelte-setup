@@ -35,8 +35,14 @@ pub(crate) struct Handler {
 
 impl Handler {
     pub(crate) async fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let auth_client = AuthClient::new().await?;
-        let user_client = UserClient::new().await?;
+        let auth_client = AuthClient::new()
+            .await
+            .map_err(|e| format!("AuthClient initialization failed: {}", e))?;
+
+        let user_client = UserClient::new()
+            .await
+            .map_err(|e| format!("UserClient initialization failed: {}", e))?;
+
         Ok(Self {
             auth_client,
             user_client,

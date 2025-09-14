@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use crate::{
     db::DBClient,
-    error::{CreateUserErr, DBError, GetUserErr},
+    error::{DBError, Error},
     proto::{
         CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, User,
         api_service_server::ApiService,
@@ -39,18 +39,18 @@ where
 
         let name = req.name;
         if name.is_empty() {
-            return Err(CreateUserErr::MissingName.into());
+            return Err(Error::MissingUserName.into());
         }
 
         let email = req.email;
         if email.is_empty() {
-            return Err(CreateUserErr::MissingEmail.into());
+            return Err(Error::MissingUserEmail.into());
         }
 
         self.db
             .insert_user(id, &name, &email)
             .await
-            .map_err(CreateUserErr::Database)?;
+            .map_err(Error::InsertUser)?;
 
         let response = CreateUserResp {
             user: Some(User {
@@ -71,14 +71,14 @@ where
     async fn get_user(&self, req: Request<GetUserReq>) -> Result<Response<GetUserResp>, Status> {
         let req = req.into_inner();
         if req.id.is_empty() {
-            return Err(GetUserErr::MissingUserId.into());
+            return Err(Error::MissingUserId.into());
         }
 
-        let id = Uuid::from_str(&req.id).map_err(|_| GetUserErr::NotAUUID)?;
+        let id = Uuid::from_str(&req.id).map_err(|_| Error::InvalidId(req.id))?;
 
         let user = self.db.get_user(id).await.map_err(|e| match e {
-            DBError::NotFound => GetUserErr::NotFound,
-            _ => GetUserErr::Database(e),
+            DBError::NotFound => Error::UserNotFound(id.to_string()),
+            _ => Error::GetUser(e),
         })?;
 
         Ok(Response::new(GetUserResp { user: Some(user) }))

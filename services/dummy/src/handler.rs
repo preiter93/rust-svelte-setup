@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::error::{CreateEntityErr, DBError, GetEntityErr};
+use crate::error::{DBError, Error};
 use crate::utils::UuidGenerator;
 
 use crate::{
@@ -40,7 +40,7 @@ where
         self.db
             .insert_entity(id)
             .await
-            .map_err(CreateEntityErr::Database)?;
+            .map_err(Error::InsertEntity)?;
 
         let resp = CreateEntityResp { id: id.to_string() };
 
@@ -58,14 +58,14 @@ where
     ) -> Result<Response<GetEntityResp>, Status> {
         let req = req.into_inner();
         if req.id.is_empty() {
-            return Err(GetEntityErr::MissingEntityId.into());
+            return Err(Error::MissingEntityId.into());
         }
 
-        let id = Uuid::from_str(&req.id).map_err(|_| GetEntityErr::NotAUUID)?;
+        let id = Uuid::from_str(&req.id).map_err(|_| Error::InvalidEntityId)?;
 
         let entity = self.db.get_entity(id).await.map_err(|e| match e {
-            DBError::NotFound => GetEntityErr::NotFound(req.id),
-            _ => GetEntityErr::Database(e),
+            DBError::NotFound => Error::EntityNotFound(req.id),
+            _ => Error::GetEntity(e),
         })?;
 
         Ok(Response::new(GetEntityResp {

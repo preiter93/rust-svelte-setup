@@ -3,45 +3,27 @@ use tonic::Code;
 use tonic::Status;
 
 /// Error for [`crate::proto::api_service_server::ApiService::create_entity`]
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
-pub enum CreateEntityErr {
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
-}
-
-impl From<CreateEntityErr> for Status {
-    fn from(err: CreateEntityErr) -> Self {
-        let code = match err {
-            CreateEntityErr::Database(_) => Code::Internal,
-        };
-        Status::new(code, err.to_string())
-    }
-}
-
-/// Error for [`crate::proto::api_service_server::ApiService::get_entity`]
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum GetEntityErr {
+pub enum Error {
     #[error("missing entity id")]
     MissingEntityId,
-
-    #[error("not a uuid")]
-    NotAUUID,
-
+    #[error("invalid entity id")]
+    InvalidEntityId,
     #[error("entity not found: {0}")]
-    NotFound(String),
-
-    #[error("database error: {0}")]
-    Database(#[from] DBError),
+    EntityNotFound(String),
+    #[error("insert entity error: {0}")]
+    InsertEntity(DBError),
+    #[error("get entity error: {0}")]
+    GetEntity(DBError),
 }
 
-impl From<GetEntityErr> for Status {
-    fn from(err: GetEntityErr) -> Self {
+impl From<Error> for Status {
+    fn from(err: Error) -> Self {
         let code = match err {
-            GetEntityErr::MissingEntityId | GetEntityErr::NotAUUID => Code::InvalidArgument,
-            GetEntityErr::NotFound(_) => Code::NotFound,
-            GetEntityErr::Database(_) => Code::Internal,
+            Error::MissingEntityId | Error::InvalidEntityId => Code::InvalidArgument,
+            Error::EntityNotFound(_) => Code::NotFound,
+            Error::GetEntity(_) | Error::InsertEntity(_) => Code::Internal,
         };
         Status::new(code, err.to_string())
     }
@@ -50,18 +32,12 @@ impl From<GetEntityErr> for Status {
 // Database error
 #[derive(Debug, Error)]
 pub enum DBError {
-    #[error("An unknown error occured")]
+    #[error("unknown error occured")]
     Unknown,
-
-    #[error("Database error: {0}")]
-    Error(#[from] tokio_postgres::Error),
-
-    #[error("Connection pool error: {0}")]
-    Pool(#[from] deadpool_postgres::PoolError),
-
+    #[error("internal database error: {0}")]
+    Internal(#[from] tokio_postgres::Error),
+    #[error("connection error: {0}")]
+    Connection(#[from] deadpool_postgres::PoolError),
     #[error("Entity not found")]
     NotFound,
-
-    #[error("Conversion error: {0}")]
-    Conversion(String),
 }

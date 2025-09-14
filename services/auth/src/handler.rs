@@ -12,10 +12,7 @@ use std::marker::PhantomData;
 
 use crate::{
     db::DBClient,
-    error::{
-        DeleteSessionErr, GetOauthAccountErr, HandleOauthCallbackErr, LinkOauthAccountErr,
-        StartOauthLoginErr,
-    },
+    error::{Error, OAuthError},
     proto::{
         GetOauthAccountReq, GetOauthAccountResp, HandleOauthCallbackReq, HandleOauthCallbackResp,
         LinkOauthAccountReq, LinkOauthAccountResp, OauthProvider, StartOauthLoginReq,
@@ -24,7 +21,7 @@ use crate::{
     utils::{GithubOAuth, Now, OAuthProvider, RandomValueGeneratorTrait, Session, SystemNow},
 };
 use crate::{
-    error::{CreateSessionErr, DBError, ValidateSessionErr},
+    error::DBError,
     proto::{
         CreateSessionReq, CreateSessionResp, DeleteSessionReq, DeleteSessionResp,
         ValidateSessionReq, ValidateSessionResp, api_service_server::ApiService,
@@ -77,7 +74,7 @@ where
     ) -> Result<Response<CreateSessionResp>, Status> {
         let req = req.into_inner();
         if req.user_id.is_empty() {
-            return Err(CreateSessionErr::MissingUserUID.into());
+            return Err(Error::MissingUserID.into());
         }
 
         let id = R::generate_secure_random_string();
@@ -95,7 +92,7 @@ where
         self.db
             .insert_session(session)
             .await
-            .map_err(CreateSessionErr::InsertSession)?;
+            .map_err(Error::InsertSession)?;
 
         Ok(Response::new(CreateSessionResp { token }))
     }
@@ -120,26 +117,26 @@ where
         let token = req.into_inner().token;
 
         if token.is_empty() {
-            return Err(ValidateSessionErr::MissingToken.into());
+            return Err(Error::MissingToken.into());
         }
 
         let token_parts: Vec<_> = token.split('.').collect();
         if token_parts.len() != 2 {
-            return Err(ValidateSessionErr::InvalidFormat.into());
+            return Err(Error::InvalidToken.into());
         }
 
         let session_id = token_parts[0];
         let session_secret = token_parts[1];
 
         let session = self.db.get_session(session_id).await.map_err(|e| match e {
-            DBError::NotFound(e) => ValidateSessionErr::NotFound(e),
-            _ => ValidateSessionErr::GetSession(e),
+            DBError::NotFound(_) => Error::NotFound,
+            _ => Error::GetSession(e),
         })?;
 
         if N::now() >= session.expires_at {
             let result = self.db.delete_session(&session.id).await;
-            result.map_err(ValidateSessionErr::DeleteSession)?;
-            return Err(ValidateSessionErr::Expired.into());
+            result.map_err(Error::DeleteSession)?;
+            return Err(Error::ExpiredToken.into());
         }
 
         let mut should_refresh_cookie = false;
@@ -153,7 +150,7 @@ where
         let token_secret_hash = hash_secret(session_secret);
         let valid_secret = constant_time_equal(&token_secret_hash, &session.secret_hash);
         if !valid_secret {
-            return Err(ValidateSessionErr::SecretMismatch.into());
+            return Err(Error::SecretMismatch.into());
         }
 
         Ok(Response::new(ValidateSessionResp {
@@ -178,12 +175,12 @@ where
         let token = req.into_inner().token;
 
         if token.is_empty() {
-            return Err(DeleteSessionErr::MissingToken.into());
+            return Err(Error::MissingToken.into());
         }
 
         let token_parts: Vec<_> = token.split('.').collect();
         if token_parts.len() != 2 {
-            return Err(DeleteSessionErr::InvalidFormat.into());
+            return Err(Error::InvalidToken.into());
         }
 
         let session_id = token_parts[0];
@@ -191,7 +188,7 @@ where
         self.db
             .delete_session(session_id)
             .await
-            .map_err(DeleteSessionErr::DeleteSession)?;
+            .map_err(Error::DeleteSession)?;
 
         Ok(Response::new(DeleteSessionResp {}))
     }
@@ -216,7 +213,7 @@ where
                 let authorization_url = self
                     .google
                     .generate_authorization_url(&state, &code_challenge)
-                    .map_err(StartOauthLoginErr::GenerateAuthorizationUrl)?;
+                    .map_err(OAuthError::GenerateAuthorizationUrl)?;
 
                 (code_verifier, authorization_url)
             }
@@ -224,11 +221,11 @@ where
                 let authorization_url = self
                     .github
                     .generate_authorization_url(&state, "")
-                    .map_err(StartOauthLoginErr::GenerateAuthorizationUrl)?;
+                    .map_err(OAuthError::GenerateAuthorizationUrl)?;
 
                 (String::new(), authorization_url)
             }
-            _ => return Err(StartOauthLoginErr::UnsupportedOauthProvider.into()),
+            _ => return Err(OAuthError::UnsupportedOauthProvider.into()),
         };
 
         Ok(Response::new(StartOauthLoginResp {
@@ -256,15 +253,15 @@ where
         let account = match req.provider() {
             OauthProvider::Google => self.google.exchange_code(code, code_verifier).await,
             OauthProvider::Github => self.github.exchange_code(code, code_verifier).await,
-            _ => return Err(HandleOauthCallbackErr::UnsupportedOauthProvider.into()),
+            _ => return Err(OAuthError::UnsupportedOauthProvider.into()),
         }
-        .map_err(HandleOauthCallbackErr::ExchangeCode)?;
+        .map_err(OAuthError::ExchangeCode)?;
 
         let account = self
             .db
             .upsert_oauth_account(&account)
             .await
-            .map_err(HandleOauthCallbackErr::UpsertOauthAccount)?;
+            .map_err(OAuthError::UpsertOauthAccount)?;
 
         return Ok(Response::new(HandleOauthCallbackResp {
             account_id: account.id,
@@ -289,18 +286,18 @@ where
 
         let account_id = req.account_id;
         if account_id.is_empty() {
-            return Err(LinkOauthAccountErr::MissingOauthAccountID.into());
+            return Err(Error::MissingOauthAccountID.into());
         }
 
         let user_id = req.user_id;
         if user_id.is_empty() {
-            return Err(LinkOauthAccountErr::MissingUserID.into());
+            return Err(Error::MissingUserID.into());
         }
 
         self.db
             .update_oauth_account(&account_id, &user_id)
             .await
-            .map_err(LinkOauthAccountErr::UpdateOauthAccount)?;
+            .map_err(Error::UpdateOauthAccount)?;
 
         Ok(Response::new(LinkOauthAccountResp {}))
     }
@@ -312,14 +309,14 @@ where
     ) -> Result<Response<GetOauthAccountResp>, Status> {
         let req = req.into_inner();
         if req.user_id.is_empty() {
-            return Err(GetOauthAccountErr::MissingUserID.into());
+            return Err(Error::MissingUserID.into());
         }
 
         let account = self
             .db
             .get_oauth_account(&req.user_id, req.provider())
             .await
-            .map_err(GetOauthAccountErr::GetOauthAccount)?;
+            .map_err(Error::GetOauthAccount)?;
 
         Ok(Response::new(GetOauthAccountResp {
             access_token: account.access_token.unwrap_or_default(),
