@@ -18,7 +18,10 @@ use crate::{
         LinkOauthAccountReq, LinkOauthAccountResp, OauthProvider, StartOauthLoginReq,
         StartOauthLoginResp,
     },
-    utils::{GithubOAuth, Now, OAuthProvider, RandomValueGeneratorTrait, Session, SystemNow},
+    utils::{
+        GithubOAuth, Now, OAuthProvider, RandomValueGeneratorTrait, Session, SystemNow,
+        validate_user_id,
+    },
 };
 use crate::{
     error::DBError,
@@ -73,9 +76,8 @@ where
         req: Request<CreateSessionReq>,
     ) -> Result<Response<CreateSessionResp>, Status> {
         let req = req.into_inner();
-        if req.user_id.is_empty() {
-            return Err(Error::MissingUserID.into());
-        }
+
+        let user_id = validate_user_id(&req.user_id)?;
 
         let id = R::generate_secure_random_string();
         let secret = R::generate_secure_random_string();
@@ -85,7 +87,7 @@ where
             id,
             secret_hash: hash_secret(&secret),
             created_at: N::now(),
-            user_id: req.user_id,
+            user_id: user_id,
             ..Default::default()
         };
 
@@ -154,7 +156,7 @@ where
         }
 
         Ok(Response::new(ValidateSessionResp {
-            user_id: session.user_id,
+            user_id: session.user_id.to_string(),
             should_refresh_cookie,
         }))
     }
@@ -267,7 +269,7 @@ where
             account_id: account.id,
             provider_user_name: account.provider_user_name.unwrap_or_default(),
             provider_user_email: account.provider_user_email.unwrap_or_default(),
-            user_id: account.user_id.unwrap_or_default(),
+            user_id: account.user_id.map(|e| e.to_string()).unwrap_or_default(),
         }));
     }
 
@@ -289,13 +291,10 @@ where
             return Err(Error::MissingOauthAccountID.into());
         }
 
-        let user_id = req.user_id;
-        if user_id.is_empty() {
-            return Err(Error::MissingUserID.into());
-        }
+        let user_id = validate_user_id(&req.user_id)?;
 
         self.db
-            .update_oauth_account(&account_id, &user_id)
+            .update_oauth_account(&account_id, user_id)
             .await
             .map_err(Error::UpdateOauthAccount)?;
 
@@ -308,13 +307,12 @@ where
         req: Request<GetOauthAccountReq>,
     ) -> Result<Response<GetOauthAccountResp>, Status> {
         let req = req.into_inner();
-        if req.user_id.is_empty() {
-            return Err(Error::MissingUserID.into());
-        }
+
+        let user_id = validate_user_id(&req.user_id)?;
 
         let account = self
             .db
-            .get_oauth_account(&req.user_id, req.provider())
+            .get_oauth_account(user_id, req.provider())
             .await
             .map_err(Error::GetOauthAccount)?;
 
@@ -330,7 +328,7 @@ pub(crate) mod tests {
         OAuthAccount, Session,
         tests::{
             MockNow, MockRandomValueGenerator, assert_response, fixture_oauth_account,
-            fixture_session, fixture_token,
+            fixture_session, fixture_token, fixture_uuid,
         },
     };
     use chrono::TimeZone;
@@ -351,7 +349,7 @@ pub(crate) mod tests {
         fn default() -> Self {
             Self {
                 given_req: CreateSessionReq {
-                    user_id: "user-id".to_string(),
+                    user_id: fixture_uuid().to_string(),
                 },
                 given_db_insert_session: Ok(()),
                 want_resp: Ok(CreateSessionResp {
@@ -522,7 +520,7 @@ pub(crate) mod tests {
                 want_update_session_count: 0,
                 want_delete_session_count: 0,
                 want_resp: Ok(ValidateSessionResp {
-                    user_id: "user-id".to_string(),
+                    user_id: fixture_uuid().to_string(),
                     should_refresh_cookie: false,
                 }),
             }
@@ -634,7 +632,7 @@ pub(crate) mod tests {
             })),
             want_update_session_count: 1,
             want_resp: Ok(ValidateSessionResp {
-                user_id: "user-id".to_string(),
+                user_id: fixture_uuid().to_string(),
                 should_refresh_cookie: true,
             }),
             ..Default::default()
@@ -677,7 +675,7 @@ pub(crate) mod tests {
         fn default() -> Self {
             Self {
                 given_req: GetOauthAccountReq {
-                    user_id: "user-id".to_string(),
+                    user_id: fixture_uuid().to_string(),
                     provider: OauthProvider::Google as i32,
                 },
                 want_resp: Ok(GetOauthAccountResp {

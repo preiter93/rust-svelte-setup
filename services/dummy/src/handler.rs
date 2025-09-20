@@ -1,7 +1,5 @@
-use std::str::FromStr;
-
 use crate::error::{DBError, Error};
-use crate::utils::UuidGenerator;
+use crate::utils::{UuidGenerator, validate_entity_id, validate_user_id};
 
 use crate::{
     db::DBClient,
@@ -9,7 +7,6 @@ use crate::{
 };
 use tonic::{Request, Response, Status};
 use tracing::instrument;
-use uuid::Uuid;
 
 #[derive(Clone)]
 pub(crate) struct Handler<D, U> {
@@ -34,18 +31,10 @@ where
         req: Request<GetEntityReq>,
     ) -> Result<Response<GetEntityResp>, Status> {
         let req = req.into_inner();
-        if req.id.is_empty() {
-            return Err(Error::MissingEntityId.into());
-        }
 
-        let id = Uuid::from_str(&req.id).map_err(|_| Error::InvalidEntityId(req.id))?;
+        let user_id = validate_user_id(&req.user_id)?;
 
-        if req.user_id.is_empty() {
-            return Err(Error::MissingUserId.into());
-        }
-
-        let user_id =
-            Uuid::from_str(&req.user_id).map_err(|_| Error::InvalidUserId(req.user_id))?;
+        let id = validate_entity_id(&req.id)?;
 
         let entity = self.db.get_entity(id, user_id).await.map_err(|e| match e {
             DBError::NotFound => Error::EntityNotFound(id.to_string()),

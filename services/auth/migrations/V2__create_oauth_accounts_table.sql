@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS oauth_accounts (
   access_token            TEXT        NULL,
   access_token_expires_at TIMESTAMPTZ NULL,
   refresh_token           TEXT        NULL,
-  user_id                 TEXT        NULL,
+  user_id                 UUID        NULL,
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -5,7 +5,9 @@ use tonic::{Code, Status};
 #[non_exhaustive]
 pub enum Error {
     #[error("missing user id")]
-    MissingUserID,
+    MissingUserId,
+    #[error("invalid user id: {0}")]
+    InvalidUserId(String),
     #[error("missing oauth account id")]
     MissingOauthAccountID,
     #[error("missing token")]
@@ -35,7 +37,8 @@ impl From<Error> for Status {
         let code = match err {
             Error::InvalidToken
             | Error::MissingToken
-            | Error::MissingUserID
+            | Error::MissingUserId
+            | Error::InvalidUserId(_)
             | Error::MissingOauthAccountID => Code::InvalidArgument,
             Error::SecretMismatch | Error::ExpiredToken | Error::NotFound => Code::Unauthenticated,
             Error::GetSession(_)

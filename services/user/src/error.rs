@@ -6,8 +6,8 @@ use tonic::{Code, Status};
 pub enum Error {
     #[error("missing user id")]
     MissingUserId,
-    #[error("invalid id: {0}")]
-    InvalidId(String),
+    #[error("invalid user id: {0}")]
+    InvalidUserId(String),
     #[error("missing user name")]
     MissingUserName,
     #[error("missing user email")]
@@ -26,7 +26,7 @@ impl From<Error> for Status {
             Error::MissingUserName
             | Error::MissingUserEmail
             | Error::MissingUserId
-            | Error::InvalidId(_) => Code::InvalidArgument,
+            | Error::InvalidUserId(_) => Code::InvalidArgument,
             Error::UserNotFound(_) => Code::NotFound,
             Error::GetUser(_) | Error::InsertUser(_) => Code::Internal,
         };

@@ -4,7 +4,8 @@ use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, USER_
 use reqwest::redirect::Policy;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use tonic::async_trait;
+use std::str::FromStr;
+use tonic::{Status, async_trait};
 use uuid::Uuid;
 
 use base64::Engine as _;
@@ -19,8 +20,15 @@ use sha2::{Digest, Sha256};
 use tokio_postgres::Row;
 use url::Url;
 
-use crate::error::ExchangeCodeErr;
+use crate::error::{Error, ExchangeCodeErr};
 use crate::proto::OauthProvider;
+
+pub fn validate_user_id(user_id: &str) -> Result<Uuid, Status> {
+    if user_id.is_empty() {
+        return Err(Error::MissingUserId.into());
+    }
+    Uuid::from_str(user_id).map_err(|_| Error::InvalidUserId(user_id.to_string()).into())
+}
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Session {
@@ -28,7 +36,7 @@ pub struct Session {
     pub secret_hash: Vec<u8>,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
-    pub user_id: String,
+    pub user_id: Uuid,
 }
 
 impl TryFrom<&Row> for Session {
@@ -55,7 +63,7 @@ pub struct OAuthAccount {
     pub access_token: Option<String>,
     pub access_token_expires_at: Option<DateTime<Utc>>,
     pub refresh_token: Option<String>,
-    pub user_id: Option<String>,
+    pub user_id: Option<Uuid>,
 }
 
 impl TryFrom<&Row> for OAuthAccount {
@@ -555,6 +563,10 @@ pub(crate) mod tests {
 
     use super::*;
 
+    pub fn fixture_uuid() -> Uuid {
+        Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+    }
+
     pub(crate) fn fixture_token() -> String {
         "secret.secret".to_string()
     }
@@ -568,7 +580,7 @@ pub(crate) mod tests {
             secret_hash: hash_secret("secret"),
             created_at: chrono::Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
             expires_at: chrono::Utc.with_ymd_and_hms(2020, 1, 8, 0, 0, 0).unwrap(),
-            user_id: "user-id".to_string(),
+            user_id: fixture_uuid(),
         };
         func(&mut session);
         session

@@ -1,5 +1,4 @@
-use crate::utils::UuidGenerator;
-use std::str::FromStr;
+use crate::utils::{UuidGenerator, validate_user_id};
 
 use crate::{
     db::DBClient,
@@ -11,7 +10,6 @@ use crate::{
 };
 use tonic::{Request, Response, Status};
 use tracing::instrument;
-use uuid::Uuid;
 
 #[derive(Clone)]
 pub(crate) struct Handler<D, U> {
@@ -70,14 +68,10 @@ where
     #[instrument(skip_all, err)]
     async fn get_user(&self, req: Request<GetUserReq>) -> Result<Response<GetUserResp>, Status> {
         let req = req.into_inner();
-        if req.id.is_empty() {
-            return Err(Error::MissingUserId.into());
-        }
+        let user_id = validate_user_id(&req.id)?;
 
-        let id = Uuid::from_str(&req.id).map_err(|_| Error::InvalidId(req.id))?;
-
-        let user = self.db.get_user(id).await.map_err(|e| match e {
-            DBError::NotFound => Error::UserNotFound(id.to_string()),
+        let user = self.db.get_user(user_id).await.map_err(|e| match e {
+            DBError::NotFound => Error::UserNotFound(user_id.to_string()),
             _ => Error::GetUser(e),
         })?;
 

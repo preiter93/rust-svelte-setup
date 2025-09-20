@@ -7,6 +7,7 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
 use tonic::async_trait;
+use uuid::Uuid;
 
 #[async_trait]
 pub trait DBClient: Send + Sync + 'static {
@@ -23,11 +24,11 @@ pub trait DBClient: Send + Sync + 'static {
         oauth_account: &OAuthAccount,
     ) -> Result<OAuthAccount, DBError>;
 
-    async fn update_oauth_account(&self, id: &str, user_id: &str) -> Result<OAuthAccount, DBError>;
+    async fn update_oauth_account(&self, id: &str, user_id: Uuid) -> Result<OAuthAccount, DBError>;
 
     async fn get_oauth_account(
         &self,
-        user_id: &str,
+        user_id: Uuid,
         provider: OauthProvider,
     ) -> Result<OAuthAccount, DBError>;
 }
@@ -166,7 +167,7 @@ impl DBClient for PostgresDBClient {
     /// - database connection cannot be established
     /// - not found if the row does not exist
     /// - executing database statement fails
-    async fn update_oauth_account(&self, id: &str, user_id: &str) -> Result<OAuthAccount, DBError> {
+    async fn update_oauth_account(&self, id: &str, user_id: Uuid) -> Result<OAuthAccount, DBError> {
         let client = self.pool.get().await?;
 
         let row = client
@@ -195,7 +196,7 @@ impl DBClient for PostgresDBClient {
     /// - executing database statement fails
     async fn get_oauth_account(
         &self,
-        user_id: &str,
+        user_id: Uuid,
         provider: OauthProvider,
     ) -> Result<OAuthAccount, DBError> {
         let client = self.pool.get().await?;
@@ -216,7 +217,7 @@ impl DBClient for PostgresDBClient {
 #[cfg(test)]
 pub(crate) mod test {
     use super::*;
-    use crate::utils::tests::{fixture_oauth_account, fixture_session};
+    use crate::utils::tests::{fixture_oauth_account, fixture_session, fixture_uuid};
     use crate::{SERVICE_NAME, error::DBError};
     use chrono::TimeZone;
     use shared::test_utils::get_test_db;
@@ -278,13 +279,13 @@ pub(crate) mod test {
             self.upsert_oauth_account.lock().await.take().unwrap()
         }
 
-        async fn update_oauth_account(&self, _: &str, _: &str) -> Result<OAuthAccount, DBError> {
+        async fn update_oauth_account(&self, _: &str, _: Uuid) -> Result<OAuthAccount, DBError> {
             self.update_oauth_account.lock().await.take().unwrap()
         }
 
         async fn get_oauth_account(
             &self,
-            _: &str,
+            _: Uuid,
             _: OauthProvider,
         ) -> Result<OAuthAccount, DBError> {
             self.get_oauth_account.lock().await.take().unwrap()
@@ -436,11 +437,11 @@ pub(crate) mod test {
         });
 
         run_db_oauth_accounts_test(vec![account.clone()], |db_client| async move {
-            let user_id = "new-user-id";
-            account.user_id = Some(user_id.to_string());
+            let user_id = fixture_uuid();
+            account.user_id = Some(user_id);
 
             let got_account = db_client
-                .update_oauth_account(&oauth_id, &user_id)
+                .update_oauth_account(&oauth_id, user_id)
                 .await
                 .expect("failed to update account");
 
@@ -453,19 +454,19 @@ pub(crate) mod test {
     async fn test_get_oauth_account() {
         let oauth_id = "oauth-id-get";
         let provider_user_id = "provider-user-id-get";
-        let user_id = "user-id";
+        let user_id = fixture_uuid();
         let provider = OauthProvider::Github;
 
         let account = fixture_oauth_account(|v| {
             v.id = oauth_id.to_string();
             v.provider_user_id = provider_user_id.to_string();
             v.provider = provider as i32;
-            v.user_id = Some(user_id.to_string());
+            v.user_id = Some(user_id);
         });
 
         run_db_oauth_accounts_test(vec![account.clone()], |db_client| async move {
             let got_account = db_client
-                .get_oauth_account(&user_id, provider)
+                .get_oauth_account(user_id, provider)
                 .await
                 .expect("failed to get account");
 
@@ -476,15 +477,15 @@ pub(crate) mod test {
 
     #[tokio::test]
     async fn test_get_oauth_account_not_found() {
-        let user_id = "user-id-not-found";
+        let user_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
 
         run_db_oauth_accounts_test(vec![], |db_client| async move {
             let got_result = db_client
-                .get_oauth_account(&user_id, OauthProvider::Unspecified)
+                .get_oauth_account(user_id, OauthProvider::Unspecified)
                 .await;
 
             if let Err(DBError::NotFound(s)) = got_result {
-                assert_eq!(s, user_id);
+                assert_eq!(s, user_id.to_string());
             } else {
                 panic!("expected NotFound error");
             }
