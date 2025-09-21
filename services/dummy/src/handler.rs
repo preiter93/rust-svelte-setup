@@ -1,10 +1,11 @@
 use crate::error::{DBError, Error};
-use crate::utils::{UuidGenerator, validate_entity_id, validate_user_id};
+use crate::utils::{UuidGenerator, validate_entity_id};
 
 use crate::{
     db::DBClient,
     proto::{GetEntityReq, GetEntityResp, api_service_server::ApiService},
 };
+use shared::helper::validate_user_id;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
@@ -25,7 +26,7 @@ where
     ///
     /// # Errors
     /// - ?
-    #[instrument(skip_all, err)]
+    #[instrument(skip_all, fields(user_id), err)]
     async fn get_entity(
         &self,
         req: Request<GetEntityReq>,

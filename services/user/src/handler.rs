@@ -1,4 +1,4 @@
-use crate::utils::{UuidGenerator, validate_user_id};
+use crate::utils::UuidGenerator;
 
 use crate::{
     db::DBClient,
@@ -8,6 +8,7 @@ use crate::{
         api_service_server::ApiService,
     },
 };
+use shared::helper::validate_user_id;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
@@ -27,13 +28,15 @@ where
     ///
     /// # Errors
     /// - internal error if the user cannot be inserted into the db
-    #[instrument(skip_all, err)]
+    #[instrument(skip_all, fields(user_id), err)]
     async fn create_user(
         &self,
         req: Request<CreateUserReq>,
     ) -> Result<Response<CreateUserResp>, Status> {
         let req = req.into_inner();
         let id = self.uuid.generate();
+
+        tracing::Span::current().record("user_id", &id.to_string());
 
         let name = req.name;
         if name.is_empty() {
@@ -65,7 +68,7 @@ where
     ///
     /// # Errors
     /// - internal error if the user cannot be inserted into the db
-    #[instrument(skip_all, err)]
+    #[instrument(skip_all, fields(user_id), err)]
     async fn get_user(&self, req: Request<GetUserReq>) -> Result<Response<GetUserResp>, Status> {
         let req = req.into_inner();
         let user_id = validate_user_id(&req.id)?;

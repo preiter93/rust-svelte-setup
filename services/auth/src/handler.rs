@@ -18,10 +18,7 @@ use crate::{
         LinkOauthAccountReq, LinkOauthAccountResp, OauthProvider, StartOauthLoginReq,
         StartOauthLoginResp,
     },
-    utils::{
-        GithubOAuth, Now, OAuthProvider, RandomValueGeneratorTrait, Session, SystemNow,
-        validate_user_id,
-    },
+    utils::{GithubOAuth, Now, OAuthProvider, RandomValueGeneratorTrait, Session, SystemNow},
 };
 use crate::{
     error::DBError,
@@ -31,7 +28,7 @@ use crate::{
     },
     utils::{GoogleOAuth, OAuthHelper, constant_time_equal, hash_secret},
 };
-use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
+use shared::{helper::validate_user_id, session::SESSION_TOKEN_EXPIRY_DURATION};
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 
@@ -70,7 +67,7 @@ where
     ///
     /// # Further readings
     /// <https://lucia-auth.com/sessions/basic>
-    #[instrument(skip(self), err)]
+    #[instrument(skip_all, fields(user_id), err)]
     async fn create_session(
         &self,
         req: Request<CreateSessionReq>,
@@ -111,7 +108,7 @@ where
     ///
     /// # Further readings
     /// <https://lucia-auth.com/sessions/basic>
-    #[instrument(skip(self), err)]
+    #[instrument(skip_all, err)]
     async fn validate_session(
         &self,
         req: Request<ValidateSessionReq>,
@@ -169,7 +166,7 @@ where
     ///
     /// # Further readings
     /// <https://lucia-auth.com/sessions/basic>
-    #[instrument(skip(self), err)]
+    #[instrument(skip_all, err)]
     async fn delete_session(
         &self,
         req: Request<DeleteSessionReq>,
@@ -199,7 +196,7 @@ where
     ///
     /// # Errors
     /// - generating authorization url
-    #[instrument(skip(self), err)]
+    #[instrument(skip_all, err)]
     async fn start_oauth_login(
         &self,
         req: Request<StartOauthLoginReq>,
@@ -243,7 +240,7 @@ where
     /// - validating authorization code
     /// - decoding the id token
     /// - upserting oauth token (db)
-    #[instrument(skip(self), err)]
+    #[instrument(skip_all, err)]
     async fn handle_oauth_callback(
         &self,
         req: Request<HandleOauthCallbackReq>,
@@ -279,7 +276,7 @@ where
     /// - missing oauth token id
     /// - missing user id
     /// - updating oauth token (db)
-    #[instrument(skip(self), err)]
+    #[instrument(skip_all, fields(user_id), err)]
     async fn link_oauth_account(
         &self,
         req: Request<LinkOauthAccountReq>,
@@ -301,7 +298,7 @@ where
         Ok(Response::new(LinkOauthAccountResp {}))
     }
 
-    #[instrument(skip(self), err)]
+    #[instrument(skip_all, fields(user_id), err)]
     async fn get_oauth_account(
         &self,
         req: Request<GetOauthAccountReq>,

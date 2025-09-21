@@ -1,9 +1,4 @@
-use std::str::FromStr;
-
-use tonic::Status;
 use uuid::Uuid;
-
-use crate::error::Error;
 
 pub trait UuidGenerator: Send + Sync + 'static {
     fn generate(&self) -> Uuid {
@@ -14,13 +9,6 @@ pub trait UuidGenerator: Send + Sync + 'static {
 pub struct UuidV4Generator;
 
 impl UuidGenerator for UuidV4Generator {}
-
-pub fn validate_user_id(user_id: &str) -> Result<Uuid, Status> {
-    if user_id.is_empty() {
-        return Err(Error::MissingUserId.into());
-    }
-    Uuid::from_str(user_id).map_err(|_| Error::InvalidUserId(user_id.to_string()).into())
-}
 
 #[cfg(test)]
 pub mod test {

@@ -4,8 +4,7 @@ use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, USER_
 use reqwest::redirect::Policy;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::str::FromStr;
-use tonic::{Status, async_trait};
+use tonic::async_trait;
 use uuid::Uuid;
 
 use base64::Engine as _;
@@ -20,15 +19,8 @@ use sha2::{Digest, Sha256};
 use tokio_postgres::Row;
 use url::Url;
 
-use crate::error::{Error, ExchangeCodeErr};
+use crate::error::ExchangeCodeErr;
 use crate::proto::OauthProvider;
-
-pub fn validate_user_id(user_id: &str) -> Result<Uuid, Status> {
-    if user_id.is_empty() {
-        return Err(Error::MissingUserId.into());
-    }
-    Uuid::from_str(user_id).map_err(|_| Error::InvalidUserId(user_id.to_string()).into())
-}
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Session {

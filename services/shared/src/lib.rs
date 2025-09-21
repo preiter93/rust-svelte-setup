@@ -1,5 +1,6 @@
 pub mod cookie;
 pub mod db;
+pub mod helper;
 pub mod middleware;
 pub mod session;
 #[cfg(feature = "test-utils")]

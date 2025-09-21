@@ -21,6 +21,7 @@ tracing = {workspace = true }
 tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
 tonic = { workspace = true }
+uuid = { workspace = true }
 
 dtor = { version = "0.1.0", optional = true }
 testcontainers = { version = "0.25.0", optional = true }
