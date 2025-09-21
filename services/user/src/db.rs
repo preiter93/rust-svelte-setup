@@ -147,10 +147,10 @@ pub mod test {
         Fut: std::future::Future<Output = ()>,
     {
         let migrations = std::fs::canonicalize("./migrations").unwrap();
-        let db = get_test_db(SERVICE_NAME, migrations)
+        let pool = get_test_db(SERVICE_NAME, migrations)
             .await
-            .expect("failed to get test db client");
-        let db_client = PostgresDBClient::new(db.pool.clone());
+            .expect("failed to get connection to test db");
+        let db_client = PostgresDBClient { pool };
 
         for user in given_user {
             db_client

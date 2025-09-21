@@ -3,35 +3,101 @@ use refinery::Runner;
 use std::error::Error;
 use std::ops::DerefMut;
 use std::path::Path;
-use std::sync::{Arc, Mutex, OnceLock, Weak};
 use testcontainers::ContainerAsync;
 use testcontainers::{
     GenericImage, ImageExt,
     core::{ContainerPort, WaitFor},
     runners::AsyncRunner,
 };
+use tokio::sync::OnceCell;
 
-pub struct TestDb {
-    pub pool: Pool,
-    pub postgres: ContainerAsync<GenericImage>,
+/// Represents a test database running in a container.
+struct TestDb {
+    /// The underlying PostgreSQL container.
+    postgres: ContainerAsync<GenericImage>,
 }
 
-static TEST_DB: OnceLock<Mutex<Weak<TestDb>>> = OnceLock::new();
+/// A global singleton holding the test database.
+/// OnceCell ensures the DB is started only once across all tests.
+static TEST_DB: OnceCell<TestDb> = OnceCell::const_new();
 
+/// Returns a connection pool to the test database.
+///
+/// If the test database hasn’t been started yet, it will start it first.
 pub async fn get_test_db(
     service_name: &str,
     migrations: impl AsRef<Path>,
-) -> Result<Arc<TestDb>, Box<dyn Error>> {
-    let mut guard = TEST_DB
-        .get_or_init(|| Mutex::new(Weak::new()))
-        .lock()
-        .unwrap();
+) -> Result<Pool, Box<dyn Error>> {
+    let db = TEST_DB
+        .get_or_init(|| async { start_test_db(service_name, migrations).await.unwrap() })
+        .await;
+    let pool = create_connection_pool(service_name, &db.postgres).await?;
+    Ok(pool)
+}
 
-    if let Some(test_db) = guard.upgrade() {
-        return Ok(test_db);
-    }
+/// Shutdown postgres container when the process exits.
+///
+/// Note:
+/// A static OnceCell does not automatically Drop when the program is
+/// terminated. That means test containers won’t be cleaned up
+/// automatically thus we explicitly stop the postgres container here.
+///
+/// For more context, see:  
+/// <https://github.com/testcontainers/testcontainers-rs/issues/707>
+#[dtor::dtor]
+fn on_shutdown() {
+    let Some(test_db) = TEST_DB.get() else {
+        return;
+    };
+    let container_id = test_db.postgres.id();
 
-    let postgres = start_postgres().await;
+    std::process::Command::new("docker")
+        .args(["container", "rm", "-f", container_id])
+        .output()
+        .expect("failed to stop testcontainer");
+}
+
+async fn start_test_db(
+    service_name: &str,
+    migrations: impl AsRef<Path>,
+) -> Result<TestDb, Box<dyn Error>> {
+    let pg_port = 5432;
+    let postgres = GenericImage::new("postgres", "latest")
+        .with_exposed_port(ContainerPort::Tcp(pg_port))
+        .with_wait_for(WaitFor::message_on_stdout(
+            "database system is ready to accept connections",
+        ))
+        .with_wait_for(WaitFor::message_on_stderr(
+            "database system is ready to accept connections",
+        ))
+        .with_network("shared_network")
+        .with_copy_to(
+            "/docker-entrypoint-initdb.d/init.sql",
+            include_bytes!("../../../../infrastructure/db/init.sql").to_vec(),
+        )
+        .with_env_var("PGPORT", pg_port.to_string())
+        .with_env_var("POSTGRES_USER", "postgres")
+        .with_env_var("POSTGRES_PASSWORD", "postgres")
+        .with_env_var("POSTGRES_DB", "postgres")
+        .start()
+        .await
+        .expect("Failed to start postgres");
+
+    let pool = create_connection_pool(service_name, &postgres).await?;
+
+    let mut connection = pool.get().await?;
+    let migrations = refinery::load_sql_migrations(migrations)?;
+    let _ = Runner::new(&migrations)
+        .run_async(connection.deref_mut().deref_mut())
+        .await?;
+
+    Ok(TestDb { postgres })
+}
+
+async fn create_connection_pool(
+    service_name: &str,
+    postgres: &ContainerAsync<GenericImage>,
+) -> Result<Pool, Box<dyn Error>> {
     let host = postgres.get_host().await?;
     let port = postgres.get_host_port_ipv4(5432).await?;
 
@@ -53,38 +119,5 @@ pub async fn get_test_db(
     .build()
     .map_err(|e| format!("failed to connect to db: {e}"))?;
 
-    let mut connection = pool.get().await?;
-    let migrations = refinery::load_sql_migrations(migrations)?;
-    let _ = Runner::new(&migrations)
-        .run_async(connection.deref_mut().deref_mut())
-        .await?;
-
-    let test_db = Arc::new(TestDb { pool, postgres });
-    *guard = Arc::downgrade(&test_db);
-
-    Ok(test_db)
-}
-
-async fn start_postgres() -> ContainerAsync<GenericImage> {
-    let pg_port = 5432;
-    GenericImage::new("postgres", "latest")
-        .with_exposed_port(ContainerPort::Tcp(pg_port))
-        .with_wait_for(WaitFor::message_on_stdout(
-            "database system is ready to accept connections",
-        ))
-        .with_wait_for(WaitFor::message_on_stderr(
-            "database system is ready to accept connections",
-        ))
-        .with_network("shared_network")
-        .with_copy_to(
-            "/docker-entrypoint-initdb.d/init.sql",
-            include_bytes!("../../../../infrastructure/db/init.sql").to_vec(),
-        )
-        .with_env_var("PGPORT", pg_port.to_string())
-        .with_env_var("POSTGRES_USER", "postgres")
-        .with_env_var("POSTGRES_PASSWORD", "postgres")
-        .with_env_var("POSTGRES_DB", "postgres")
-        .start()
-        .await
-        .expect("Failed to start postgres")
+    Ok(pool)
 }
