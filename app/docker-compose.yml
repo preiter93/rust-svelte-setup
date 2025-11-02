@@ -1,0 +1,18 @@
+services:
+  svelte:
+    build: .
+    container_name: svelte
+    restart: always
+    ports:
+      - "3000:3000"
+    networks:
+      - shared_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`example.com`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+
+networks:
+  shared_network:
+    external: true

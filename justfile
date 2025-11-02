@@ -25,7 +25,7 @@ deploy-services:
 undeploy-services:
   docker compose --env-file .env -f services/docker-compose.yml down
 
-# Deploy the full system (DB, services, Jaeger)
+# Deploy the full system (DB, services, Jaeger, Traefik)
 [group: "deploy"]
 deploy:
   echo "Starting DB..."
@@ -37,16 +37,22 @@ deploy:
   echo "Starting backend services..."
   docker compose --env-file .env -f services/docker-compose.yml up -d
 
+  echo "Starting Traefik..."
+  docker compose -f infrastructure/traefik/docker-compose.yml up -d
+
   echo "Starting Jaeger..."
   docker compose -f infrastructure/jaeger/docker-compose.yml up -d
 
   echo "Deployment complete!"
 
-# Undeploy everything — stops Jaeger, services, and DB
+# Undeploys the full system (DB, services, Jaeger, Traefik)
 [group: "deploy"]
 undeploy:
   echo "Stopping Jaeger..."
   docker compose -f infrastructure/jaeger/docker-compose.yml down -v
+
+  echo "Stopping Traefik..."
+  docker compose -f infrastructure/traefik/docker-compose.yml down -v
 
   echo "Stopping services..."
   docker compose -f services/docker-compose.yml down
