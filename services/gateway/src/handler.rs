@@ -150,8 +150,8 @@ pub async fn handle_oauth_callback(
     let callback_data = callback_resp.into_inner();
 
     let account_id = callback_data.account_id;
-    let name = callback_data.provider_user_name;
-    let email = callback_data.provider_user_email;
+    let name = callback_data.external_user_name;
+    let email = callback_data.external_user_email;
 
     let mut user_id = callback_data.user_id;
     if user_id.is_empty() {

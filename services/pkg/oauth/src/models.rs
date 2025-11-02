@@ -1,5 +1,16 @@
 use serde::Deserialize;
 
+/// Represents the possible formats for the `aud` (audience) claim.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum Audience {
+    /// A single audience value (most common for Google ID tokens).
+    Single(String),
+
+    /// Multiple audience values.
+    Multiple(Vec<String>),
+}
+
 /// Standard OpenID Connect (OIDC) ID token claims.
 ///
 /// These fields are defined in the OIDC Core specification, but not all providers
@@ -13,7 +24,7 @@ pub struct OidcTokenClaims {
     pub iss: Option<String>,
 
     /// Audience(s) — identifies the recipients for which the token is intended.
-    pub aud: Option<Vec<String>>,
+    pub aud: Option<Audience>,
 
     /// Expiration time (UNIX timestamp).
     pub exp: Option<u64>,
