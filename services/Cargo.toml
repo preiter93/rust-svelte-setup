@@ -3,8 +3,11 @@ members = [
     "auth", 
     "gateway",
     "user",
-    "shared", 
     "dummy",
+    "pkg/helper",
+    "pkg/setup",
+    "pkg/oauth",
+    "pkg/test-utils",
 ]
 
 resolver = "2"
@@ -27,6 +30,7 @@ axum = { version = "0.8" }
 http = { version = "1.0" }
 tower = { version = "0.5" }
 tower-http = { version = "0.6", features = ["trace"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # gRPC
 prost = { version = "0.14" }

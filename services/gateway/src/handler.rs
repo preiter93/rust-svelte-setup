@@ -14,11 +14,11 @@ use axum::{
 };
 use axum_macros::debug_handler;
 use serde::Deserialize;
-use shared::cookie::{
-    ResponseCookies, create_expired_cookie, create_oauth_cookie, create_session_token_cookie,
+use setup::cookie::{
+    ResponseCookies, create_expired_oauth_cookie, create_oauth_cookie, create_session_token_cookie,
     expire_session_token_cookie, extract_session_token_cookie,
 };
-use shared::session::SessionState;
+use setup::session::SessionState;
 use tonic::{Code, Request, Status};
 use tracing::instrument;
 use user::IUserClient;
@@ -177,8 +177,8 @@ pub async fn handle_oauth_callback(
         .status(StatusCode::OK)
         .with_cookies([
             create_session_token_cookie(session_token),
-            create_expired_cookie(OAUTH_STATE),
-            create_expired_cookie(OAUTH_CODE_VERIFIER),
+            create_expired_oauth_cookie(OAUTH_STATE),
+            create_expired_oauth_cookie(OAUTH_CODE_VERIFIER),
         ])
         .body(Body::empty())?;
 

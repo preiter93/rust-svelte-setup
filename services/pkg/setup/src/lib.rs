@@ -1,11 +1,10 @@
 pub mod cookie;
 pub mod db;
-pub mod helper;
 pub mod middleware;
 pub mod session;
-#[cfg(feature = "test-utils")]
-pub mod test_utils;
 pub mod tracing;
+mod validate;
+pub use validate::validate_user_id;
 
 pub fn patched_host<S: Into<String>>(host: S) -> String {
     let host = host.into();

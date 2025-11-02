@@ -5,7 +5,7 @@ use crate::{
     db::DBClient,
     proto::{GetEntityReq, GetEntityResp, api_service_server::ApiService},
 };
-use shared::helper::validate_user_id;
+use setup::validate_user_id;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 

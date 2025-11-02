@@ -15,8 +15,8 @@ use axum::{
     routing::{get, post},
 };
 use gateway::{HTTP_PORT, SERVICE_NAME};
-use shared::middleware::{TracingHttpServiceLayer, auth::SessionAuthLayer};
-use shared::tracing::init_tracer;
+use setup::middleware::{TracingHttpServiceLayer, auth::SessionAuthLayer};
+use setup::tracing::init_tracer;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
 

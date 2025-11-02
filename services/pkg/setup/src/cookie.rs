@@ -78,7 +78,7 @@ where
 }
 
 /// Creates a cookie that instructs the browser to delete it.
-pub fn create_expired_cookie<S>(name: S) -> Cookie
+pub fn create_expired_oauth_cookie<S>(name: S) -> Cookie
 where
     S: Into<String>,
 {
@@ -86,14 +86,20 @@ where
 }
 
 fn build_cookie<N: Into<String>, V: Into<String>>(name: N, value: V, max_age: Duration) -> Cookie {
+    let app_env = std::env::var("APP_ENV").unwrap_or_default();
+    let (secure, same_site) = match app_env.to_lowercase().as_str() {
+        "local" | "integration-test" | "dev" => (false, SameSite::Lax),
+        _ => (true, SameSite::None),
+    };
+
     Cookie {
         name: name.into(),
         value: value.into(),
         max_age,
         path: String::from("/"),
-        secure: false, // TODO: Enable on production
+        secure, // TODO: Enable on production
         http_only: true,
-        same_site: SameSite::Lax,
+        same_site,
     }
 }
 
@@ -127,13 +133,16 @@ pub fn extract_cookie_by_name(name: &str, value: &HeaderValue) -> Option<String>
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
 enum SameSite {
+    None,
     Lax,
 }
 
 impl fmt::Display for SameSite {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            SameSite::None => write!(f, "None"),
             SameSite::Lax => write!(f, "Lax"),
         }
     }
@@ -180,7 +189,7 @@ mod tests {
         // then
         assert_eq!(
             cookie.to_string(),
-            "session_token=session-token; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax"
+            "session_token=session-token; Max-Age=604800; Path=/; Secure; HttpOnly; SameSite=None"
         );
     }
 
@@ -192,19 +201,19 @@ mod tests {
         // then
         assert_eq!(
             cookie.to_string(),
-            "name=value; Max-Age=600; Path=/; HttpOnly; SameSite=Lax"
+            "name=value; Max-Age=600; Path=/; Secure; HttpOnly; SameSite=None"
         );
     }
 
     #[test]
     fn test_expired_cookie() {
         // when
-        let cookie = create_expired_cookie("name");
+        let cookie = create_expired_oauth_cookie("name");
 
         // then
         assert_eq!(
             cookie.to_string(),
-            "name=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax"
+            "name=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=None"
         );
     }
 
@@ -232,7 +241,7 @@ mod tests {
         // then
         assert_eq!(
             response.headers().get(SET_COOKIE).unwrap(),
-            "name=value; Max-Age=0; Path=/; HttpOnly; SameSite=Lax"
+            "name=value; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=None"
         );
     }
 
@@ -272,7 +281,7 @@ mod tests {
         // then
         assert_eq!(
             response.headers().get(SET_COOKIE).unwrap(),
-            "session_token=token; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax"
+            "session_token=token; Max-Age=604800; Path=/; Secure; HttpOnly; SameSite=None"
         );
     }
 }

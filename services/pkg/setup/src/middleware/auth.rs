@@ -1,7 +1,5 @@
-use crate::{
-    cookie::{extract_session_token_cookie, set_session_token_cookie},
-    session::SessionState,
-};
+use crate::cookie::{extract_session_token_cookie, set_session_token_cookie};
+use crate::session::SessionState;
 use axum::body::Body;
 use core::pin::Pin;
 use http::{Method, Request, Response, StatusCode, header::COOKIE};
@@ -261,7 +259,7 @@ mod tests {
                 should_refresh_cookie: true,
             }),
             want_resp_set_cookies: Some(
-                "session_token=token; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax",
+                "session_token=token; Max-Age=604800; Path=/; Secure; HttpOnly; SameSite=None",
             ),
             want_status_code: StatusCode::OK,
             ..Default::default()

@@ -10,7 +10,7 @@ use db::PostgresDBClient;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
 use proto::api_service_server::ApiServiceServer;
-use shared::{
+use setup::{
     middleware::TracingGrpcServiceLayer, patched_host, run_db_migrations, tracing::init_tracer,
 };
 use std::error::Error;

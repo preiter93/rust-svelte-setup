@@ -8,10 +8,10 @@ use crate::proto::{
     GetOauthAccountReq, GetOauthAccountResp, HandleOauthCallbackReq, HandleOauthCallbackResp,
     LinkOauthAccountReq, LinkOauthAccountResp, StartOauthLoginReq, StartOauthLoginResp,
 };
-use shared::middleware::auth::AuthenticatedSession;
-use shared::middleware::tracing::TracingServiceClient;
-use shared::patched_host;
-use shared::{
+use setup::middleware::auth::AuthenticatedSession;
+use setup::middleware::tracing::TracingServiceClient;
+use setup::patched_host;
+use setup::{
     middleware::{SessionAuthClient, auth::AuthenticateSessionErr},
     session::SessionState,
 };

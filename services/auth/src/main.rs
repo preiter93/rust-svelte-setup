@@ -8,7 +8,7 @@ use crate::{
 use auth::{GRPC_PORT, SERVICE_NAME};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
-use shared::{
+use setup::{
     middleware::TracingGrpcServiceLayer, patched_host, run_db_migrations, tracing::init_tracer,
 };
 use std::error::Error;

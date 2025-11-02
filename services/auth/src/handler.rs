@@ -28,7 +28,7 @@ use crate::{
     },
     utils::{GoogleOAuth, OAuthHelper, constant_time_equal, hash_secret},
 };
-use shared::{helper::validate_user_id, session::SESSION_TOKEN_EXPIRY_DURATION};
+use setup::{session::SESSION_TOKEN_EXPIRY_DURATION, validate_user_id};
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 

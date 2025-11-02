@@ -20,7 +20,8 @@ pub fn init_tracer(service_name: &'static str) -> Result<SdkTracerProvider, Box<
     let span_exporter = SpanExporter::builder()
         .with_tonic()
         .with_endpoint(endpoint)
-        .build()?;
+        .build()
+        .map_err(|e| format!("failed to build span exporter: {e}"))?;
     let tracer_provider = SdkTracerProvider::builder()
         .with_resource(Resource::builder().with_service_name(service_name).build())
         .with_batch_exporter(span_exporter)

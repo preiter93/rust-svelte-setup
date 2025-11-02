@@ -85,7 +85,7 @@ pub mod test {
         proto::User,
         utils::test::{fixture_user, fixture_uuid},
     };
-    use shared::test_utils::get_test_db;
+    use test_utils::get_test_db;
     use tokio::sync::Mutex;
     use tonic::async_trait;
     use user::SERVICE_NAME;

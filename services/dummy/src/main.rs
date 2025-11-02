@@ -11,7 +11,7 @@ use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
 use dummy::{GRPC_PORT, SERVICE_NAME};
 use proto::api_service_server::ApiServiceServer;
-use shared::{
+use setup::{
     middleware::TracingGrpcServiceLayer, patched_host, run_db_migrations, tracing::init_tracer,
 };
 use std::error::Error;

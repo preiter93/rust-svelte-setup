@@ -18,10 +18,10 @@ tonic-prost = { workspace = true }
 uuid = { workspace = true }
 tracing = {workspace = true }
 
-shared = { version = "0.1", path = "../shared" }
+setup = { version = "0.1", path = "../pkg/setup" }
 
 [dev-dependencies]
-shared = { version = "0.1", path = "../shared", features = ["test-utils"] }
+test-utils = { version = "0.1", path = "../pkg/test-utils" }
 
 [features]
 default = ["test-utils"]

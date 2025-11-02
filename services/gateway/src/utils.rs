@@ -1,7 +1,7 @@
 #![allow(clippy::result_large_err)]
 use auth::proto::OauthProvider;
 use axum::http::{HeaderMap, StatusCode, header::COOKIE};
-use shared::cookie::extract_cookie_by_name;
+use setup::cookie::extract_cookie_by_name;
 use tonic::Code;
 
 use crate::error::OAuthError;

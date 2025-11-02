@@ -5,7 +5,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
-use shared::session::SESSION_TOKEN_EXPIRY_DURATION;
+use setup::session::SESSION_TOKEN_EXPIRY_DURATION;
 use tonic::async_trait;
 use uuid::Uuid;
 
@@ -220,8 +220,8 @@ pub(crate) mod test {
     use crate::utils::tests::{fixture_oauth_account, fixture_session, fixture_uuid};
     use crate::{SERVICE_NAME, error::DBError};
     use chrono::TimeZone;
-    use shared::test_utils::get_test_db;
     use std::sync::Arc;
+    use test_utils::get_test_db;
     use tokio::sync::Mutex;
     use tonic::async_trait;
 

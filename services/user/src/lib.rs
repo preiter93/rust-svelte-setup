@@ -3,7 +3,7 @@ pub mod proto;
 use crate::proto::{
     CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, api_service_client::ApiServiceClient,
 };
-use shared::{middleware::tracing::TracingServiceClient, patched_host};
+use setup::{middleware::tracing::TracingServiceClient, patched_host};
 use std::{error::Error, str::FromStr as _};
 use tonic::{
     Request, Response, Status, async_trait,
