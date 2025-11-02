@@ -90,17 +90,14 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 name = "auth"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
  "chrono",
  "deadpool-postgres",
  "dotenv",
- "jsonwebtoken",
+ "oauth",
  "prost 0.14.1",
- "rand",
  "refinery",
  "reqwest",
  "serde",
- "serde_urlencoded",
  "setup",
  "sha2",
  "test-utils",
@@ -110,7 +107,6 @@ dependencies = [
  "tonic 0.14.2",
  "tonic-prost",
  "tracing",
- "url",
  "uuid",
 ]
 

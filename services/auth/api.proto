@@ -67,8 +67,8 @@ message HandleOauthCallbackReq {
 
 message HandleOauthCallbackResp {
   string account_id = 1;
-  string provider_user_email = 2;
-  string provider_user_name = 3;
+  string external_user_email = 2;
+  string external_user_name = 3;
   string user_id = 4;
 }
 

@@ -29,7 +29,11 @@ pub enum Error {
     #[error("update oauth account error: {0}")]
     UpdateOauthAccount(DBError),
     #[error("get oauth account error: {0}")]
-    GetOauthAccount(#[from] DBError),
+    GetOauthAccount(DBError),
+    #[error("oauth provider is not specified")]
+    UnspecifiedOauthProvider,
+    #[error("upsert oauth account error: {0}")]
+    UpsertOauthAccount(DBError),
 }
 
 impl From<Error> for Status {
@@ -39,70 +43,18 @@ impl From<Error> for Status {
             | Error::MissingToken
             | Error::MissingUserId
             | Error::InvalidUserId(_)
+            | Error::UnspecifiedOauthProvider
             | Error::MissingOauthAccountID => Code::InvalidArgument,
             Error::SecretMismatch | Error::ExpiredToken | Error::NotFound => Code::Unauthenticated,
             Error::GetSession(_)
             | Error::DeleteSession(_)
             | Error::InsertSession(_)
             | Error::UpdateOauthAccount(_)
+            | Error::UpsertOauthAccount(_)
             | Error::GetOauthAccount(_) => Code::Internal,
         };
         Status::new(code, err.to_string())
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum OAuthError {
-    #[error("failed to exchange code: {0}")]
-    ExchangeCode(#[from] ExchangeCodeErr),
-    #[error("failed to generate authorization url")]
-    GenerateAuthorizationUrl(#[from] url::ParseError),
-    #[error("oauth provider is not supported")]
-    UnsupportedOauthProvider,
-    #[error("missing id token")]
-    MissingIDToken,
-    #[error("failed to decode id token")]
-    DecodeIdToken,
-    #[error("failed to get user information")]
-    GetUserInformation,
-    #[error("upsert oauth account error: {0}")]
-    UpsertOauthAccount(#[from] DBError),
-}
-
-impl From<OAuthError> for Status {
-    fn from(err: OAuthError) -> Self {
-        Status::new(Code::Internal, err.to_string())
-    }
-}
-/// Error for `exchange_code`
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum ExchangeCodeErr {
-    #[error("failed to build request body")]
-    BuildRequestBody(#[from] serde_urlencoded::ser::Error),
-    #[error("failed to build http client")]
-    BuildHttpClient,
-    #[error("failed to send request")]
-    SendRequest(#[from] reqwest::Error),
-    #[error("failed to validate authorization code")]
-    ValidateAuthorizationCode,
-    #[error("missing id token")]
-    MissingIDToken,
-    #[error("failed to decode id token")]
-    DecodeIdToken(#[from] jsonwebtoken::errors::Error),
-    #[error("missing kid in token")]
-    MissingKID,
-    #[error("no matchin jwks found")]
-    NoMatchingJWKS,
-    #[error("missing access token")]
-    MissingAccessToken,
-    #[error("missing expires in")]
-    MissingExpiresIn,
-    #[error("missing x user id")]
-    MissingXUserID,
-    #[error("no email found")]
-    NoEmailFound,
 }
 
 // Database error

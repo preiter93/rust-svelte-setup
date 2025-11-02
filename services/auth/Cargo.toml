@@ -9,6 +9,7 @@ deadpool-postgres = { workspace = true }
 dotenv = { workspace = true }
 prost = { workspace = true }
 refinery = { workspace = true }
+reqwest = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -18,15 +19,10 @@ tonic-prost = { workspace = true }
 tracing = {workspace = true }
 uuid = { workspace = true }
 
-base64 = { version = "0.22" }
-jsonwebtoken = { version =  "9.3.1" }
-rand = { version = "0.9.1", features = ["std_rng"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-serde_urlencoded = { version = "0.7" }
 sha2 = { version = "0.10" }
-url = { version = "2.5.4" }
 
 setup = { version = "0.1", path = "../pkg/setup" }
+oauth = { version = "0.1", path = "../pkg/oauth" }
 
 [dev-dependencies]
 test-utils = { version = "0.1", path = "../pkg/test-utils" }

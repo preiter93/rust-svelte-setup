@@ -2,8 +2,8 @@
 use crate::{
     db::PostgresDBClient,
     handler::Handler,
+    oauth::{github::GithubOAuth, google::GoogleOAuth},
     proto::api_service_server::ApiServiceServer,
-    utils::{GithubOAuth, GoogleOAuth, RandomValueGenerator},
 };
 use auth::{GRPC_PORT, SERVICE_NAME};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
@@ -17,6 +17,7 @@ use tonic::transport::Server;
 pub(crate) mod db;
 pub(crate) mod error;
 pub(crate) mod handler;
+pub(crate) mod oauth;
 #[allow(clippy::all)]
 pub(crate) mod proto;
 pub(crate) mod utils;
@@ -34,12 +35,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let server = Handler::new(
         PostgresDBClient::new(pool),
-        GoogleOAuth::<RandomValueGenerator>::new(
+        GoogleOAuth::new(
             cfg.google_client_id,
             cfg.google_client_secret,
             cfg.google_redirect_uri,
         ),
-        GithubOAuth::<RandomValueGenerator>::new(
+        GithubOAuth::new(
             cfg.github_client_id,
             cfg.github_client_secret,
             cfg.github_redirect_uri,

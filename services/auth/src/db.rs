@@ -134,20 +134,20 @@ impl DBClient for PostgresDBClient {
 
         let row = client
             .query_one(
-                "INSERT INTO oauth_accounts (id, provider, provider_user_id, provider_user_name, provider_user_email, access_token, access_token_expires_at, refresh_token, user_id)
+                "INSERT INTO oauth_accounts (id, provider, external_user_id, external_user_name, external_user_email, access_token, access_token_expires_at, refresh_token, user_id)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                 ON CONFLICT (provider_user_id) DO UPDATE SET
+                 ON CONFLICT (external_user_id) DO UPDATE SET
                     access_token = EXCLUDED.access_token,
                     access_token_expires_at = EXCLUDED.access_token_expires_at,
                     refresh_token = EXCLUDED.refresh_token,
                     updated_at = NOW()
-                 RETURNING id, provider, provider_user_id, provider_user_name, provider_user_email, access_token, access_token_expires_at, refresh_token, user_id",
+                 RETURNING id, provider, external_user_id, external_user_name, external_user_email, access_token, access_token_expires_at, refresh_token, user_id",
                 &[
                     &account.id,
                     &account.provider,
-                    &account.provider_user_id,
-                    &account.provider_user_name,
-                    &account.provider_user_email,
+                    &account.external_user_id,
+                    &account.external_user_name,
+                    &account.external_user_email,
                     &account.access_token,
                     &account.access_token_expires_at,
                     &account.refresh_token,
@@ -175,7 +175,7 @@ impl DBClient for PostgresDBClient {
                 "UPDATE oauth_accounts 
                  SET user_id = $2, updated_at = NOW()
                  WHERE id = $1 
-                 RETURNING id, provider, provider_user_id, provider_user_name, provider_user_email, access_token, access_token_expires_at, refresh_token, user_id",
+                 RETURNING id, provider, external_user_id, external_user_name, external_user_email, access_token, access_token_expires_at, refresh_token, user_id",
                 &[&id, &user_id],
             )
             .await?;
@@ -203,7 +203,7 @@ impl DBClient for PostgresDBClient {
         let provider = provider as i32;
 
         let stmt = client
-            .prepare("SELECT id, provider, provider_user_id, provider_user_name, provider_user_email, access_token, access_token_expires_at, refresh_token, user_id FROM oauth_accounts WHERE user_id = $1 AND provider = $2")
+            .prepare("SELECT id, provider, external_user_id, external_user_name, external_user_email, access_token, access_token_expires_at, refresh_token, user_id FROM oauth_accounts WHERE user_id = $1 AND provider = $2")
             .await?;
         let row = client.query_opt(&stmt, &[&user_id, &provider]).await?;
         let Some(row) = row else {
@@ -397,12 +397,12 @@ pub(crate) mod test {
     #[tokio::test]
     async fn test_upsert_oauth_account() {
         let oauth_id = "oauth-id-upsert";
-        let provider_user_id = "provider-user-id-upsert";
+        let external_user_id = "external-user-id-upsert";
 
         run_db_oauth_accounts_test(vec![], |db_client| async move {
             let account = fixture_oauth_account(|v| {
                 v.id = oauth_id.to_string();
-                v.provider_user_id = provider_user_id.to_string();
+                v.external_user_id = external_user_id.to_string();
             });
             let got_account = db_client
                 .upsert_oauth_account(&account)
@@ -413,7 +413,7 @@ pub(crate) mod test {
 
             let new_account = fixture_oauth_account(|v| {
                 v.id = oauth_id.to_string();
-                v.provider_user_id = provider_user_id.to_string();
+                v.external_user_id = external_user_id.to_string();
                 v.access_token = Some(String::from("access-token"));
             });
             let got_account = db_client
@@ -429,11 +429,11 @@ pub(crate) mod test {
     #[tokio::test]
     async fn test_update_oauth_account() {
         let oauth_id = "oauth-id-update";
-        let provider_user_id = "provider-user-id-update";
+        let external_user_id = "external-user-id-update";
 
         let mut account = fixture_oauth_account(|v| {
             v.id = oauth_id.to_string();
-            v.provider_user_id = provider_user_id.to_string();
+            v.external_user_id = external_user_id.to_string();
         });
 
         run_db_oauth_accounts_test(vec![account.clone()], |db_client| async move {
@@ -453,13 +453,13 @@ pub(crate) mod test {
     #[tokio::test]
     async fn test_get_oauth_account() {
         let oauth_id = "oauth-id-get";
-        let provider_user_id = "provider-user-id-get";
+        let external_user_id = "external-user-id-get";
         let user_id = fixture_uuid();
         let provider = OauthProvider::Github;
 
         let account = fixture_oauth_account(|v| {
             v.id = oauth_id.to_string();
-            v.provider_user_id = provider_user_id.to_string();
+            v.external_user_id = external_user_id.to_string();
             v.provider = provider as i32;
             v.user_id = Some(user_id);
         });

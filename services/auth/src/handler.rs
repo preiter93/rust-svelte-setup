@@ -12,13 +12,14 @@ use std::marker::PhantomData;
 
 use crate::{
     db::DBClient,
-    error::{Error, OAuthError},
+    error::Error,
+    oauth::{github::GithubOAuth, google::GoogleOAuth},
     proto::{
         GetOauthAccountReq, GetOauthAccountResp, HandleOauthCallbackReq, HandleOauthCallbackResp,
         LinkOauthAccountReq, LinkOauthAccountResp, OauthProvider, StartOauthLoginReq,
         StartOauthLoginResp,
     },
-    utils::{GithubOAuth, Now, OAuthProvider, RandomValueGeneratorTrait, Session, SystemNow},
+    utils::{Now, Session, SystemNow},
 };
 use crate::{
     error::DBError,
@@ -26,8 +27,9 @@ use crate::{
         CreateSessionReq, CreateSessionResp, DeleteSessionReq, DeleteSessionResp,
         ValidateSessionReq, ValidateSessionResp, api_service_server::ApiService,
     },
-    utils::{GoogleOAuth, OAuthHelper, constant_time_equal, hash_secret},
+    utils::{constant_time_equal, hash_secret},
 };
+use oauth::{OAuth, OAuthProvider as _, RandomSource};
 use setup::{session::SESSION_TOKEN_EXPIRY_DURATION, validate_user_id};
 use tonic::{Request, Response, Status};
 use tracing::instrument;
@@ -57,7 +59,7 @@ type SessionToken = String;
 impl<D, R, N> ApiService for Handler<D, R, N>
 where
     D: DBClient,
-    R: RandomValueGeneratorTrait + Clone,
+    R: RandomSource + Clone,
     N: Now,
 {
     /// Creates a new session.
@@ -76,8 +78,8 @@ where
 
         let user_id = validate_user_id(&req.user_id)?;
 
-        let id = R::generate_secure_random_string();
-        let secret = R::generate_secure_random_string();
+        let id = R::alphanumeric(24);
+        let secret = R::alphanumeric(24);
         let token = format!("{id}.{secret}");
 
         let session = Session {
@@ -203,28 +205,22 @@ where
     ) -> Result<Response<StartOauthLoginResp>, Status> {
         let req = req.into_inner();
 
-        let state = OAuthHelper::<R>::generate_state();
+        let state = OAuth::<R>::generate_state();
         let (code_verifier, authorization_url) = match req.provider() {
             OauthProvider::Google => {
-                let code_verifier = OAuthHelper::<R>::generate_code_verifier();
-                let code_challenge = OAuthHelper::<R>::create_s256_code_challenge(&code_verifier);
+                let verifier = OAuth::<R>::generate_code_verifier();
+                let challenge = OAuth::<R>::create_s256_code_challenge(&verifier);
 
-                let authorization_url = self
-                    .google
-                    .generate_authorization_url(&state, &code_challenge)
-                    .map_err(OAuthError::GenerateAuthorizationUrl)?;
+                let auth_url = self.google.generate_authorization_url(&state, &challenge)?;
 
-                (code_verifier, authorization_url)
+                (verifier, auth_url)
             }
             OauthProvider::Github => {
-                let authorization_url = self
-                    .github
-                    .generate_authorization_url(&state, "")
-                    .map_err(OAuthError::GenerateAuthorizationUrl)?;
+                let auth_url = self.github.generate_authorization_url(&state, "")?;
 
-                (String::new(), authorization_url)
+                (String::new(), auth_url)
             }
-            _ => return Err(OAuthError::UnsupportedOauthProvider.into()),
+            _ => return Err(Error::UnspecifiedOauthProvider.into()),
         };
 
         Ok(Response::new(StartOauthLoginResp {
@@ -252,20 +248,19 @@ where
         let account = match req.provider() {
             OauthProvider::Google => self.google.exchange_code(code, code_verifier).await,
             OauthProvider::Github => self.github.exchange_code(code, code_verifier).await,
-            _ => return Err(OAuthError::UnsupportedOauthProvider.into()),
-        }
-        .map_err(OAuthError::ExchangeCode)?;
+            _ => return Err(Error::UnspecifiedOauthProvider.into()),
+        }?;
 
         let account = self
             .db
             .upsert_oauth_account(&account)
             .await
-            .map_err(OAuthError::UpsertOauthAccount)?;
+            .map_err(Error::UpsertOauthAccount)?;
 
         return Ok(Response::new(HandleOauthCallbackResp {
             account_id: account.id,
-            provider_user_name: account.provider_user_name.unwrap_or_default(),
-            provider_user_email: account.provider_user_email.unwrap_or_default(),
+            external_user_name: account.external_user_name.unwrap_or_default(),
+            external_user_email: account.external_user_email.unwrap_or_default(),
             user_id: account.user_id.map(|e| e.to_string()).unwrap_or_default(),
         }));
     }
@@ -324,8 +319,8 @@ pub(crate) mod tests {
     use crate::utils::{
         OAuthAccount, Session,
         tests::{
-            MockNow, MockRandomValueGenerator, assert_response, fixture_oauth_account,
-            fixture_session, fixture_token, fixture_uuid,
+            MockNow, MockRandom, assert_response, fixture_oauth_account, fixture_session,
+            fixture_token, fixture_uuid,
         },
     };
     use chrono::TimeZone;
@@ -365,8 +360,8 @@ pub(crate) mod tests {
             };
             let service = Handler {
                 db,
-                google: GoogleOAuth::<MockRandomValueGenerator>::default(),
-                github: GithubOAuth::<MockRandomValueGenerator>::default(),
+                google: GoogleOAuth::<MockRandom>::default(),
+                github: GithubOAuth::<MockRandom>::default(),
                 _now: PhantomData::<MockNow>,
             };
 
@@ -439,8 +434,8 @@ pub(crate) mod tests {
             };
             let service = Handler {
                 db,
-                google: GoogleOAuth::<MockRandomValueGenerator>::default(),
-                github: GithubOAuth::<MockRandomValueGenerator>::default(),
+                google: GoogleOAuth::<MockRandom>::default(),
+                github: GithubOAuth::<MockRandom>::default(),
                 _now: PhantomData::<MockNow>,
             };
 
@@ -535,8 +530,8 @@ pub(crate) mod tests {
             };
             let service = Handler {
                 db,
-                google: GoogleOAuth::<MockRandomValueGenerator>::default(),
-                github: GithubOAuth::<MockRandomValueGenerator>::default(),
+                google: GoogleOAuth::<MockRandom>::default(),
+                github: GithubOAuth::<MockRandom>::default(),
                 _now: PhantomData::<MockNow>,
             };
 
@@ -692,8 +687,8 @@ pub(crate) mod tests {
             };
             let service = Handler {
                 db,
-                google: GoogleOAuth::<MockRandomValueGenerator>::default(),
-                github: GithubOAuth::<MockRandomValueGenerator>::default(),
+                google: GoogleOAuth::<MockRandom>::default(),
+                github: GithubOAuth::<MockRandom>::default(),
                 _now: PhantomData::<MockNow>,
             };
 
