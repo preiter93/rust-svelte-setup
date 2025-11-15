@@ -8,6 +8,11 @@ default:
 build-services:
   docker compose --env-file .env -f services/docker-compose.yml build
 
+# Builds a single backend service
+[group: "build"]
+build-service target:
+  docker compose --env-file .env -f services/docker-compose.yml build {{ target }}
+
 # Build backend services synchronously
 [group: "build"]
 build-services-sync:
