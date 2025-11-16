@@ -4,7 +4,6 @@ members = [
     "gateway",
     "user",
     "dummy",
-    "pkg/helper",
     "pkg/setup",
     "pkg/oauth",
     "pkg/test-utils",
