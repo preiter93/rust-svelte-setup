@@ -19,7 +19,7 @@ tonic-prost = { workspace = true }
 tracing = {workspace = true }
 uuid = { workspace = true }
 
-sha2 = { version = "0.10" }
+sha2 = { version = "0.10.5" }
 
 setup = { version = "0.1", path = "../pkg/setup" }
 oauth = { version = "0.1", path = "../pkg/oauth" }
