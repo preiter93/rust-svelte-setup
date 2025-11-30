@@ -84,6 +84,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use tokio::sync::Mutex;
     use tonic::{Code, Request};
 
@@ -100,172 +101,93 @@ mod tests {
         },
     };
 
-    struct TestCaseCreateUser {
-        given_req: CreateUserReq,
-        given_db_insert_user: Result<(), DBError>,
-        want: Result<CreateUserResp, Code>,
-    }
-
-    impl Default for TestCaseCreateUser {
-        fn default() -> Self {
-            Self {
-                given_req: fixture_create_user_req(|_| {}),
-                given_db_insert_user: Ok(()),
-                want: Ok(CreateUserResp {
-                    user: Some(fixture_user(|_| {})),
-                }),
-            }
-        }
-    }
-
-    impl TestCaseCreateUser {
-        async fn run(self) {
-            // given
-            let db = MockDBClient {
-                insert_user: Mutex::new(Some(self.given_db_insert_user)),
-                ..Default::default()
-            };
-            let uuid = MockUuidGenerator::default();
-            let service = Handler { db, uuid };
-
-            // when
-            let req = Request::new(self.given_req);
-            let got = service.create_user(req).await;
-
-            // then
-            assert_response(got, self.want);
-        }
-    }
-
+    #[rstest]
+    #[case::happy(
+        fixture_create_user_req(|_| {}),
+        Ok(()),
+        Ok(CreateUserResp { user: Some(fixture_user(|_| {})) })
+    )]
+    #[case::missing_name(
+        fixture_create_user_req(|r| r.name.clear()),
+        Ok(()),
+        Err(Code::InvalidArgument)
+    )]
+    #[case::missing_email(
+        fixture_create_user_req(|r| r.email.clear()),
+        Ok(()),
+        Err(Code::InvalidArgument)
+    )]
+    #[case::internal_error(
+        fixture_create_user_req(|_| {}),
+        Err(DBError::Unknown),
+        Err(Code::Internal)
+    )]
     #[tokio::test]
-    async fn test_create_user_happy_path() {
-        TestCaseCreateUser {
+    async fn test_create_user(
+        #[case] req: CreateUserReq,
+        #[case] insert_res: Result<(), DBError>,
+        #[case] want: Result<CreateUserResp, Code>,
+    ) {
+        let db = MockDBClient {
+            insert_user: Mutex::new(Some(insert_res)),
             ..Default::default()
-        }
-        .run()
-        .await;
+        };
+
+        let service = Handler {
+            db,
+            uuid: MockUuidGenerator::default(),
+        };
+
+        let got = service.create_user(Request::new(req)).await;
+        assert_response(got, want);
     }
 
+    #[rstest]
+    #[case::happy_path(
+        fixture_uuid().to_string(),
+        Ok(fixture_user(|_| {})),
+        Ok(GetUserResp { user: Some(fixture_user(|_| {})) })
+    )]
+    #[case::missing_id(
+        "".to_string(),
+        Ok(fixture_user(|_| {})),
+        Err(Code::InvalidArgument)
+    )]
+    #[case::not_a_uuid(
+        "not-uuid".to_string(),
+        Ok(fixture_user(|_| {})),
+        Err(Code::InvalidArgument)
+    )]
+    #[case::not_found(
+        fixture_uuid().to_string(),
+        Err(DBError::NotFound),
+        Err(Code::NotFound)
+    )]
+    #[case::internal_error(
+        fixture_uuid().to_string(),
+        Err(DBError::Unknown),
+        Err(Code::Internal)
+    )]
     #[tokio::test]
-    async fn test_create_user_missing_name() {
-        TestCaseCreateUser {
-            given_req: fixture_create_user_req(|r| r.name = String::new()),
-            want: Err(Code::InvalidArgument),
+    async fn test_get_user(
+        #[case] id: String,
+        #[case] db_result: Result<User, DBError>,
+        #[case] want: Result<GetUserResp, Code>,
+    ) {
+        // given
+        let db = MockDBClient {
+            get_user: Mutex::new(Some(db_result)),
             ..Default::default()
-        }
-        .run()
-        .await;
-    }
+        };
+        let service = Handler {
+            db,
+            uuid: MockUuidGenerator::default(),
+        };
 
-    #[tokio::test]
-    async fn test_create_user_missing_email() {
-        TestCaseCreateUser {
-            given_req: fixture_create_user_req(|r| r.email = String::new()),
-            want: Err(Code::InvalidArgument),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
+        // when
+        let got = service.get_user(Request::new(GetUserReq { id })).await;
 
-    #[tokio::test]
-    async fn test_create_user_internal_error() {
-        TestCaseCreateUser {
-            given_db_insert_user: Err(DBError::Unknown),
-            want: Err(Code::Internal),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    struct TestCaseGetUser {
-        given_id: String,
-        given_db_get_user: Result<User, DBError>,
-        want: Result<GetUserResp, Code>,
-    }
-
-    impl Default for TestCaseGetUser {
-        fn default() -> Self {
-            Self {
-                given_id: fixture_uuid().to_string(),
-                given_db_get_user: Ok(fixture_user(|_| {})),
-                want: Ok(GetUserResp {
-                    user: Some(fixture_user(|_| {})),
-                }),
-            }
-        }
-    }
-
-    impl TestCaseGetUser {
-        async fn run(self) {
-            // given
-            let db = MockDBClient {
-                get_user: Mutex::new(Some(self.given_db_get_user)),
-                ..Default::default()
-            };
-            let uuid = MockUuidGenerator::default();
-            let service = Handler { db, uuid };
-
-            // when
-            let req = Request::new(GetUserReq { id: self.given_id });
-            let got = service.get_user(req).await;
-
-            // then
-            assert_response(got, self.want);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_get_user_happy_path() {
-        TestCaseGetUser {
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_get_user_missing_id() {
-        TestCaseGetUser {
-            given_id: String::new(),
-            want: Err(Code::InvalidArgument),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_get_user_not_a_uuid() {
-        TestCaseGetUser {
-            given_id: "not-uuid".to_string(),
-            want: Err(Code::InvalidArgument),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_get_user_not_found() {
-        TestCaseGetUser {
-            given_db_get_user: Err(DBError::NotFound),
-            want: Err(Code::NotFound),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_get_user_internal_error() {
-        TestCaseGetUser {
-            given_db_get_user: Err(DBError::Unknown),
-            want: Err(Code::Internal),
-            ..Default::default()
-        }
-        .run()
-        .await;
+        // then
+        assert_response(got, want);
     }
 }

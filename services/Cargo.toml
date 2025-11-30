@@ -45,3 +45,6 @@ opentelemetry_sdk = { version = "0.30", features = ["rt-tokio"] }
 tracing = { version = "0.1" }
 tracing-opentelemetry = { version = "0.31" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Testing
+rstest = { version = "0.26" }

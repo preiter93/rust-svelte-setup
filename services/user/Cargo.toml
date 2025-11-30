@@ -21,6 +21,8 @@ tracing = {workspace = true }
 setup = { version = "0.1", path = "../pkg/setup" }
 
 [dev-dependencies]
+rstest = { workspace = true }
+
 test-utils = { version = "0.1", path = "../pkg/test-utils" }
 
 [features]
