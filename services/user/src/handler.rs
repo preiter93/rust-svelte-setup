@@ -36,7 +36,7 @@ where
         let req = req.into_inner();
         let id = self.uuid.generate();
 
-        tracing::Span::current().record("user_id", &id.to_string());
+        tracing::Span::current().record("user_id", id.to_string());
 
         let name = req.name;
         if name.is_empty() {
