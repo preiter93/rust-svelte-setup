@@ -86,7 +86,7 @@ where
             id,
             secret_hash: hash_secret(&secret),
             created_at: N::now(),
-            user_id: user_id,
+            user_id,
             ..Default::default()
         };
 
@@ -141,11 +141,11 @@ where
         }
 
         let mut should_refresh_cookie = false;
-        if session.expires_at.signed_duration_since(N::now()) < SESSION_TOKEN_EXPIRY_DURATION / 2 {
-            if let Some(new_expiry) = N::now().checked_add_signed(SESSION_TOKEN_EXPIRY_DURATION) {
-                let _ = self.db.update_session(session_id, &new_expiry).await;
-                should_refresh_cookie = true;
-            }
+        if session.expires_at.signed_duration_since(N::now()) < SESSION_TOKEN_EXPIRY_DURATION / 2
+            && let Some(new_expiry) = N::now().checked_add_signed(SESSION_TOKEN_EXPIRY_DURATION)
+        {
+            let _ = self.db.update_session(session_id, &new_expiry).await;
+            should_refresh_cookie = true;
         }
 
         let token_secret_hash = hash_secret(session_secret);
