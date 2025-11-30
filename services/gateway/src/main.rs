@@ -5,7 +5,7 @@ mod utils;
 use crate::handler::{
     Handler, get_current_user, handle_oauth_callback, logout_user, start_oauth_login,
 };
-use auth::AuthClient;
+use auth::client::AuthClient;
 use axum::{
     Router,
     http::{

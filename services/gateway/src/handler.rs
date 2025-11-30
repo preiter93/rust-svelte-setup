@@ -1,10 +1,10 @@
 use crate::error::{ApiError, OAuthError};
 use crate::utils::{OAUTH_CODE_VERIFIER, OAUTH_STATE, OauthCookieJar, parse_provider};
+use auth::client::{AuthClient, IAuthClient};
 use auth::proto::{
     CreateSessionReq, DeleteSessionReq, HandleOauthCallbackReq, LinkOauthAccountReq,
     StartOauthLoginReq,
 };
-use auth::{AuthClient, IAuthClient};
 use axum::{
     Extension, Json,
     body::Body,
@@ -21,12 +21,8 @@ use setup::cookie::{
 use setup::session::SessionState;
 use tonic::{Code, Request, Status};
 use tracing::instrument;
-use user::IUserClient;
-use user::proto::CreateUserReq;
-use user::{
-    UserClient,
-    proto::{GetUserReq, GetUserResp},
-};
+use user::client::{IUserClient, UserClient};
+use user::proto::{CreateUserReq, GetUserReq, GetUserResp};
 
 #[derive(Clone)]
 pub(crate) struct Handler {

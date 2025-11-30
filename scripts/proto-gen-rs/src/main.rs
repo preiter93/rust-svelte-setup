@@ -1,4 +1,9 @@
-fn main() -> std::io::Result<()> {
+mod client;
+mod proto;
+mod utils;
+use crate::{client::generate_client, proto::generate_protos, utils::compile_proto};
+
+fn main() -> anyhow::Result<()> {
     let current_dir = std::env::current_dir()?;
     let proto_files = std::fs::read_dir(&current_dir)?
         .filter_map(Result::ok)
@@ -8,17 +13,19 @@ fn main() -> std::io::Result<()> {
         })
         .map(|entry| entry.path())
         .collect::<Vec<_>>();
+
     let mut src_dir = current_dir.clone();
     src_dir.push("src");
 
     if !proto_files.is_empty() {
-        tonic_prost_build::configure()
-            .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
-            .compile_well_known_types(false)
-            .extern_path(".google.protobuf.Timestamp", "::prost_wkt_types::Timestamp")
-            .out_dir(&src_dir)
-            .compile_protos(&proto_files, &[current_dir])
-            .expect("Failed to compile protos");
+        // Generate protobuf code
+        generate_protos(src_dir.clone(), &proto_files, current_dir.clone());
+
+        // Generate custom client code
+        for proto_path in proto_files {
+            let fds = compile_proto(&proto_path)?;
+            generate_client(&src_dir, &current_dir, &fds)?;
+        }
     }
 
     Ok(())
