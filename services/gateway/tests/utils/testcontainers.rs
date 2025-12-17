@@ -1,12 +1,8 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex, OnceLock, Weak},
-    time::Duration,
-};
+use std::{collections::HashMap, time::Duration};
+use testcontainers::{ContainerAsync, GenericImage, ImageExt, core::WaitFor};
 use testcontainers::{core::ContainerPort, runners::AsyncRunner};
 use tokio::io::AsyncBufReadExt;
-
-use testcontainers::{ContainerAsync, GenericImage, ImageExt, core::WaitFor};
+use tokio::sync::OnceCell;
 use tokio::{io::BufReader, time::timeout};
 
 #[allow(dead_code)]
@@ -18,23 +14,43 @@ pub(crate) struct TestContainers {
 }
 
 /// [`TESTCONTAINERS`] ensures that containers are shared across all integration tests.
-/// It uses a [`Weak`] reference so that [`TestContainers`] are automatically dropped
-/// and Docker containers are cleaned up after all tests have completed.
-static TESTCONTAINERS: OnceLock<Mutex<Weak<TestContainers>>> = OnceLock::new();
+/// OnceCell ensures the containers are started only once across all tests.
+static TESTCONTAINERS: OnceCell<TestContainers> = OnceCell::const_new();
 
-pub async fn get_test_containers() -> Arc<TestContainers> {
-    let mut guard = TESTCONTAINERS
-        .get_or_init(|| Mutex::new(Weak::new()))
-        .lock()
-        .unwrap();
+/// Shutdown containers when the process exits.
+///
+/// Note:
+/// A static OnceLock does not automatically Drop when the program is
+/// terminated. That means test containers won't be cleaned up
+/// automatically thus we explicitly stop the containers here.
+///
+/// For more context, see:
+/// <https://github.com/testcontainers/testcontainers-rs/issues/707>
+#[dtor::dtor]
+fn on_shutdown() {
+    let Some(containers) = TESTCONTAINERS.get() else {
+        return;
+    };
 
-    if let Some(container) = guard.upgrade() {
-        return container;
+    let container_ids = vec![
+        containers.postgres.id(),
+        containers.auth.id(),
+        containers.user.id(),
+        containers.gateway.id(),
+    ];
+
+    for container_id in container_ids {
+        std::process::Command::new("docker")
+            .args(["container", "rm", "-f", container_id])
+            .output()
+            .expect("failed to stop testcontainer");
     }
+}
 
-    let container = Arc::new(TestContainers::init().await);
-    *guard = Arc::downgrade(&container);
-    container
+pub async fn get_test_containers() -> &'static TestContainers {
+    TESTCONTAINERS
+        .get_or_init(|| async { TestContainers::init().await })
+        .await
 }
 
 impl TestContainers {

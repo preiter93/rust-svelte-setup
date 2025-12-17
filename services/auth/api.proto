@@ -2,46 +2,59 @@ syntax = "proto3";
 
 package proto;
 
-import "google/protobuf/timestamp.proto";
-
+// Service for authentication, session management, and OAuth integration.
 service ApiService {
-  rpc CreateSession(CreateSessionReq) returns (CreateSessionResp) {}
-  rpc ValidateSession(ValidateSessionReq) returns (ValidateSessionResp) {}
-  rpc DeleteSession(DeleteSessionReq) returns (DeleteSessionResp) {}
+    // Creates a new session for a user.
+    rpc CreateSession(CreateSessionReq) returns (CreateSessionResp) {}
+    // Validates an existing session token.
+    rpc ValidateSession(ValidateSessionReq) returns (ValidateSessionResp) {}
+    // Deletes/invalidates a session.
+    rpc DeleteSession(DeleteSessionReq) returns (DeleteSessionResp) {}
 
-  rpc StartOauthLogin(StartOauthLoginReq) returns (StartOauthLoginResp) {}
-  rpc HandleOauthCallback(HandleOauthCallbackReq) returns (HandleOauthCallbackResp);
-  rpc LinkOauthAccount(LinkOauthAccountReq) returns (LinkOauthAccountResp) {}
-  rpc GetOauthAccount(GetOauthAccountReq) returns (GetOauthAccountResp) {}
+    // Starts OAuth login flow and returns authorization URL.
+    rpc StartOauthLogin(StartOauthLoginReq) returns (StartOauthLoginResp) {}
+    // Handles OAuth callback and exchanges code for tokens.
+    rpc HandleOauthCallback(HandleOauthCallbackReq) returns (HandleOauthCallbackResp);
+    // Links an OAuth account to a user.
+    rpc LinkOauthAccount(LinkOauthAccountReq) returns (LinkOauthAccountResp) {}
+    // Gets OAuth account information for a user.
+    rpc GetOauthAccount(GetOauthAccountReq) returns (GetOauthAccountResp) {}
 }
 
 message Session {
-  string token = 1;
+    // The session token.
+    string token = 1;
 }
 
 
 message CreateSessionReq {
-  string user_id = 1;
+    // The user ID to create a session for.
+    string user_id = 1;
 }
 
 message CreateSessionResp {
+    // The created session token.
     string token = 1;
 }
 
 message ValidateSessionReq {
-  string token = 1;
+    // The session token to validate.
+    string token = 1;
 }
 
 message ValidateSessionResp {
-  string user_id = 1;
-  bool should_refresh_cookie = 2;
+    // The user ID associated with the session.
+    string user_id = 1;
+    // Whether the session cookie should be refreshed.
+    bool should_refresh_cookie = 2;
 }
 
 message DeleteSessionReq {
-  string token = 1;
+    // The session token to delete.
+    string token = 1;
 }
 
-message DeleteSessionResp { }
+message DeleteSessionResp {}
 
 enum OauthProvider {
     OAUTH_PROVIDER_UNSPECIFIED = 0;
@@ -50,40 +63,56 @@ enum OauthProvider {
 }
 
 message StartOauthLoginReq {
-  OauthProvider provider = 1;
+    // The OAuth provider to start login with.
+    OauthProvider provider = 1;
 }
 
 message StartOauthLoginResp {
-  string state = 1;
-  string authorization_url = 2;
-  string code_verifier = 3;
+    // OAuth state parameter for CSRF protection.
+    string state = 1;
+    // Authorization URL to redirect user to.
+    string authorization_url = 2;
+    // Code verifier for PKCE.
+    string code_verifier = 3;
 }
 
 message HandleOauthCallbackReq {
-  OauthProvider provider = 1;
-  string code = 2;
-  string code_verifier = 3;
+    // The OAuth provider.
+    OauthProvider provider = 1;
+    // Authorization code from OAuth callback.
+    string code = 2;
+    // Code verifier for PKCE.
+    string code_verifier = 3;
 }
 
 message HandleOauthCallbackResp {
-  string account_id = 1;
-  string external_user_email = 2;
-  string external_user_name = 3;
-  string user_id = 4;
+    // The OAuth account ID.
+    string account_id = 1;
+    // The associated user ID.
+    string user_id = 2;
+    // User's email from OAuth provider.
+    string external_user_email = 3;
+    // User's name from OAuth provider.
+    string external_user_name = 4;
 }
 
 message LinkOauthAccountReq {
-  string account_id = 1;
-  string user_id = 2;
+    // The OAuth account ID to link.
+    string account_id = 1;
+    // The user ID to link to.
+    string user_id = 2;
 }
 
-message LinkOauthAccountResp { }
+message LinkOauthAccountResp {}
 
 message GetOauthAccountReq {
-  string user_id = 1;
-  OauthProvider provider = 2;
+    // The user ID to get OAuth account for.
+    string user_id = 1;
+    // The OAuth provider.
+    OauthProvider provider = 2;
 }
 
 message GetOauthAccountResp {
-  string access_token = 1;
+    // The external user ID from OAuth provider.
+    string external_user_id = 1;
 }

@@ -1,10 +1,11 @@
 use crate::error::{DBError, Error};
-use crate::utils::{UuidGenerator, validate_entity_id};
+use crate::utils::validate_entity_id;
 
 use crate::{
     db::DBClient,
     proto::{GetEntityReq, GetEntityResp, api_service_server::ApiService},
 };
+use common::UuidGenerator;
 use setup::validate_user_id;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
@@ -50,6 +51,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use tokio::sync::Mutex;
     use tonic::{Code, Request};
 
@@ -58,101 +60,61 @@ mod tests {
         error::DBError,
         handler::Handler,
         proto::{Entity, GetEntityReq, GetEntityResp, api_service_server::ApiService as _},
-        utils::test::{
-            MockUuidGenerator, assert_response, fixture_entity, fixture_get_entity_req,
-            fixture_get_entity_resp,
-        },
+        utils::test::{fixture_entity, fixture_get_entity_req, fixture_get_entity_resp},
     };
 
-    struct TestCaseGetEntity {
-        given_req: GetEntityReq,
-        given_db_get_entity: Result<Entity, DBError>,
-        want_resp: Result<GetEntityResp, Code>,
-    }
-
-    impl Default for TestCaseGetEntity {
-        fn default() -> Self {
-            Self {
-                given_req: fixture_get_entity_req(|_| {}),
-                given_db_get_entity: Ok(fixture_entity(|_| {})),
-                want_resp: Ok(fixture_get_entity_resp(|_| {})),
-            }
-        }
-    }
-
-    impl TestCaseGetEntity {
-        async fn run(self) {
-            // given
-            let db = MockDBClient {
-                get_entity: Mutex::new(Some(self.given_db_get_entity)),
-                ..Default::default()
-            };
-            let uuid = MockUuidGenerator::default();
-            let service = Handler { db, uuid };
-
-            // when
-            let req = Request::new(self.given_req);
-            let got = service.get_entity(req).await;
-
-            // then
-            assert_response(got, self.want_resp);
-        }
-    }
-
+    // --------------------------
+    // GetEntity
+    // --------------------------
+    #[rstest]
+    #[case::happy_path(
+    fixture_get_entity_req(|_| {}),
+    Ok(fixture_entity(|_| {})),
+    Ok(fixture_get_entity_resp(|_| {}))
+)]
+    #[case::missing_id(
+    fixture_get_entity_req(|v| { v.id = String::new(); }),
+    Ok(fixture_entity(|_| {})),
+    Err(Code::InvalidArgument)
+)]
+    #[case::missing_user_id(
+    fixture_get_entity_req(|v| { v.user_id = String::new(); }),
+    Ok(fixture_entity(|_| {})),
+    Err(Code::InvalidArgument)
+)]
+    #[case::not_found(
+    fixture_get_entity_req(|_| {}),
+    Err(DBError::NotFound),
+    Err(Code::NotFound)
+)]
+    #[case::internal_error(
+    fixture_get_entity_req(|_| {}),
+    Err(DBError::Unknown),
+    Err(Code::Internal)
+)]
     #[tokio::test]
-    async fn test_get_entity_happy_path() {
-        TestCaseGetEntity {
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
+    async fn test_get_entity(
+        #[case] req: GetEntityReq,
+        #[case] db_result: Result<Entity, DBError>,
+        #[case] want: Result<GetEntityResp, Code>,
+    ) {
+        // given
 
-    #[tokio::test]
-    async fn test_get_entity_missing_id() {
-        TestCaseGetEntity {
-            given_req: fixture_get_entity_req(|v| {
-                v.id = String::new();
-            }),
-            want_resp: Err(Code::InvalidArgument),
+        use common::mock::MockUuidGenerator;
+        use testutils::assert_response;
+        let db = MockDBClient {
+            get_entity: Mutex::new(Some(db_result)),
             ..Default::default()
-        }
-        .run()
-        .await;
-    }
+        };
+        let service = Handler {
+            db,
+            uuid: MockUuidGenerator::default(),
+        };
 
-    #[tokio::test]
-    async fn test_get_entity_missing_user_id() {
-        TestCaseGetEntity {
-            given_req: fixture_get_entity_req(|v| {
-                v.user_id = String::new();
-            }),
-            want_resp: Err(Code::InvalidArgument),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
+        // when
+        let got = service.get_entity(Request::new(req)).await;
 
-    #[tokio::test]
-    async fn test_get_entity_not_found() {
-        TestCaseGetEntity {
-            given_db_get_entity: Err(DBError::NotFound),
-            want_resp: Err(Code::NotFound),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_get_entity_internal_error() {
-        TestCaseGetEntity {
-            given_db_get_entity: Err(DBError::Unknown),
-            want_resp: Err(Code::Internal),
-            ..Default::default()
-        }
-        .run()
-        .await;
+        // then
+        assert_response(got, want);
     }
 }

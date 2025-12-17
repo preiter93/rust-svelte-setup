@@ -19,10 +19,13 @@ uuid = { workspace = true }
 tracing = {workspace = true }
 
 setup = { version = "0.1", path = "../pkg/setup" }
+common = { version = "0.1", path = "../pkg/common" }
 
 [dev-dependencies]
-test-utils = { version = "0.1", path = "../pkg/test-utils" }
+rstest = { workspace = true }
+testutils = { version = "0.1", path = "../pkg/testutils" }
+common = { version = "0.1", path = "../pkg/common", features = ["mock"] }
 
 [features]
-default = ["test-utils"]
-test-utils = []
+default = ["testutils"]
+testutils = []

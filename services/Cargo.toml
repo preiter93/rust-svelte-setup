@@ -4,9 +4,10 @@ members = [
     "gateway",
     "user",
     "dummy",
+    "pkg/common",
     "pkg/setup",
     "pkg/oauth",
-    "pkg/test-utils",
+    "pkg/testutils",
 ]
 
 resolver = "2"

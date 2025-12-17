@@ -2,38 +2,45 @@
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Session {
+    /// The session token.
     #[prost(string, tag = "1")]
     pub token: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CreateSessionReq {
+    /// The user ID to create a session for.
     #[prost(string, tag = "1")]
     pub user_id: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CreateSessionResp {
+    /// The created session token.
     #[prost(string, tag = "1")]
     pub token: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ValidateSessionReq {
+    /// The session token to validate.
     #[prost(string, tag = "1")]
     pub token: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ValidateSessionResp {
+    /// The user ID associated with the session.
     #[prost(string, tag = "1")]
     pub user_id: ::prost::alloc::string::String,
+    /// Whether the session cookie should be refreshed.
     #[prost(bool, tag = "2")]
     pub should_refresh_cookie: bool,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteSessionReq {
+    /// The session token to delete.
     #[prost(string, tag = "1")]
     pub token: ::prost::alloc::string::String,
 }
@@ -43,46 +50,59 @@ pub struct DeleteSessionResp {}
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct StartOauthLoginReq {
+    /// The OAuth provider to start login with.
     #[prost(enumeration = "OauthProvider", tag = "1")]
     pub provider: i32,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct StartOauthLoginResp {
+    /// OAuth state parameter for CSRF protection.
     #[prost(string, tag = "1")]
     pub state: ::prost::alloc::string::String,
+    /// Authorization URL to redirect user to.
     #[prost(string, tag = "2")]
     pub authorization_url: ::prost::alloc::string::String,
+    /// Code verifier for PKCE.
     #[prost(string, tag = "3")]
     pub code_verifier: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct HandleOauthCallbackReq {
+    /// The OAuth provider.
     #[prost(enumeration = "OauthProvider", tag = "1")]
     pub provider: i32,
+    /// Authorization code from OAuth callback.
     #[prost(string, tag = "2")]
     pub code: ::prost::alloc::string::String,
+    /// Code verifier for PKCE.
     #[prost(string, tag = "3")]
     pub code_verifier: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct HandleOauthCallbackResp {
+    /// The OAuth account ID.
     #[prost(string, tag = "1")]
     pub account_id: ::prost::alloc::string::String,
+    /// The associated user ID.
     #[prost(string, tag = "2")]
-    pub external_user_email: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub external_user_name: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
     pub user_id: ::prost::alloc::string::String,
+    /// User's email from OAuth provider.
+    #[prost(string, tag = "3")]
+    pub external_user_email: ::prost::alloc::string::String,
+    /// User's name from OAuth provider.
+    #[prost(string, tag = "4")]
+    pub external_user_name: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct LinkOauthAccountReq {
+    /// The OAuth account ID to link.
     #[prost(string, tag = "1")]
     pub account_id: ::prost::alloc::string::String,
+    /// The user ID to link to.
     #[prost(string, tag = "2")]
     pub user_id: ::prost::alloc::string::String,
 }
@@ -92,16 +112,19 @@ pub struct LinkOauthAccountResp {}
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GetOauthAccountReq {
+    /// The user ID to get OAuth account for.
     #[prost(string, tag = "1")]
     pub user_id: ::prost::alloc::string::String,
+    /// The OAuth provider.
     #[prost(enumeration = "OauthProvider", tag = "2")]
     pub provider: i32,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GetOauthAccountResp {
+    /// The external user ID from OAuth provider.
     #[prost(string, tag = "1")]
-    pub access_token: ::prost::alloc::string::String,
+    pub external_user_id: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -144,6 +167,7 @@ pub mod api_service_client {
     )]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    /// Service for authentication, session management, and OAuth integration.
     #[derive(Debug, Clone)]
     pub struct ApiServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -224,6 +248,7 @@ pub mod api_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
+        /// Creates a new session for a user.
         pub async fn create_session(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateSessionReq>,
@@ -248,6 +273,7 @@ pub mod api_service_client {
                 .insert(GrpcMethod::new("proto.ApiService", "CreateSession"));
             self.inner.unary(req, path, codec).await
         }
+        /// Validates an existing session token.
         pub async fn validate_session(
             &mut self,
             request: impl tonic::IntoRequest<super::ValidateSessionReq>,
@@ -272,6 +298,7 @@ pub mod api_service_client {
                 .insert(GrpcMethod::new("proto.ApiService", "ValidateSession"));
             self.inner.unary(req, path, codec).await
         }
+        /// Deletes/invalidates a session.
         pub async fn delete_session(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteSessionReq>,
@@ -296,6 +323,7 @@ pub mod api_service_client {
                 .insert(GrpcMethod::new("proto.ApiService", "DeleteSession"));
             self.inner.unary(req, path, codec).await
         }
+        /// Starts OAuth login flow and returns authorization URL.
         pub async fn start_oauth_login(
             &mut self,
             request: impl tonic::IntoRequest<super::StartOauthLoginReq>,
@@ -320,6 +348,7 @@ pub mod api_service_client {
                 .insert(GrpcMethod::new("proto.ApiService", "StartOauthLogin"));
             self.inner.unary(req, path, codec).await
         }
+        /// Handles OAuth callback and exchanges code for tokens.
         pub async fn handle_oauth_callback(
             &mut self,
             request: impl tonic::IntoRequest<super::HandleOauthCallbackReq>,
@@ -344,6 +373,7 @@ pub mod api_service_client {
                 .insert(GrpcMethod::new("proto.ApiService", "HandleOauthCallback"));
             self.inner.unary(req, path, codec).await
         }
+        /// Links an OAuth account to a user.
         pub async fn link_oauth_account(
             &mut self,
             request: impl tonic::IntoRequest<super::LinkOauthAccountReq>,
@@ -368,6 +398,7 @@ pub mod api_service_client {
                 .insert(GrpcMethod::new("proto.ApiService", "LinkOauthAccount"));
             self.inner.unary(req, path, codec).await
         }
+        /// Gets OAuth account information for a user.
         pub async fn get_oauth_account(
             &mut self,
             request: impl tonic::IntoRequest<super::GetOauthAccountReq>,
@@ -407,6 +438,7 @@ pub mod api_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with ApiServiceServer.
     #[async_trait]
     pub trait ApiService: std::marker::Send + std::marker::Sync + 'static {
+        /// Creates a new session for a user.
         async fn create_session(
             &self,
             request: tonic::Request<super::CreateSessionReq>,
@@ -414,6 +446,7 @@ pub mod api_service_server {
             tonic::Response<super::CreateSessionResp>,
             tonic::Status,
         >;
+        /// Validates an existing session token.
         async fn validate_session(
             &self,
             request: tonic::Request<super::ValidateSessionReq>,
@@ -421,6 +454,7 @@ pub mod api_service_server {
             tonic::Response<super::ValidateSessionResp>,
             tonic::Status,
         >;
+        /// Deletes/invalidates a session.
         async fn delete_session(
             &self,
             request: tonic::Request<super::DeleteSessionReq>,
@@ -428,6 +462,7 @@ pub mod api_service_server {
             tonic::Response<super::DeleteSessionResp>,
             tonic::Status,
         >;
+        /// Starts OAuth login flow and returns authorization URL.
         async fn start_oauth_login(
             &self,
             request: tonic::Request<super::StartOauthLoginReq>,
@@ -435,6 +470,7 @@ pub mod api_service_server {
             tonic::Response<super::StartOauthLoginResp>,
             tonic::Status,
         >;
+        /// Handles OAuth callback and exchanges code for tokens.
         async fn handle_oauth_callback(
             &self,
             request: tonic::Request<super::HandleOauthCallbackReq>,
@@ -442,6 +478,7 @@ pub mod api_service_server {
             tonic::Response<super::HandleOauthCallbackResp>,
             tonic::Status,
         >;
+        /// Links an OAuth account to a user.
         async fn link_oauth_account(
             &self,
             request: tonic::Request<super::LinkOauthAccountReq>,
@@ -449,6 +486,7 @@ pub mod api_service_server {
             tonic::Response<super::LinkOauthAccountResp>,
             tonic::Status,
         >;
+        /// Gets OAuth account information for a user.
         async fn get_oauth_account(
             &self,
             request: tonic::Request<super::GetOauthAccountReq>,
@@ -457,6 +495,7 @@ pub mod api_service_server {
             tonic::Status,
         >;
     }
+    /// Service for authentication, session management, and OAuth integration.
     #[derive(Debug)]
     pub struct ApiServiceServer<T> {
         inner: Arc<T>,

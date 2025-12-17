@@ -58,3 +58,26 @@ impl RandomSource for SecureRandom {
         Uuid::new_v4()
     }
 }
+
+#[cfg(feature = "mock")]
+pub mod mock {
+    use super::*;
+
+    /// Mock random generator for testing.
+    #[derive(Default, Clone)]
+    pub struct MockRandom;
+
+    impl RandomSource for MockRandom {
+        fn alphanumeric(_: usize) -> String {
+            "secret".to_string()
+        }
+
+        fn base64_url(_: usize) -> String {
+            "secret-encoded".to_string()
+        }
+
+        fn uuid() -> Uuid {
+            Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+        }
+    }
+}

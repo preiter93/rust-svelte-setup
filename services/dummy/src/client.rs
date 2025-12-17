@@ -38,8 +38,8 @@ impl IDummyClient for DummyClient {
     }
 }
 
-#[cfg(feature = "test-utils")]
-pub mod test_utils {
+#[cfg(feature = "testutils")]
+pub mod testutils {
     use super::*;
     use tokio::sync::Mutex;
     use tonic::{Request, Response, Status};

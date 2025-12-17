@@ -8,11 +8,6 @@ type SubtypeConstructor<Constructor extends new (...args: any) => any, Subtype> 
 };
 
 export interface ProtoGrpcType {
-  google: {
-    protobuf: {
-      Timestamp: MessageTypeDefinition
-    }
-  }
   proto: {
     ApiService: SubtypeConstructor<typeof grpc.Client, _proto_ApiServiceClient> & { service: _proto_ApiServiceDefinition }
     CreateSessionReq: MessageTypeDefinition

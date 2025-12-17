@@ -91,16 +91,18 @@ name = "auth"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "common",
  "deadpool-postgres",
  "dotenv",
  "oauth",
  "prost 0.14.1",
  "refinery",
  "reqwest",
+ "rstest",
  "serde",
  "setup",
  "sha2",
- "test-utils",
+ "testutils",
  "thiserror 2.0.12",
  "tokio",
  "tokio-postgres",
@@ -360,6 +362,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "uuid",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -532,13 +542,15 @@ name = "dummy"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "common",
  "deadpool-postgres",
  "dotenv",
  "prost 0.14.1",
  "refinery",
+ "rstest",
  "serde",
  "setup",
- "test-utils",
+ "testutils",
  "thiserror 2.0.12",
  "tokio",
  "tokio-postgres",
@@ -722,6 +734,7 @@ dependencies = [
  "auth",
  "axum",
  "axum-macros",
+ "dtor",
  "reqwest",
  "serde",
  "serde_json",
@@ -2588,17 +2601,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "test-utils"
-version = "0.1.0"
-dependencies = [
- "deadpool-postgres",
- "dtor",
- "refinery",
- "testcontainers",
- "tokio",
-]
-
-[[package]]
 name = "testcontainers"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2626,6 +2628,18 @@ dependencies = [
  "tokio-util",
  "ulid",
  "url",
+]
+
+[[package]]
+name = "testutils"
+version = "0.1.0"
+dependencies = [
+ "deadpool-postgres",
+ "dtor",
+ "refinery",
+ "testcontainers",
+ "tokio",
+ "tonic 0.14.2",
 ]
 
 [[package]]
@@ -3214,7 +3228,7 @@ dependencies = [
  "rstest",
  "serde",
  "setup",
- "test-utils",
+ "testutils",
  "thiserror 2.0.12",
  "tokio",
  "tokio-postgres",

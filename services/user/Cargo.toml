@@ -23,8 +23,8 @@ setup = { version = "0.1", path = "../pkg/setup" }
 [dev-dependencies]
 rstest = { workspace = true }
 
-test-utils = { version = "0.1", path = "../pkg/test-utils" }
+testutils = { version = "0.1", path = "../pkg/testutils" }
 
 [features]
-default = ["test-utils"]
-test-utils = []
+default = ["testutils"]
+testutils = []

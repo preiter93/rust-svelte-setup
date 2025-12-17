@@ -3,14 +3,14 @@
 
 export interface HandleOauthCallbackResp {
   'account_id'?: (string);
+  'user_id'?: (string);
   'external_user_email'?: (string);
   'external_user_name'?: (string);
-  'user_id'?: (string);
 }
 
 export interface HandleOauthCallbackResp__Output {
   'account_id': (string);
+  'user_id': (string);
   'external_user_email': (string);
   'external_user_name': (string);
-  'user_id': (string);
 }

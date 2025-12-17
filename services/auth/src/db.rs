@@ -221,7 +221,7 @@ pub(crate) mod test {
     use crate::{SERVICE_NAME, error::DBError};
     use chrono::TimeZone;
     use std::sync::Arc;
-    use test_utils::get_test_db;
+    use testutils::get_test_db;
     use tokio::sync::Mutex;
     use tonic::async_trait;
 

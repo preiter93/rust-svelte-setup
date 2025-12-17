@@ -80,7 +80,7 @@ pub mod test {
         proto::Entity,
         utils::test::{fixture_entity, fixture_uuid},
     };
-    use test_utils::get_test_db;
+    use testutils::get_test_db;
     use tokio::sync::Mutex;
     use tonic::async_trait;
     use uuid::Uuid;

@@ -1,0 +1,13 @@
+[package]
+name = "testutils"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+deadpool-postgres = { workspace = true }
+refinery = { workspace = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+
+dtor = { version = "0.1.0" }
+testcontainers = { version = "0.25.0" }

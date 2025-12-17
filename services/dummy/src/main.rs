@@ -5,7 +5,8 @@ pub mod handler;
 pub mod proto;
 pub mod utils;
 
-use crate::{handler::Handler, utils::UuidV4Generator};
+use crate::handler::Handler;
+use common::UuidV4Generator;
 use db::PostgresDBClient;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;

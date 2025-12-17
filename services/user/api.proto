@@ -1,6 +1,7 @@
 syntax = "proto3";
 package proto;
 
+// Service for managing users.
 service ApiService {
     // Creates a new user.
     rpc CreateUser(CreateUserReq) returns (CreateUserResp) {}
@@ -9,24 +10,32 @@ service ApiService {
 }
 
 message CreateUserReq {
+    // The user's display name.
     string name = 1;
+    // The user's email address.
     string email = 2;
 }
 
 message CreateUserResp {
+    // The created user.
     User user = 1;
 }
 
 message GetUserReq {
+    // The user ID to retrieve.
     string id = 1;
 }
 
 message GetUserResp {
+    // The requested user.
     User user = 1;
 }
 
 message User {
+    // Unique identifier for the user.
     string id = 1;
+    // The user's display name.
     string name = 2;
+    // The user's email address.
     string email = 3;
 }

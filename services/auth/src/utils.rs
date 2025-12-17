@@ -60,21 +60,6 @@ impl TryFrom<&Row> for OAuthAccount {
     }
 }
 
-/// Trait for providing the current UTC time.
-pub trait Now: Send + Sync + 'static {
-    /// Returns the current UTC time.
-    fn now() -> chrono::DateTime<chrono::Utc>;
-}
-
-/// Implementation of `UTC` that returns the actual current time.
-pub struct SystemNow;
-
-impl Now for SystemNow {
-    fn now() -> chrono::DateTime<chrono::Utc> {
-        chrono::Utc::now()
-    }
-}
-
 /// Hashes a secret using SHA-256. While SHA-256 is unsuitable
 /// for user passwords, because the secret has 120 bits of entropy
 /// an offline brute-force attack is impossible.
@@ -143,8 +128,6 @@ async fn get_jwks(endpoint: &str) -> Result<Jwks, Box<dyn std::error::Error>> {
 #[cfg(test)]
 pub(crate) mod tests {
     use chrono::TimeZone;
-    use oauth::RandomSource;
-    use tonic::{Code, Response, Status};
 
     use super::*;
 
@@ -169,43 +152,6 @@ pub(crate) mod tests {
         };
         func(&mut session);
         session
-    }
-
-    #[derive(Default, Clone)]
-    pub(crate) struct MockRandom;
-
-    impl RandomSource for MockRandom {
-        fn alphanumeric(_: usize) -> String {
-            "secret".to_string()
-        }
-
-        fn base64_url(_: usize) -> String {
-            "secret-encoded".to_string()
-        }
-
-        fn uuid() -> Uuid {
-            Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
-        }
-    }
-
-    pub struct MockNow;
-
-    impl Now for MockNow {
-        fn now() -> chrono::DateTime<chrono::Utc> {
-            chrono::Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap()
-        }
-    }
-
-    pub(crate) fn assert_response<T: PartialEq + std::fmt::Debug>(
-        got: Result<Response<T>, Status>,
-        want: Result<T, Code>,
-    ) {
-        match (got, want) {
-            (Ok(got), Ok(want)) => assert_eq!(got.into_inner(), want),
-            (Err(got), Err(want)) => assert_eq!(got.code(), want),
-            (Ok(got), Err(want)) => panic!("left: {got:?}\nright: {want}"),
-            (Err(got), Ok(want)) => panic!("left: {got}\nright: {want:?}"),
-        }
     }
 
     pub(crate) fn fixture_oauth_account<F>(mut func: F) -> OAuthAccount

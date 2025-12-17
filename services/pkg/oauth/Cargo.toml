@@ -17,3 +17,7 @@ rand = { version = "0.9.1" }
 serde_urlencoded = { version = "0.7" }
 sha2 = { version = "0.10" }
 url = { version = "2.5.4" }
+
+[features]
+default = []
+mock = []

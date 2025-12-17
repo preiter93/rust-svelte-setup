@@ -5,16 +5,6 @@ use uuid::Uuid;
 
 use crate::error::Error;
 
-pub trait UuidGenerator: Send + Sync + 'static {
-    fn generate(&self) -> Uuid {
-        Uuid::new_v4()
-    }
-}
-
-pub struct UuidV4Generator;
-
-impl UuidGenerator for UuidV4Generator {}
-
 pub fn validate_entity_id(entity_id: &str) -> Result<Uuid, Status> {
     if entity_id.is_empty() {
         return Err(Error::MissingEntityId.into());
@@ -24,22 +14,9 @@ pub fn validate_entity_id(entity_id: &str) -> Result<Uuid, Status> {
 
 #[cfg(test)]
 pub mod test {
-    use tonic::{Code, Response, Status};
+    use uuid::Uuid;
 
     use crate::proto::{Entity, GetEntityReq, GetEntityResp};
-
-    use super::*;
-
-    #[derive(Default)]
-    pub struct MockUuidGenerator {
-        pub uuid: Uuid,
-    }
-
-    impl UuidGenerator for MockUuidGenerator {
-        fn generate(&self) -> Uuid {
-            self.uuid
-        }
-    }
 
     pub fn fixture_uuid() -> Uuid {
         Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
@@ -77,17 +54,5 @@ pub mod test {
         };
         func(&mut entity);
         entity
-    }
-
-    pub fn assert_response<T: PartialEq + std::fmt::Debug>(
-        got: Result<Response<T>, Status>,
-        want: Result<T, Code>,
-    ) {
-        match (got, want) {
-            (Ok(got), Ok(want)) => assert_eq!(got.into_inner(), want),
-            (Err(got), Err(want)) => assert_eq!(got.code(), want),
-            (Ok(got), Err(want)) => panic!("left: {got:?}\nright: {want}"),
-            (Err(got), Ok(want)) => panic!("left: {got}\nright: {want:?}"),
-        }
     }
 }

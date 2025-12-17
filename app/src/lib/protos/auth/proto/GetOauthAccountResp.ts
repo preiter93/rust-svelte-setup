@@ -2,9 +2,9 @@
 
 
 export interface GetOauthAccountResp {
-  'access_token'?: (string);
+  'external_user_id'?: (string);
 }
 
 export interface GetOauthAccountResp__Output {
-  'access_token': (string);
+  'external_user_id': (string);
 }

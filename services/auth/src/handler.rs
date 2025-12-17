@@ -19,7 +19,7 @@ use crate::{
         LinkOauthAccountReq, LinkOauthAccountResp, OauthProvider, StartOauthLoginReq,
         StartOauthLoginResp,
     },
-    utils::{Now, Session, SystemNow},
+    utils::Session,
 };
 use crate::{
     error::DBError,
@@ -29,6 +29,7 @@ use crate::{
     },
     utils::{constant_time_equal, hash_secret},
 };
+use common::{Now, SystemNow};
 use oauth::{OAuth, OAuthProvider as _, RandomSource};
 use setup::{session::SESSION_TOKEN_EXPIRY_DURATION, validate_user_id};
 use tonic::{Request, Response, Status};
@@ -309,7 +310,7 @@ where
             .map_err(Error::GetOauthAccount)?;
 
         Ok(Response::new(GetOauthAccountResp {
-            access_token: account.access_token.unwrap_or_default(),
+            external_user_id: account.external_user_id,
         }))
     }
 }
@@ -318,409 +319,302 @@ where
 pub(crate) mod tests {
     use crate::utils::{
         OAuthAccount, Session,
-        tests::{
-            MockNow, MockRandom, assert_response, fixture_oauth_account, fixture_session,
-            fixture_token, fixture_uuid,
-        },
+        tests::{fixture_oauth_account, fixture_session, fixture_token, fixture_uuid},
     };
     use chrono::TimeZone;
+    use common::mock::MockNow;
+    use oauth::mock::MockRandom;
+    use rstest::rstest;
+    use testutils::assert_response;
     use tokio::sync::Mutex;
-    use tonic::Code;
+    use tonic::{Code, Request};
 
     use crate::db::test::MockDBClient;
 
     use super::*;
 
-    struct CreateSessionTestCase {
-        given_req: CreateSessionReq,
-        given_db_insert_session: Result<(), DBError>,
-        want_resp: Result<CreateSessionResp, Code>,
-    }
-
-    impl Default for CreateSessionTestCase {
-        fn default() -> Self {
-            Self {
-                given_req: CreateSessionReq {
-                    user_id: fixture_uuid().to_string(),
-                },
-                given_db_insert_session: Ok(()),
-                want_resp: Ok(CreateSessionResp {
-                    token: fixture_token(),
-                }),
-            }
-        }
-    }
-
-    impl CreateSessionTestCase {
-        async fn run(self) {
-            // given
-            let db = MockDBClient {
-                insert_session: Mutex::new(Some(self.given_db_insert_session)),
-                ..Default::default()
-            };
-            let service = Handler {
-                db,
-                google: GoogleOAuth::<MockRandom>::default(),
-                github: GithubOAuth::<MockRandom>::default(),
-                _now: PhantomData::<MockNow>,
-            };
-
-            // when
-            let req = Request::new(self.given_req);
-            let got = service.create_session(req).await;
-
-            // then
-            assert_response(got, self.want_resp);
-        }
-    }
-
+    // --------------------------
+    // CreateSession
+    // --------------------------
+    #[rstest]
+    #[case::happy_path(
+        CreateSessionReq {
+            user_id: fixture_uuid().to_string(),
+        },
+        Ok(()),
+        Ok(CreateSessionResp {
+            token: fixture_token(),
+        })
+    )]
+    #[case::missing_user_id(
+        CreateSessionReq {
+            user_id: String::new(),
+        },
+        Ok(()),
+        Err(Code::InvalidArgument)
+    )]
+    #[case::db_error(
+        CreateSessionReq {
+            user_id: fixture_uuid().to_string(),
+        },
+        Err(DBError::Unknown),
+        Err(Code::Internal)
+    )]
     #[tokio::test]
-    async fn test_create_session_happy_path() {
-        CreateSessionTestCase {
+    async fn test_create_session(
+        #[case] req: CreateSessionReq,
+        #[case] db_result: Result<(), DBError>,
+        #[case] want: Result<CreateSessionResp, Code>,
+    ) {
+        // given
+        let db = MockDBClient {
+            insert_session: Mutex::new(Some(db_result)),
             ..Default::default()
-        }
-        .run()
-        .await;
+        };
+        let service = Handler {
+            db,
+            google: GoogleOAuth::<MockRandom>::default(),
+            github: GithubOAuth::<MockRandom>::default(),
+            _now: PhantomData::<MockNow>,
+        };
+
+        // when
+        let got = service.create_session(Request::new(req)).await;
+
+        // then
+        assert_response(got, want);
     }
 
+    // --------------------------
+    // DeleteSession
+    // --------------------------
+    #[rstest]
+    #[case::happy_path(
+        DeleteSessionReq {
+            token: fixture_token(),
+        },
+        Ok(()),
+        Ok(DeleteSessionResp {})
+    )]
+    #[case::missing_token(
+        DeleteSessionReq {
+            token: String::new(),
+        },
+        Ok(()),
+        Err(Code::InvalidArgument)
+    )]
+    #[case::invalid_format(
+        DeleteSessionReq {
+            token: "invalid-format".to_string(),
+        },
+        Ok(()),
+        Err(Code::InvalidArgument)
+    )]
+    #[case::db_error(
+        DeleteSessionReq {
+            token: fixture_token(),
+        },
+        Err(DBError::Unknown),
+        Err(Code::Internal)
+    )]
     #[tokio::test]
-    async fn test_create_session_missing_user_id() {
-        CreateSessionTestCase {
-            given_req: CreateSessionReq {
-                user_id: String::new(),
-            },
-            want_resp: Err(Code::InvalidArgument),
+    async fn test_delete_session(
+        #[case] req: DeleteSessionReq,
+        #[case] db_result: Result<(), DBError>,
+        #[case] want: Result<DeleteSessionResp, Code>,
+    ) {
+        // given
+        let db = MockDBClient {
+            delete_session: Mutex::new(Some(db_result)),
             ..Default::default()
-        }
-        .run()
-        .await;
+        };
+        let service = Handler {
+            db,
+            google: GoogleOAuth::<MockRandom>::default(),
+            github: GithubOAuth::<MockRandom>::default(),
+            _now: PhantomData::<MockNow>,
+        };
+
+        // when
+        let got = service.delete_session(Request::new(req)).await;
+
+        // then
+        assert_response(got, want);
     }
 
+    // --------------------------
+    // ValidateSession
+    // --------------------------
+    #[rstest]
+    #[case::happy_path(
+        ValidateSessionReq {
+            token: fixture_token(),
+        },
+        Ok(fixture_session(|_| {})),
+        0,
+        0,
+        Ok(ValidateSessionResp {
+            user_id: fixture_uuid().to_string(),
+            should_refresh_cookie: false,
+        })
+    )]
+    #[case::missing_token(
+        ValidateSessionReq {
+            token: String::new(),
+        },
+        Ok(fixture_session(|_| {})),
+        0,
+        0,
+        Err(Code::InvalidArgument)
+    )]
+    #[case::invalid_format(
+        ValidateSessionReq {
+            token: "invalid-format".to_string(),
+        },
+        Ok(fixture_session(|_| {})),
+        0,
+        0,
+        Err(Code::InvalidArgument)
+    )]
+    #[case::not_found(
+        ValidateSessionReq {
+            token: fixture_token(),
+        },
+        Err(DBError::NotFound(String::new())),
+        0,
+        0,
+        Err(Code::Unauthenticated)
+    )]
+    #[case::expired(
+        ValidateSessionReq {
+            token: fixture_token(),
+        },
+        Ok(fixture_session(|session| {
+            session.expires_at = chrono::Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap();
+        })),
+        0,
+        1,
+        Err(Code::Unauthenticated)
+    )]
+    #[case::almost_expired(
+        ValidateSessionReq {
+            token: fixture_token(),
+        },
+        Ok(fixture_session(|session| {
+            session.expires_at = chrono::Utc.with_ymd_and_hms(2020, 1, 2, 0, 0, 0).unwrap();
+        })),
+        1,
+        0,
+        Ok(ValidateSessionResp {
+            user_id: fixture_uuid().to_string(),
+            should_refresh_cookie: true,
+        })
+    )]
+    #[case::secret_mismatch(
+        ValidateSessionReq {
+            token: fixture_token(),
+        },
+        Ok(fixture_session(|session| {
+            session.secret_hash = vec![1];
+        })),
+        0,
+        0,
+        Err(Code::Unauthenticated)
+    )]
+    #[case::db_error(
+        ValidateSessionReq {
+            token: fixture_token(),
+        },
+        Err(DBError::Unknown),
+        0,
+        0,
+        Err(Code::Internal)
+    )]
     #[tokio::test]
-    async fn test_create_session_db_error() {
-        CreateSessionTestCase {
-            given_db_insert_session: Err(DBError::Unknown),
-            want_resp: Err(Code::Internal),
+    async fn test_validate_session(
+        #[case] req: ValidateSessionReq,
+        #[case] db_result: Result<Session, DBError>,
+        #[case] want_update_count: usize,
+        #[case] want_delete_count: usize,
+        #[case] want: Result<ValidateSessionResp, Code>,
+    ) {
+        // given
+        let db = MockDBClient {
+            get_session: Mutex::new(Some(db_result)),
+            delete_session: Mutex::new(Some(Ok(()))),
+            update_session: Mutex::new(Some(Ok(()))),
             ..Default::default()
-        }
-        .run()
-        .await;
+        };
+        let service = Handler {
+            db,
+            google: GoogleOAuth::<MockRandom>::default(),
+            github: GithubOAuth::<MockRandom>::default(),
+            _now: PhantomData::<MockNow>,
+        };
+
+        // when
+        let got = service.validate_session(Request::new(req)).await;
+
+        // then
+        assert_response(got, want);
+
+        assert_eq!(
+            *service.db.update_session_count.lock().await,
+            want_update_count,
+            "update_session_count mismatch",
+        );
+
+        assert_eq!(
+            *service.db.delete_session_count.lock().await,
+            want_delete_count,
+            "delete_session_count mismatch",
+        );
     }
 
-    struct DeleteSessionTestCase {
-        given_req: DeleteSessionReq,
-        given_db_delete_session: Result<(), DBError>,
-        want_resp: Result<DeleteSessionResp, Code>,
-    }
-
-    impl Default for DeleteSessionTestCase {
-        fn default() -> Self {
-            Self {
-                given_req: DeleteSessionReq {
-                    token: fixture_token(),
-                },
-                given_db_delete_session: Ok(()),
-                want_resp: Ok(DeleteSessionResp {}),
-            }
-        }
-    }
-
-    impl DeleteSessionTestCase {
-        async fn run(self) {
-            // given
-            let db = MockDBClient {
-                delete_session: Mutex::new(Some(self.given_db_delete_session)),
-                ..Default::default()
-            };
-            let service = Handler {
-                db,
-                google: GoogleOAuth::<MockRandom>::default(),
-                github: GithubOAuth::<MockRandom>::default(),
-                _now: PhantomData::<MockNow>,
-            };
-
-            // when
-            let req = Request::new(self.given_req);
-            let got = service.delete_session(req).await;
-
-            // then
-            assert_response(got, self.want_resp);
-        }
-    }
-
+    // --------------------------
+    // GetOauthAccount
+    // --------------------------
+    #[rstest]
+    #[case::happy_path(
+        GetOauthAccountReq {
+            user_id: fixture_uuid().to_string(),
+            provider: OauthProvider::Google as i32,
+        },
+        Ok(fixture_oauth_account(|_| {})),
+        Ok(GetOauthAccountResp {
+            external_user_id: "external-user-id".to_string(),
+        })
+    )]
+    #[case::missing_user_id(
+        GetOauthAccountReq {
+            user_id: String::new(),
+            ..Default::default()
+        },
+        Ok(fixture_oauth_account(|_| {})),
+        Err(Code::InvalidArgument)
+    )]
     #[tokio::test]
-    async fn test_delete_session_happy_path() {
-        DeleteSessionTestCase {
+    async fn test_get_oauth_account(
+        #[case] req: GetOauthAccountReq,
+        #[case] db_result: Result<OAuthAccount, DBError>,
+        #[case] want: Result<GetOauthAccountResp, Code>,
+    ) {
+        // given
+        let db = MockDBClient {
+            get_oauth_account: Mutex::new(Some(db_result)),
             ..Default::default()
-        }
-        .run()
-        .await;
-    }
+        };
+        let service = Handler {
+            db,
+            google: GoogleOAuth::<MockRandom>::default(),
+            github: GithubOAuth::<MockRandom>::default(),
+            _now: PhantomData::<MockNow>,
+        };
 
-    #[tokio::test]
-    async fn test_delete_session_missing_token() {
-        DeleteSessionTestCase {
-            given_req: DeleteSessionReq {
-                token: String::new(),
-            },
-            want_resp: Err(Code::InvalidArgument),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
+        // when
+        let got = service.get_oauth_account(Request::new(req)).await;
 
-    #[tokio::test]
-    async fn test_delete_session_invalid_format() {
-        DeleteSessionTestCase {
-            given_req: DeleteSessionReq {
-                token: "invalid-format".to_string(),
-            },
-            want_resp: Err(Code::InvalidArgument),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_delete_session_db_error() {
-        DeleteSessionTestCase {
-            given_db_delete_session: Err(DBError::Unknown),
-            want_resp: Err(Code::Internal),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    struct ValidateSessionTestCase {
-        given_req: ValidateSessionReq,
-        given_db_get_session: Result<Session, DBError>,
-        want_update_session_count: usize,
-        want_delete_session_count: usize,
-        want_resp: Result<ValidateSessionResp, Code>,
-    }
-
-    impl Default for ValidateSessionTestCase {
-        fn default() -> Self {
-            Self {
-                given_req: ValidateSessionReq {
-                    token: fixture_token(),
-                },
-                given_db_get_session: Ok(fixture_session(|_| {})),
-                want_update_session_count: 0,
-                want_delete_session_count: 0,
-                want_resp: Ok(ValidateSessionResp {
-                    user_id: fixture_uuid().to_string(),
-                    should_refresh_cookie: false,
-                }),
-            }
-        }
-    }
-
-    impl ValidateSessionTestCase {
-        async fn run(self) {
-            // given
-            let db = MockDBClient {
-                get_session: Mutex::new(Some(self.given_db_get_session)),
-                delete_session: Mutex::new(Some(Ok(()))),
-                update_session: Mutex::new(Some(Ok(()))),
-                ..Default::default()
-            };
-            let service = Handler {
-                db,
-                google: GoogleOAuth::<MockRandom>::default(),
-                github: GithubOAuth::<MockRandom>::default(),
-                _now: PhantomData::<MockNow>,
-            };
-
-            // when
-            let req = Request::new(self.given_req);
-            let got = service.validate_session(req).await;
-
-            // then
-            assert_response(got, self.want_resp);
-
-            assert_eq!(
-                *service.db.update_session_count.lock().await,
-                self.want_update_session_count,
-                "update_session_count mismatch",
-            );
-
-            assert_eq!(
-                *service.db.delete_session_count.lock().await,
-                self.want_delete_session_count,
-                "delete_session_count mismatch",
-            );
-        }
-    }
-
-    #[tokio::test]
-    async fn test_validate_session_happy_path() {
-        ValidateSessionTestCase {
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_validate_session_missing_token() {
-        ValidateSessionTestCase {
-            given_req: ValidateSessionReq {
-                token: String::new(),
-            },
-            want_resp: Err(Code::InvalidArgument),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_validate_session_invalid_format() {
-        ValidateSessionTestCase {
-            given_req: ValidateSessionReq {
-                token: "invalid-format".to_string(),
-            },
-            want_resp: Err(Code::InvalidArgument),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_validate_session_not_found() {
-        ValidateSessionTestCase {
-            given_db_get_session: Err(DBError::NotFound(String::new())),
-            want_resp: Err(Code::Unauthenticated),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_validate_session_expired() {
-        ValidateSessionTestCase {
-            given_db_get_session: Ok(fixture_session(|session| {
-                session.expires_at = chrono::Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap();
-            })),
-            want_delete_session_count: 1,
-            want_resp: Err(Code::Unauthenticated),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_validate_session_almost_expired() {
-        ValidateSessionTestCase {
-            given_db_get_session: Ok(fixture_session(|session| {
-                session.expires_at = chrono::Utc.with_ymd_and_hms(2020, 1, 2, 0, 0, 0).unwrap();
-            })),
-            want_update_session_count: 1,
-            want_resp: Ok(ValidateSessionResp {
-                user_id: fixture_uuid().to_string(),
-                should_refresh_cookie: true,
-            }),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_validate_session_secret_mismatch() {
-        ValidateSessionTestCase {
-            given_db_get_session: Ok(fixture_session(|session| {
-                session.secret_hash = vec![1];
-            })),
-            want_resp: Err(Code::Unauthenticated),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_validate_session_db_error() {
-        ValidateSessionTestCase {
-            given_db_get_session: Err(DBError::Unknown),
-            want_resp: Err(Code::Internal),
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    struct GetOauthAccountTestCase {
-        given_req: GetOauthAccountReq,
-        given_get_oauth_account: Result<OAuthAccount, DBError>,
-        want_resp: Result<GetOauthAccountResp, Code>,
-    }
-
-    impl Default for GetOauthAccountTestCase {
-        fn default() -> Self {
-            Self {
-                given_req: GetOauthAccountReq {
-                    user_id: fixture_uuid().to_string(),
-                    provider: OauthProvider::Google as i32,
-                },
-                want_resp: Ok(GetOauthAccountResp {
-                    access_token: "access-token".to_string(),
-                }),
-                given_get_oauth_account: Ok(fixture_oauth_account(|_| {})),
-            }
-        }
-    }
-
-    impl GetOauthAccountTestCase {
-        async fn run(self) {
-            // given
-            let db = MockDBClient {
-                get_oauth_account: Mutex::new(Some(self.given_get_oauth_account)),
-                ..Default::default()
-            };
-            let service = Handler {
-                db,
-                google: GoogleOAuth::<MockRandom>::default(),
-                github: GithubOAuth::<MockRandom>::default(),
-                _now: PhantomData::<MockNow>,
-            };
-
-            // when
-            let req = Request::new(self.given_req);
-            let got = service.get_oauth_account(req).await;
-
-            // then
-            assert_response(got, self.want_resp);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_get_oauth_account_happy_path() {
-        GetOauthAccountTestCase {
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_get_oauth_account_missing_user_id() {
-        GetOauthAccountTestCase {
-            given_req: GetOauthAccountReq {
-                user_id: String::new(),
-                ..Default::default()
-            },
-            want_resp: Err(Code::InvalidArgument),
-            ..Default::default()
-        }
-        .run()
-        .await;
+        // then
+        assert_response(got, want);
     }
 }
