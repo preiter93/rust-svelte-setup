@@ -1,0 +1,10 @@
+TARGET := "target/release/docker-gen"
+OUTPUT := "./docker-gen"
+
+build:
+    cargo build --release
+    cp {{ TARGET }} {{ OUTPUT }}
+
+clean:
+    cargo clean
+    rm -f {{ OUTPUT }}

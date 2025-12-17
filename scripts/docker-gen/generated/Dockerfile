@@ -6,12 +6,12 @@ WORKDIR /services
 # Install cargo-chef
 RUN cargo install --git https://github.com/preiter93/cargo-chef --branch reduce-workspace
 
-# Prepare and reduce the workspace recipe
+# Prepare workspace recipe
 FROM chef AS planner
 ARG SERVICE_NAME
 ENV SERVICE_NAME=${SERVICE_NAME}
 COPY . .
-RUN cargo chef prepare --recipe-path recipe.json --bin ${SERVICE_NAME}
+RUN cargo chef prepare --bin ${SERVICE_NAME} --recipe-path recipe.json
 
 # Build the dependencies
 FROM chef AS builder
@@ -21,7 +21,8 @@ COPY --from=planner /services/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json --bin ${SERVICE_NAME}
 
 # Build the binary
-COPY . .
+COPY Cargo.toml Cargo.toml
+COPY src/ src/
 RUN cargo build --release --bin ${SERVICE_NAME}
 
 # Run the service

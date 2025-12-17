@@ -2,36 +2,44 @@
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CreateUserReq {
+    /// The user's display name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
+    /// The user's email address.
     #[prost(string, tag = "2")]
     pub email: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CreateUserResp {
+    /// The created user.
     #[prost(message, optional, tag = "1")]
     pub user: ::core::option::Option<User>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GetUserReq {
+    /// The user ID to retrieve.
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GetUserResp {
+    /// The requested user.
     #[prost(message, optional, tag = "1")]
     pub user: ::core::option::Option<User>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct User {
+    /// Unique identifier for the user.
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
+    /// The user's display name.
     #[prost(string, tag = "2")]
     pub name: ::prost::alloc::string::String,
+    /// The user's email address.
     #[prost(string, tag = "3")]
     pub email: ::prost::alloc::string::String,
 }
@@ -46,6 +54,7 @@ pub mod api_service_client {
     )]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    /// Service for managing users.
     #[derive(Debug, Clone)]
     pub struct ApiServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -193,6 +202,7 @@ pub mod api_service_server {
             request: tonic::Request<super::GetUserReq>,
         ) -> std::result::Result<tonic::Response<super::GetUserResp>, tonic::Status>;
     }
+    /// Service for managing users.
     #[derive(Debug)]
     pub struct ApiServiceServer<T> {
         inner: Arc<T>,

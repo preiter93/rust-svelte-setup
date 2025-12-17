@@ -74,7 +74,7 @@ create-network:
 
 # Generate rust protobuf files
 [working-directory: 'services']
-[group: "protos"]
+[group: "generate"]
 generate-protos-rs:
   #!/usr/bin/env sh
   set -e
@@ -85,13 +85,29 @@ generate-protos-rs:
     fi
   done
 
+# Generate rust protobuf files
+[working-directory: 'services']
+[group: "generate"]
+generate-dockerfile:
+  #!/usr/bin/env sh
+  set -e
+  for d in */; do
+    if [ -f "$d"/justfile ] && [ "$d" != "pkg/" ]; then
+      echo "🐳 Generating dockerfiles in $d"
+      just -f "$d"/justfile generate-dockerfile
+    fi
+  done
 
 # Generate typescript protobuf files
 [working-directory: 'app']
-[group: "protos"]
+[group: "generate"]
 generate-protos-ts:
-  just -f ./justfile generate-protos
+  @just -f ./justfile generate-protos
 
 # Generate all protobuf files
-[group: "protos"]
+[group: "generate"]
 generate-protos: generate-protos-rs generate-protos-ts
+
+# Generate protbuf files and dockerfiles
+[group: "generate"]
+generate: generate-protos-ts generate-protos-rs generate-dockerfile
