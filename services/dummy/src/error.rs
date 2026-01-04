@@ -6,18 +6,12 @@ use tonic::Status;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
-    #[error("missing user id")]
-    MissingUserId,
-    #[error("invalid user id: {0}")]
-    InvalidUserId(String),
     #[error("missing entity id")]
     MissingEntityId,
     #[error("invalid entity id: {0}")]
     InvalidEntityId(String),
     #[error("entity not found: {0}")]
     EntityNotFound(String),
-    #[error("insert entity error: {0}")]
-    InsertEntity(DBError),
     #[error("get entity error: {0}")]
     GetEntity(DBError),
 }
@@ -25,12 +19,9 @@ pub enum Error {
 impl From<Error> for Status {
     fn from(err: Error) -> Self {
         let code = match err {
-            Error::MissingUserId
-            | Error::InvalidUserId(_)
-            | Error::MissingEntityId
-            | Error::InvalidEntityId(_) => Code::InvalidArgument,
+            Error::MissingEntityId | Error::InvalidEntityId(_) => Code::InvalidArgument,
             Error::EntityNotFound(_) => Code::NotFound,
-            Error::GetEntity(_) | Error::InsertEntity(_) => Code::Internal,
+            Error::GetEntity(_) => Code::Internal,
         };
         Status::new(code, err.to_string())
     }

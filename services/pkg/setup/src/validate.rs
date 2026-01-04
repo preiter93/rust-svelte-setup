@@ -8,13 +8,13 @@ pub fn validate_user_id(user_id: &str) -> Result<Uuid, ValidateUserError> {
         return Err(ValidateUserError::MissingUserId);
     }
 
-    let Ok(user_id) = Uuid::from_str(user_id) else {
+    let Ok(user_uuid) = Uuid::from_str(user_id) else {
         return Err(ValidateUserError::InvalidUserId(user_id.to_string()));
     };
 
-    tracing::Span::current().record("user_id", user_id.to_string());
+    tracing::Span::current().record("user_id", user_id);
 
-    Ok(user_id)
+    Ok(user_uuid)
 }
 
 #[derive(Debug, thiserror::Error)]
