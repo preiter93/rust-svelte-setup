@@ -87,6 +87,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "common",
+ "database",
  "deadpool-postgres",
  "dotenv",
  "oauth",
@@ -413,6 +414,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "database"
+version = "0.1.0"
+dependencies = [
+ "deadpool-postgres",
+ "tokio-postgres",
+]
+
+[[package]]
 name = "deadpool"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -517,6 +526,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "common",
+ "database",
  "deadpool-postgres",
  "dotenv",
  "prost 0.14.1",
@@ -3135,6 +3145,7 @@ name = "user"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "database",
  "deadpool-postgres",
  "dotenv",
  "prost 0.14.1",

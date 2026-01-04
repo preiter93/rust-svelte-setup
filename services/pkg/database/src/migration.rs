@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! run_db_migrations {
+macro_rules! run_migrations {
     ($pool:expr, $migrations_folder:literal) => {{
         use std::ops::DerefMut;
         refinery::embed_migrations!($migrations_folder);
@@ -19,4 +19,3 @@ macro_rules! run_db_migrations {
         }
     }};
 }
-

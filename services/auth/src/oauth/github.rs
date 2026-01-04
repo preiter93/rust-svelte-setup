@@ -11,7 +11,7 @@ use tonic::async_trait;
 
 use crate::{
     SERVICE_NAME,
-    oauth::{error::Error, models::OAuth2Token},
+    oauth::{config::OauthConfig, error::Error, models::OAuth2Token},
     proto::OauthProvider,
     utils::OAuthAccount,
 };
@@ -35,11 +35,11 @@ pub(crate) struct GithubOAuth<R> {
 
 impl GithubOAuth<SecureRandom> {
     /// Creates a new [`GithubOAuth`] client instance.
-    pub(crate) fn new(client_id: String, client_secret: String, redirect_uri: String) -> Self {
+    pub fn from_config(config: &OauthConfig) -> Self {
         Self {
-            client_id,
-            client_secret,
-            redirect_uri,
+            client_id: config.github_client_id.clone(),
+            client_secret: config.github_client_secret.clone(),
+            redirect_uri: config.github_redirect_uri.clone(),
             _phantom: PhantomData,
         }
     }

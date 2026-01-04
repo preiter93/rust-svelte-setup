@@ -5,6 +5,7 @@ members = [
     "user",
     "dummy",
     "pkg/common",
+    "pkg/database",
     "pkg/setup",
     "pkg/oauth",
     "pkg/testutils",

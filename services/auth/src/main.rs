@@ -2,15 +2,12 @@
 use crate::{
     db::PostgresDBClient,
     handler::Handler,
-    oauth::{github::GithubOAuth, google::GoogleOAuth},
+    oauth::{config::OauthConfig, github::GithubOAuth, google::GoogleOAuth},
     proto::api_service_server::ApiServiceServer,
 };
 use auth::{GRPC_PORT, SERVICE_NAME};
-use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use dotenv::dotenv;
-use setup::{
-    middleware::TracingGrpcServiceLayer, patched_host, run_db_migrations, tracing::init_tracer,
-};
+use setup::{middleware::TracingGrpcServiceLayer, tracing::init_tracer};
 use std::error::Error;
 use tonic::transport::Server;
 
@@ -28,27 +25,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let tracer = init_tracer(SERVICE_NAME)?;
 
-    let cfg = Config::from_env();
+    let pg_cfg = database::PGConfig::from_env(SERVICE_NAME)?;
+    let pool = database::connect(&pg_cfg)?;
+    database::run_migrations!(pool, "./migrations");
 
-    let pool = connect_to_db(&cfg)?;
-    run_db_migrations!(pool, "./migrations");
-
-    let server = Handler::new(
+    let oauth_cfg = OauthConfig::from_env();
+    let handler = Handler::new(
         PostgresDBClient::new(pool),
-        GoogleOAuth::new(
-            cfg.google_client_id,
-            cfg.google_client_secret,
-            cfg.google_redirect_uri,
-        ),
-        GithubOAuth::new(
-            cfg.github_client_id,
-            cfg.github_client_secret,
-            cfg.github_redirect_uri,
-        ),
+        GoogleOAuth::from_config(&oauth_cfg),
+        GithubOAuth::from_config(&oauth_cfg),
     );
 
     let address = format!("0.0.0.0:{GRPC_PORT}").parse()?;
-    let service = ApiServiceServer::new(server);
+    let service = ApiServiceServer::new(handler);
 
     println!("listening on :{GRPC_PORT}");
     let mut server = Server::builder().layer(TracingGrpcServiceLayer);
@@ -57,66 +46,4 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tracer.shutdown()?;
 
     Ok(())
-}
-
-struct Config {
-    pg_dbname: String,
-    pg_password: String,
-    pg_user: String,
-    pg_host: String,
-    pg_port: u16,
-    google_client_id: String,
-    google_client_secret: String,
-    google_redirect_uri: String,
-    github_client_id: String,
-    github_client_secret: String,
-    github_redirect_uri: String,
-}
-
-impl Config {
-    fn must_get_env(key: &str) -> String {
-        std::env::var(key).unwrap_or_else(|_| panic!("{key} must be set"))
-    }
-
-    pub fn from_env() -> Self {
-        let pg_port = Self::must_get_env("PG_PORT")
-            .parse()
-            .expect("failed to parse PG_PORT");
-
-        Self {
-            pg_dbname: format!("{SERVICE_NAME}_db"),
-            pg_password: Self::must_get_env("PG_PASSWORD"),
-            pg_user: Self::must_get_env("PG_USER"),
-            pg_host: patched_host(Self::must_get_env("PG_HOST")),
-            pg_port,
-            google_client_id: Self::must_get_env("GOOGLE_CLIENT_ID"),
-            google_client_secret: Self::must_get_env("GOOGLE_CLIENT_SECRET"),
-            google_redirect_uri: Self::must_get_env("GOOGLE_REDIRECT_URI"),
-            github_client_id: Self::must_get_env("GITHUB_CLIENT_ID"),
-            github_client_secret: Self::must_get_env("GITHUB_CLIENT_SECRET"),
-            github_redirect_uri: Self::must_get_env("GITHUB_REDIRECT_URI"),
-        }
-    }
-}
-
-fn connect_to_db(cfg: &Config) -> Result<Pool, Box<dyn Error>> {
-    let mut pg_config = tokio_postgres::Config::new();
-    pg_config
-        .dbname(cfg.pg_dbname.clone())
-        .user(cfg.pg_user.clone())
-        .password(cfg.pg_password.clone())
-        .host(cfg.pg_host.clone())
-        .port(cfg.pg_port);
-
-    let manager = Manager::from_config(
-        pg_config,
-        tokio_postgres::NoTls,
-        ManagerConfig {
-            recycling_method: RecyclingMethod::Fast,
-        },
-    );
-
-    Ok(Pool::builder(manager)
-        .build()
-        .map_err(|e| format!("failed to connect to db: {e}"))?)
 }

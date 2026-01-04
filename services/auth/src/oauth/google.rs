@@ -4,7 +4,7 @@ use oauth::{OAuth, OAuthProvider, RandomSource, SecureRandom};
 use tonic::async_trait;
 
 use crate::{
-    oauth::{error::Error, models::OAuth2Token},
+    oauth::{config::OauthConfig, error::Error, models::OAuth2Token},
     proto::OauthProvider,
     utils::OAuthAccount,
 };
@@ -26,12 +26,12 @@ pub(crate) struct GoogleOAuth<R> {
 }
 
 impl GoogleOAuth<SecureRandom> {
-    /// Creates a new [`GoogleOAuth`] client instance.
-    pub fn new(client_id: String, client_secret: String, redirect_uri: String) -> Self {
+    /// Creates a new [`GoogleOAuth`] client instance from config.
+    pub fn from_config(config: &OauthConfig) -> Self {
         Self {
-            client_id,
-            client_secret,
-            redirect_uri,
+            client_id: config.google_client_id.clone(),
+            client_secret: config.google_client_secret.clone(),
+            redirect_uri: config.google_redirect_uri.clone(),
             _phantom: PhantomData,
         }
     }

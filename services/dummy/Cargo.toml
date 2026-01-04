@@ -18,8 +18,9 @@ tonic-prost = { workspace = true }
 uuid = { workspace = true }
 tracing = {workspace = true }
 
-setup = { version = "0.1", path = "../pkg/setup" }
 common = { version = "0.1", path = "../pkg/common" }
+database = { version = "0.1", path = "../pkg/database" }
+setup = { version = "0.1", path = "../pkg/setup" }
 
 [dev-dependencies]
 rstest = { workspace = true }

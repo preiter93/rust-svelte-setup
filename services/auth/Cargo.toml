@@ -21,9 +21,10 @@ uuid = { workspace = true }
 
 sha2 = { version = "0.10.5" }
 
+common = { version = "0.1", path = "../pkg/common" }
+database = { version = "0.1", path = "../pkg/database" }
 setup = { version = "0.1", path = "../pkg/setup" }
 oauth = { version = "0.1", path = "../pkg/oauth" }
-common = { version = "0.1", path = "../pkg/common" }
 
 [dev-dependencies]
 rstest = { workspace = true }
