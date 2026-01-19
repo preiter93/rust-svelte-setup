@@ -1,23 +1,29 @@
 #![allow(dead_code)]
 use crate::{
     db::PostgresDBClient,
-    handler::Handler,
     oauth::{config::OauthConfig, github::GithubOAuth, google::GoogleOAuth},
     proto::api_service_server::ApiServiceServer,
+    server::Server,
 };
 use auth::{GRPC_PORT, SERVICE_NAME};
 use dotenv::dotenv;
 use setup::{middleware::TracingGrpcServiceLayer, tracing::init_tracer};
 use std::error::Error;
-use tonic::transport::Server;
 
+pub(crate) mod create_session;
 pub(crate) mod db;
+pub(crate) mod delete_session;
 pub(crate) mod error;
-pub(crate) mod handler;
+pub(crate) mod get_oauth_account;
+pub(crate) mod handle_oauth_callback;
+pub(crate) mod link_oauth_account;
 pub(crate) mod oauth;
 #[allow(clippy::all)]
 pub(crate) mod proto;
+pub(crate) mod server;
+pub(crate) mod start_oauth_login;
 pub(crate) mod utils;
+pub(crate) mod validate_session;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -30,17 +36,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     database::run_migrations!(pool, "./migrations");
 
     let oauth_cfg = OauthConfig::from_env();
-    let handler = Handler::new(
+    let server = Server::new(
         PostgresDBClient::new(pool),
         GoogleOAuth::from_config(&oauth_cfg),
         GithubOAuth::from_config(&oauth_cfg),
     );
 
     let address = format!("0.0.0.0:{GRPC_PORT}").parse()?;
-    let service = ApiServiceServer::new(handler);
+    let service = ApiServiceServer::new(server);
 
     println!("listening on :{GRPC_PORT}");
-    let mut server = Server::builder().layer(TracingGrpcServiceLayer);
+    let mut server = tonic::transport::Server::builder().layer(TracingGrpcServiceLayer);
     server.add_service(service).serve(address).await.unwrap();
 
     tracer.shutdown()?;

@@ -1,11 +1,12 @@
 pub mod db;
 pub mod error;
-pub mod handler;
+pub mod get_entity;
 #[allow(clippy::all)]
 pub mod proto;
+pub mod server;
 pub mod utils;
 
-use crate::handler::Handler;
+use crate::server::Server;
 use common::UuidV4Generator;
 use db::PostgresDBClient;
 use dotenv::dotenv;
@@ -13,7 +14,6 @@ use dummy::{GRPC_PORT, SERVICE_NAME};
 use proto::api_service_server::ApiServiceServer;
 use setup::{middleware::TracingGrpcServiceLayer, tracing::init_tracer};
 use std::error::Error;
-use tonic::transport::Server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pool = database::connect(&pg_cfg)?;
     database::run_migrations!(pool, "./migrations");
 
-    let server = Handler {
+    let server = Server {
         db: PostgresDBClient::new(pool),
         uuid: UuidV4Generator,
     };
@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let svc = ApiServiceServer::new(server);
 
     println!("listening on :{GRPC_PORT}");
-    let mut server = Server::builder().layer(TracingGrpcServiceLayer);
+    let mut server = tonic::transport::Server::builder().layer(TracingGrpcServiceLayer);
     server.add_service(svc).serve(addr).await.unwrap();
 
     tracer.shutdown()?;
