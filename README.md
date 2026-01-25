@@ -70,6 +70,10 @@ At the moment I build the binary within the docker build process. For Rust image
 
 This project currently does **not** have a CI/CD pipeline set up but you definitely should add one. I've just not gotten around to do it yet.
 
+## Authentication
+
+Authentication is hand-rolled using information from [lucia](https://lucia-auth.com/). For details, see [`services/auth`](./services/auth). **This is not production-grade security. I'm not a security expert. Do really not use this for your super private production app! Each security flaw is fully on me, and honestly you shouldn't trust my authentication anyway. But I believe that you already know this.**
+
 ## Protos
 
 Communication in the backend is done via `gRPC`. `proto` files are compiled into rust and typescript code, thus the backend can share request/response models with the frontend.
@@ -163,6 +167,8 @@ When I wrote the majority of this project, I didn’t have any agentic AI magic 
 
 That said I did use AI for factoring out my endpoints into separate files. [In the beninging](https://www.youtube.com/watch?v=vacJSHN4ZmY) I had every endpoint in one file, but as the code and tests grew, it became too much. AI helped me split things up in separate files.
 And I thing the [docker-gen](./scripts/docker-gen) script is also mostly ai generated, although now I regret it because I like writing scripts that autogenerate code.
+
+I swear I did not let AI write my authentication. Each security flaw is fully on me, and to be honest, you shouldn't trust my authentication anyway.
 
 # Similar Projects
 
