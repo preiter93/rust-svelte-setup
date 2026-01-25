@@ -139,7 +139,7 @@ Do I promise this works flawlessly? No. There might be the one or other steps yo
 
 # But now be real, how does it compare to go?
 
-I use go professionally, so I think I can give a bit of perspective. The tldr is: for large software projects I’d still choose go for the majority of services, but I’d definitely consider Rust for performance-critical parts (see this good read: https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust). So having a standard Rust setup in the toolkit is a win. For a hobby project like this one? I just prefer writing Rust. Its like solzing puzzles for me.
+I use go professionally, so I think I can give a bit of perspective. The tldr is: for large software projects I’d still choose go for the majority of services, but I’d definitely consider Rust for performance-critical parts (see this good read: https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust). So having a standard Rust setup in the toolkit is a win. For a hobby project like this one? I just prefer writing Rust. Its like solving puzzles for me.
 
 **What I love about Rust:**
 - I just love the language more than Go. It’s more expressive and I feel good if I manage to write a nice functional style map or find a good use case for traits.
@@ -167,7 +167,7 @@ A backend with a similar setup to this one powers my personal website for tracki
 When I wrote the majority of this project, I didn’t have any agentic AI magic at my disposal. So pretty much all of this code is written by me. I do remember some long ChatGPT sessions when tracing between services wouldn’t work or a middleware broke, but those led me down Dantes hell before I decided to just sit down with myself and fix it.
 
 That said I did use AI for factoring out my endpoints into separate files. [In the beninging](https://www.youtube.com/watch?v=vacJSHN4ZmY) I had every endpoint in one file, but as the code and tests grew, it became too much. AI helped me split things up in separate files.
-And I thing the [docker-gen](./scripts/docker-gen) script is also mostly ai generated, although now I regret it because I like writing scripts that autogenerate code.
+And I think the [docker-gen](./scripts/docker-gen) script is also mostly ai generated, although now I regret it because I like writing scripts that autogenerate code.
 
 I swear I did not let AI write my authentication. Each security flaw is fully on me, and to be honest, you shouldn't trust my authentication anyway.
 
