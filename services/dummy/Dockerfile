@@ -20,9 +20,10 @@ RUN cargo chef cook --release --recipe-path recipe.json --bin dummy
 COPY ../.docker-gen/Cargo.toml.dummy Cargo.toml
 COPY ../Cargo.lock Cargo.lock
 COPY ../dummy dummy
-COPY ../pkg/testutils pkg/testutils
-COPY ../pkg/setup pkg/setup
 COPY ../pkg/common pkg/common
+COPY ../pkg/database pkg/database
+COPY ../pkg/setup pkg/setup
+COPY ../pkg/testutils pkg/testutils
 RUN cargo build --release --bin dummy
 
 # Run the service

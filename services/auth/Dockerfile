@@ -19,11 +19,12 @@ RUN cargo chef cook --release --recipe-path recipe.json --bin auth
 # Build the binary
 COPY ../.docker-gen/Cargo.toml.auth Cargo.toml
 COPY ../Cargo.lock Cargo.lock
-COPY ../pkg/setup pkg/setup
-COPY ../pkg/oauth pkg/oauth
 COPY ../auth auth
-COPY ../pkg/testutils pkg/testutils
 COPY ../pkg/common pkg/common
+COPY ../pkg/database pkg/database
+COPY ../pkg/oauth pkg/oauth
+COPY ../pkg/setup pkg/setup
+COPY ../pkg/testutils pkg/testutils
 RUN cargo build --release --bin auth
 
 # Run the service

@@ -19,6 +19,7 @@ RUN cargo chef cook --release --recipe-path recipe.json --bin user
 # Build the binary
 COPY ../.docker-gen/Cargo.toml.user Cargo.toml
 COPY ../Cargo.lock Cargo.lock
+COPY ../pkg/database pkg/database
 COPY ../pkg/setup pkg/setup
 COPY ../pkg/testutils pkg/testutils
 COPY ../user user
