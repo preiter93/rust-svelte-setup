@@ -18,7 +18,7 @@ fn main() -> anyhow::Result<()> {
     src_dir.push("src");
 
     if !proto_files.is_empty() {
-        // Generate protobuf code
+        // Generate code from proto
         generate_protos(src_dir.clone(), &proto_files, current_dir.clone());
 
         // Generate custom client code

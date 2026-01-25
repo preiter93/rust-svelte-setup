@@ -3,7 +3,6 @@ use heck::{ToSnakeCase, ToUpperCamelCase};
 use prost_types::{FileDescriptorSet, ServiceDescriptorProto};
 use std::{fs, path::Path};
 
-/// Generates wrapper clients for *every* service found
 pub(crate) fn generate_client<P: AsRef<Path>>(
     src_dir: &P,
     proto_dir: &P,
@@ -11,7 +10,6 @@ pub(crate) fn generate_client<P: AsRef<Path>>(
 ) -> Result<()> {
     let file = find_target_file(&fds);
 
-    // Panic if the file contains multiple services
     if file.service.len() != 1 {
         panic!(
             "Proto file '{}' contains {} services, but exactly 1 is required.",
@@ -20,7 +18,6 @@ pub(crate) fn generate_client<P: AsRef<Path>>(
         );
     }
 
-    // Panic if the file contains multiple services
     if file.service.len() != 1 {
         panic!(
             "Proto file '{}' contains {} services, but exactly 1 is required.",
@@ -29,14 +26,12 @@ pub(crate) fn generate_client<P: AsRef<Path>>(
         );
     }
 
-    // Get the service name from the path
     let service_name = std::path::Path::new(proto_dir.as_ref())
         .file_name()
         .unwrap()
         .to_string_lossy()
         .to_string();
 
-    // Generate the client.rs
     let service = &file.service[0];
     let code = generate_client_code(service, &service_name)?;
     let fname = format!("{}/client.rs", src_dir.as_ref().to_string_lossy());
@@ -45,7 +40,6 @@ pub(crate) fn generate_client<P: AsRef<Path>>(
     Ok(())
 }
 
-/// Generate a client module for a single service
 fn generate_client_code(svc: &ServiceDescriptorProto, svc_name: &str) -> Result<String> {
     let svc_name = svc_name.to_upper_camel_case();
 
@@ -127,7 +121,6 @@ pub mod testutils {{
     ))
 }
 
-/// Generates all RPC method blocks, plus separate mock decls and inits
 fn generate_methods(
     svc: &ServiceDescriptorProto,
 ) -> Result<(String, String, String, String, String)> {
@@ -152,7 +145,7 @@ fn generate_methods(
         output = output
     ));
 
-        // impl calling tonic client
+        // impl
         impl_methods_vec.push(format!(
             r#"    async fn {method_snake}(&self, req: Request<{input}>) -> Result<Response<{output}>, Status> {{
         self.0.clone().{method_snake}(req).await
@@ -162,7 +155,7 @@ fn generate_methods(
             output = output
         ));
 
-        // mock struct field declarations
+        // mock struct fields
         mock_field_decls_vec.push(format!(
         "        pub {method_snake}_req: Mutex<Option<{input}>>,\n        pub {method_snake}_resp: Mutex<Option<Result<{output}, Status>>>,",
         method_snake = method_snake,
@@ -203,7 +196,6 @@ fn generate_methods(
     ))
 }
 
-/// Extract "MyMessage" from ".mypackage.MyMessage" (or "MyMessage")
 fn rust_type(proto_type: &str) -> String {
     proto_type
         .trim_start_matches('.')
@@ -213,7 +205,6 @@ fn rust_type(proto_type: &str) -> String {
         .to_string()
 }
 
-/// Find all messages used by the service
 fn generate_imports(svc: &prost_types::ServiceDescriptorProto) -> String {
     use std::collections::BTreeSet;
     let mut imports: BTreeSet<String> = BTreeSet::new();
@@ -232,7 +223,6 @@ fn generate_imports(svc: &prost_types::ServiceDescriptorProto) -> String {
         .join("\n")
 }
 
-/// Find the `api.proto` file in the descriptor
 fn find_target_file<'a>(fds: &'a FileDescriptorSet) -> &'a prost_types::FileDescriptorProto {
     let candidates: Vec<_> = fds
         .file
