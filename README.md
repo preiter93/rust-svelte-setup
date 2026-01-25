@@ -40,6 +40,10 @@ See also [Master hexagonal architecture in Rust](https://www.howtocodeit.com/art
 Microservices must have access to the api layer of other microservices, which means they must have access to the proto generated client and request/response messages of other microservices. This may be solve by - compiling the protos in a common `proto` library and including the common library in the microservice, or - compiling the proto that belongs to the service as part of the service and exposing it in `lib.rs`.
 This setup uses the second solution. It avoids introducing a shared `proto` library and additionally each service can define which part of the proto it wants to expose. Note: the `lib.rs` should not expose more than needed by other service, so usually it only exposes the full or parts of the `proto.rs`.
 
+#### Database
+
+I use `tokio-postgres` for database access. I tried `sqlx` with compiled sql statements, but found it caused more problems than it solved for me. To me a plain uncompiled sql statement with good unit testing is the way to go. And `deadpool-postgres` for connection pooling.
+
 #### Shared dependencies (`workspace`)
 
 Microservices have a lot of dependencies in common, such as tonic, prost, tokio, serde etc. This may lead to a drift in dependency versions, where microservice a depends on a different version of package x than microservice b. The solution is to put all microservices in a `workspace` and define the share dependencies as a workspace dependency.
