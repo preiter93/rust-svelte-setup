@@ -72,7 +72,7 @@ This project currently does **not** have a CI/CD pipeline set up but you definit
 
 ## Authentication
 
-Authentication is hand-rolled using information from [lucia](https://lucia-auth.com/). For details, see [`services/auth`](./services/auth). **This is not production-grade security. I'm not a security expert. Do really not use this for your super private production app! Each security flaw is fully on me, and honestly you shouldn't trust my authentication anyway. But I believe that you already know this.**
+Authentication is hand-rolled using information from [lucia](https://lucia-auth.com/) and implements oauth login with google and gitHub. **This is not production-grade security. I'm not a security expert. Do really not use this for your super private production app! Each security flaw is fully on me, and honestly you shouldn't trust my authentication anyway. But I believe that you already know this.**
 
 ## Protos
 
@@ -156,6 +156,7 @@ I use go professionally, so I think I can give a bit of perspective. The tldr is
 - gRPC gateway: I thought this was a standard gRPC thing. Was surprised Rust doesn’t have a good gRPC gateway. Maybe tonic adds one at some point? (https://github.com/hyperium/tonic/issues/332)
 - HTTP/gRPC middleware: Took me quite some time to write gRPC middleware in Rust. That’s a lot easier in Go, but once you figure out the Rust/tower way, it’s kinda fun.
 - I like how easy it is to onboard new people in Go while in Rust I’d probably spend days explaining generics, lifetimes, async traits and would fumble most of the explanations. What's that Pin thing again?
+- The test harness in Go is so much simpler if you want to do some pre/post setup for all tests. For example in database tests I want to spin up a single postgres container for all tests and then destroy it afterwards. Thats straightforward in Go, but in Rust I really struggled and only managed with a whacky approach that kills the docker containers with a system call. I am not the only one with this problem: [Single container start for whole integration test file](https://github.com/testcontainers/testcontainers-rs/issues/707).
 
 # Where is it used so far?
 
