@@ -66,6 +66,10 @@ I use a custom version of `cargo-chef` (not the main release), because of a fix 
 
 At the moment I build the binary within the docker build process. For Rust images this can be very slow 🐌. I put a lot of effor into caching everything optimally and reduce this time, but if a central dependency changes this can be a pain.An alternative would be to build the binary outside of docker and copy the binary into a minimal docker image (e.g., `scratch` or `alpine`). If I am honest, this sounds like the more scalable approach. But my software engineering pride resisted that idea in the beginning, there is something more elegant about building everything within docker.
 
+## CI/CD
+
+This project currently does **not** have a CI/CD pipeline set up but you definitely should add one. I've just not gotten around to do it yet.
+
 ## Protos
 
 Communication in the backend is done via `gRPC`. `proto` files are compiled into rust and typescript code, thus the backend can share request/response models with the frontend.
@@ -127,6 +131,8 @@ Traces are propagated between microservices
    just deploy-app
    ```
 
+Do I promise this works flawlessly? No. There might be the one or other steps you have to do manually. Feel free to let me know.
+
 # But now be real, how does it compare to go?
 
 I use go professionally, so I think I can give a bit of perspective. The tldr is: for large software projects I’d still choose go for the majority of services, but I’d definitely consider Rust for performance-critical parts (see this good read: https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust). So having a standard Rust setup in the toolkit is a win. For a hobby project like this one? I just prefer writing Rust. Its like solzing puzzles for me.
@@ -150,6 +156,13 @@ I use go professionally, so I think I can give a bit of perspective. The tldr is
 # Where is it used so far?
 
 A backend with a similar setup to this one powers my personal website for tracking running data: [runaround.world](https://runaround.world) (feel free to give it a try, but its early stage - it only supports data from polar and strava at the moment). It works really well. Rust + Postgres delivers the performance you'd expect and in practice there's no need to optimize beyond just writing sane Rust code. So don't worry about a few clones here and there. I like the type safety that Rust provides, there are rarely any issues that I have to debug after it compiles. And if there are issues, tracing helps to track them down quickly.
+
+# AI usage
+
+When I wrote the majority of this project, I didn’t have any agentic AI magic at my disposal. So pretty much all of this code is written by me. I do remember some long ChatGPT sessions when tracing between services wouldn’t work or a middleware broke, but those led me down Dantes hell before I decided to just sit down with myself and fix it.
+
+That said I did use AI for factoring out my endpoints into separate files. [In the beninging](https://www.youtube.com/watch?v=vacJSHN4ZmY) I had every endpoint in one file, but as the code and tests grew, it became too much. AI helped me split things up in separate files.
+And I thing the [docker-gen](./scripts/docker-gen) script is also mostly ai generated, although now I regret it because I like writing scripts that autogenerate code.
 
 # Similar Projects
 
