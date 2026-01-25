@@ -4,69 +4,75 @@ This project is an opinionated base setup for sveltekit apps with a rust based m
 
 # App
 
-...
+There is nothing particularly interesting in the app setup. I just like using Svelte and the setup is straightforward.
+The app uses prerendering rather than server-side rendering, since the backend serves json responses directly. This means the HTML for each page is generated ahead of time during the build process, and any dynamic data is fetched from the backend after the page loads. This might not be suitable for more complex apps.
 
 # Services
 
-The backend consists of rust microservices. A clients request always reaches the `gateway` service
-where it is authenticated and forwarded to the respective microservice.
-The gateway exposes a restful http server (`axum`). Within the backend, the communication is done
-through `grpc` (`tonic`). Each microservices has its own protobuf file defining the service and
-models.
+The backend consists of rust microservices. A clients request always reaches the `gateway` service where it is authenticated and forwarded to the respective microservice.
+The gateway exposes a restful http server (`axum`). Within the backend, the communication is done through `grpc` (`tonic`). Each microservices has its own protobuf file defining the service and models.
 
 ## Microservice structure
-Each microservice has a hexagonal architecture that decouples handler and repository (db) layer.
-If the complexity of the microservice grows it will make sense to split the handler into handler+service,
-where the service encapsulates the domain logic.
 
-A typical microservice will have the following files:
-- `main.rs`: setup (e.g. read env variables, open db connection) and run the service
-- `lib.rs`: expose service boundaries such as the `proto.rs` for other microservices (see `Microservice boundaries`)
-- `handler.rs`: implement the http/grpc endpoints
-- `db.rs`: the database/repository layer
+Each microservice is focused on simple CRUD operations and uses a straightforward structure. The architecture decouples the database/repository layer from the service logic. If complexity grows, you can further split responsibilities (e.g., add a dedicated service layer for domain logic).
+
+A typical microservice (see [`dummy`](./services/dummy)) will have the following files:
+- `main.rs`: setup (read env variables, open db connection) and run the service
+- `lib.rs`: exposes service boundaries (such as `proto.rs`) for other microservices (see Microservice boundaries)
+- `server.rs`: implements the gRPC endpoints and service logic
+    - Each endpoint typically gets its own file (e.g., `get_entity.rs`)
+- `db.rs`: database/repository layer for CRUD operations
+- `proto.rs`: generated code from the protobuf definitions (does not need to be checked in git)
 - `utils.rs`: shared methods between endpoints, models, etc.
-- `error.rs`: the errors types of the endpoints
+- `error.rs`: error types for endpoints and database operations
+- `client.rs`: gRPC client implementation + service mocks (auto generated code)
 
 See also [Master hexagonal architecture in Rust](https://www.howtocodeit.com/articles/master-hexagonal-architecture-rust).
 
 ## Microservice boundaries (`lib.rs`)
 
-Microservices must have access to the api layer of other microservices, which means they must have access to
-the proto generated client and request/response messages of other microservices. This may be solve by
-- compiling the protos in a common `proto` library and including the common library in the microservice, or
-- compiling the proto that belongs to the service as part of the service and exposing it in `lib.rs`.
-This setup uses the second solution. It avoids introducing a shared `proto` library and additionally
-each service can define which part of the proto it wants to expose. Note: the `lib.rs` should not expose
-more than needed by other service, so usually it only exposes the full or parts of the `proto.rs`.
+Microservices must have access to the api layer of other microservices, which means they must have access to the proto generated client and request/response messages of other microservices. This may be solve by - compiling the protos in a common `proto` library and including the common library in the microservice, or - compiling the proto that belongs to the service as part of the service and exposing it in `lib.rs`.
+This setup uses the second solution. It avoids introducing a shared `proto` library and additionally each service can define which part of the proto it wants to expose. Note: the `lib.rs` should not expose more than needed by other service, so usually it only exposes the full or parts of the `proto.rs`.
 
 ## Shared dependencies (`workspace`)
 
-Microservices have a lot of dependencies in common, such as tonic, prost, tokio, serde etc. This may lead to
-a drift in dependency versions, where microservice a depends on a different version of package x than micro-
-service b. The solution is to put all microservices in a `workspace` and define the share dependencies as
-a workspace dependency.
+Microservices have a lot of dependencies in common, such as tonic, prost, tokio, serde etc. This may lead to a drift in dependency versions, where microservice a depends on a different version of package x than microservice b. The solution is to put all microservices in a `workspace` and define the share dependencies as a workspace dependency.
 
 ## Deployment of microservices
 
 ### Deploy a single microservice (`docker`)
 
-The workspace structure of the microservices makes containerization a bit more complex, since a single service
-cannot be build without access to the workspaces dependencies. This is why the `Dockerfile` is found on workspace
-level. One must pass a `SERVICE_NAME` build-arg to docker build step to specify which microservice should be
-containerized.
+The `Dockerfile` for each microservice is autogenerated using the [`scripts/docker-gen`](./scripts/docker-gen) script. This approach ensures that the Dockerfile only includes the microservice itself and the code from any services or packages it depends on. This is critical for optimal caching, especially when using `cargo-chef` to separate dependency compilation from service code builds.
 
 All microservices of the backend are deployed together with docker compose.
 
 ### Cache external dependencies between docker builds (`cargo-chef`)
 
-This setup uses `cargo-chef` to split a container build of a microservice into two steps: i) compile all external
-dependencies and ii) compile the microservice's binary. Step i) can be cached in most cases were only the service
-code changes, which leads to optimized build times.
+This setup uses `cargo-chef` to split the build into two steps:
+1. Compile all external dependencies (which change rarely)
+2. Compile the microservice's actual binary
+
+This separation allows Docker to cache the dependency layer, so rebuilding is much faster when only your service code changes.
+
+I use a custom version of `cargo-chef` (not the main release), because of a fix I contributed ([PR #324](https://github.com/LukeMathWalker/cargo-chef/pull/324)) that minimizes the recipe for workspaces. With this fix, a workspace member (microservice or package) will only rebuild if one of its dependencies changes, instead of rebuilding too often as before.
 
 # Protos
 
-Communication in the backend is done via `gRPC` which naturally uses `proto` file. `proto` files are compiled into
-rust and typescript code.Therefore the backend can share request/response models with the frontend.
+Communication in the backend is done via `gRPC`. `proto` files are compiled into rust and typescript code, thus the backend can share request/response models with the frontend.
+
+# Testing
+
+## Unit tests
+
+For unit tests I use [`rstest`](https://github.com/la10736/rstest) for table-driven testing. This makes it easy to cover multiple scenarios.
+
+## Database unit tests
+
+Database unit tests use [`testcontainers`](https://docs.rs/testcontainers/latest/testcontainers/) to spin up a real postgres database.
+
+## Integration tests
+
+Integration tests also use `testcontainers` to spin up all required services. These tests are located in [`services/gateway/tests`](./services/gateway/tests) and check the interactions between microservices in a realistic environment.
 
 # Tracing
 
