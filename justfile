@@ -72,6 +72,21 @@ undeploy:
 create-network:
   docker network create shared_network
 
+# Build the app
+[group: "build"]
+build-app:
+  docker compose --env-file .env -f app/docker-compose.yml build
+
+# Deploy the app
+[group: "deploy"]
+deploy-app:
+  docker compose --env-file .env -f app/docker-compose.yml up -d
+
+# Undeploy the app
+[group: "deploy"]
+undeploy-app:
+  docker compose --env-file .env -f app/docker-compose.yml down
+
 # Generate rust protobuf files
 [working-directory: 'services']
 [group: "generate"]
