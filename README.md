@@ -148,7 +148,7 @@ I use go professionally, so I think I can give a bit of perspective. The tldr is
 **What I love about Rust:**
 - I just love the language more than Go. It’s more expressive and I feel good if I manage to write a nice functional style map or find a good use case for traits.
 - Type safety. In Go it’s easy to forget passing values to structs and let’s be honest, who creates explicit constructors for everything?
-- Performance: blazingly fast. But have I benchmarked? No. And oes it matter for my app with 1 user (me)? Also no. 
+- Performance: blazingly fast. But have I benchmarked? No. And oes it matter for my app with 1 user (me)? Also no. But seeing traces with latencies with under 2ms doing hops through 3 microservices is nice.
 - Nil pointer exception: In Go it’s just a tad too easy to get a nil pointer exception and crash your microservice. Want to access a nested proto struct but haven’t checked the parent for nil? Boom...
 - Compile with features: It’s nice to use features to gate testutils behind a service. In Go, it’s not straightforward to share testutils without polluting the public API between services.
 - Error handling: I don’t mind Go’s verbosity, but Rust has more batteries here with `anyhow` and `thiserror`. It just clicks more for me even though I haven’t fully found my groove.
