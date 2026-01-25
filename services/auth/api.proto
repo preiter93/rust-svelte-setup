@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package proto;
+package auth;
 
 // Service for authentication, session management, and OAuth integration.
-service ApiService {
+service AuthService {
     // Creates a new session for a user.
     rpc CreateSession(CreateSessionReq) returns (CreateSessionResp) {}
     // Validates an existing session token.

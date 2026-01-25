@@ -1,8 +1,9 @@
 syntax = "proto3";
-package proto;
+package user;
+
 
 // Service for managing users.
-service ApiService {
+service UserService {
     // Creates a new user.
     rpc CreateUser(CreateUserReq) returns (CreateUserResp) {}
     // Resolves the user by its user id.

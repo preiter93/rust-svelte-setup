@@ -1,7 +1,6 @@
 import { PUBLIC_API_URL } from "$env/static/public";
 import { HttpError } from "$lib/errors";
-import type { GetUserResp } from "$lib/protos/user/proto/GetUserResp";
-import type { User } from "$lib/protos/user/proto/User";
+import type { GetUserResp, User } from "$lib/protos/user/api";
 import { BaseService, type FetchType } from "$lib/service";
 
 export class UserService extends BaseService {

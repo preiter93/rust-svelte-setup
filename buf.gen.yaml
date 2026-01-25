@@ -1,0 +1,13 @@
+version: v2
+plugins:
+  - remote: buf.build/community/stephenh-ts-proto
+    out: app/src/lib/protos
+    opt:
+      - outputServices=none
+      - esModuleInterop=true
+      - useOptionals=messages
+      - snakeToCamel=true
+      - envCheck=false
+      - paths=source_relative
+      - outputEncodeMethods=false
+      - outputClientImpl=false
