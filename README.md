@@ -8,11 +8,6 @@ This project is an exploration in creating a standard setup for a microservice b
 
 This project is an opinionated base setup for sveltekit apps with a rust based microservice backend.
 
-## App
-
-There is nothing particularly interesting in the app setup. I just like using Svelte and the setup is straightforward.
-The app uses prerendering rather than server-side rendering, since the backend serves json responses directly. This means the HTML for each page is generated ahead of time during the build process, and any dynamic data is fetched from the backend after the page loads. This might not be suitable for more complex apps.
-
 ## Services
 
 The backend consists of rust microservices. A clients request always reaches the `gateway` service where it is authenticated and forwarded to the respective microservice.
@@ -76,7 +71,7 @@ This project currently does **not** have a CI/CD pipeline set up but you definit
 
 ## Authentication
 
-Authentication is hand-rolled using information from [lucia](https://lucia-auth.com/) and implements oauth login with google and gitHub. **This is not production-grade security. I'm not a security expert. Do really not use this for your super private production app! Each security flaw is fully on me, and honestly you shouldn't trust my authentication anyway. But I believe that you already know this.**
+Authentication is hand-rolled using information from [lucia](https://lucia-auth.com/) and implements oauth login with google and gitHub. **This is not production-grade security. I'm not a security expert. Do really not use this for your super private production app!**
 
 ## Protos
 
@@ -141,21 +136,21 @@ Traces are propagated between microservices
 
 Do I promise this works flawlessly? No. There might be the one or other steps you have to do manually. Feel free to let me know.
 
-# But now be real, how does it compare to go?
+# But how does it compare to go?
 
 I use go professionally, so I think I can give a bit of perspective. The tldr is: for large software projects I’d still choose go for the majority of services, but I’d definitely consider Rust for performance-critical parts (see this good read: https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust). So having a standard Rust setup in the toolkit is a win. For a hobby project like this one? I just prefer writing Rust. Its like solving puzzles for me.
 
 **What I love about Rust:**
 - I just love the language more than Go. It’s more expressive and I feel good if I manage to write a nice functional style map or find a good use case for traits.
 - Type safety. In Go it’s easy to forget passing values to structs and let’s be honest, who creates explicit constructors for everything?
-- Performance: blazingly fast. But have I benchmarked? No. And oes it matter for my app with 1 user (me)? Also no. But seeing traces with latencies with under 2ms doing hops through 3 microservices is nice.
+- Performance: blazingly fast. But have I benchmarked? No. And does it matter for my app with 1 user (me)? Not really. But it is nice to know once it matters, Rust is the right tool.
 - Nil pointer exception: In Go it’s just a tad too easy to get a nil pointer exception and crash your microservice. Want to access a nested proto struct but haven’t checked the parent for nil? Boom...
-- Compile with features: It’s nice to use features to gate testutils behind a service. In Go, it’s not straightforward to share testutils without polluting the public API between services.
-- Error handling: I don’t mind Go’s verbosity, but Rust has more batteries here with `anyhow` and `thiserror`. It just clicks more for me even though I haven’t fully found my groove.
+- Compile time features: As an example, it is nice to use rusts features to put shared testutils in a service. In Go, it’s not straightforward to share testutils without polluting the public API between services.
+- Error handling: I don’t mind Go’s verbosity, but Rust's approach feels nicer, and with `anyhow` and `thiserror` it also as a better ecosystem in my opinion.
 - No garbage collection: Just one problem less to care for.
 
 **The negatives:**
-- The big one is compile time/docker time. Rebuilding a full service from scratch in Docker on a mac can take up to 10 minutes. Want to parallelize this over 10 microservices? Your memory is killed. I put a lot of effort into optimizing caching, using cargo-chef, fixing cargo-chef, autogenerating optimal Dockerfiles (see architecture). But here Go just wins, by a margin that’s not even fun. How does it compile so fast? Maybe I just need to crank some compiler flags in Rust, but I haven’t gotten around to that.
+- The big one is compile time/docker time. Rebuilding a full service from scratch in Docker on a mac can take up to 10 minutes. Want to parallelize this over 10 microservices? Your memory is killed. I put a lot of effort into optimizing caching, using cargo-chef, fixing cargo-chef, autogenerating optimal Dockerfiles (see architecture). But here Go just wins. Maybe I just need to crank some compiler flags in Rust to make it bearable?
 - Table testing is a bit cumbersome in Rust. I use rstest and really like it, but it’s macro-based, which always breaks my formatting in nvim...
 - gRPC gateway: I thought this was a standard gRPC thing. Was surprised Rust doesn’t have a good gRPC gateway. Maybe tonic adds one at some point? (https://github.com/hyperium/tonic/issues/332)
 - HTTP/gRPC middleware: Took me quite some time to write gRPC middleware in Rust. That’s a lot easier in Go, but once you figure out the Rust/tower way, it’s kinda fun.
@@ -165,15 +160,6 @@ I use go professionally, so I think I can give a bit of perspective. The tldr is
 # Where is it used so far?
 
 A backend with a similar setup to this one powers my personal website for tracking running data: [runaround.world](https://runaround.world) (feel free to give it a try, but its early stage - it only supports data from polar and strava at the moment). It works really well. Rust + Postgres delivers the performance you'd expect and in practice there's no need to optimize beyond just writing sane Rust code. So don't worry about a few clones here and there. I like the type safety that Rust provides, there are rarely any issues that I have to debug after it compiles. And if there are issues, tracing helps to track them down quickly.
-
-# AI usage
-
-When I wrote the majority of this project, I didn’t have any agentic AI magic at my disposal. So pretty much all of this code is written by me. I do remember some long ChatGPT sessions when tracing between services wouldn’t work or a middleware broke, but those led me down Dantes hell before I decided to just sit down with myself and fix it.
-
-That said I did use AI for factoring out my endpoints into separate files. [In the beninging](https://www.youtube.com/watch?v=vacJSHN4ZmY) I had every endpoint in one file, but as the code and tests grew, it became too much. AI helped me split things up in separate files.
-And I think the [docker-gen](./tools/docker-gen) script is also mostly ai generated, although now I regret it because I like writing scripts that autogenerate code.
-
-I swear I did not let AI write my authentication. Each security flaw is fully on me, and to be honest, you shouldn't trust my authentication anyway.
 
 # Similar Projects
 
