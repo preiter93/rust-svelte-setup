@@ -8,10 +8,13 @@ use tonic::Status;
 pub enum Error {
     #[error("missing entity id")]
     MissingEntityId,
+
     #[error("invalid entity id: {0}")]
     InvalidEntityId(String),
+
     #[error("entity not found: {0}")]
     EntityNotFound(String),
+
     #[error("get entity error: {0}")]
     GetEntity(DBError),
 }
@@ -32,10 +35,13 @@ impl From<Error> for Status {
 pub enum DBError {
     #[error("unknown error occured")]
     Unknown,
+
     #[error("internal database error: {0}")]
     Internal(#[from] tokio_postgres::Error),
+
     #[error("connection error: {0}")]
     Connection(#[from] deadpool_postgres::PoolError),
+
     #[error("Entity not found")]
     NotFound,
 }

@@ -11,10 +11,13 @@ use crate::utils::grpc_to_http_status;
 pub enum ApiError {
     #[error("unauthenticated")]
     Unauthenticated,
+
     #[error("request failed: {0}")]
     Request(#[from] Status),
+
     #[error("failed to serialize response: {0}")]
     SerializeResponse(#[from] serde_json::Error),
+
     #[error("failed to build response")]
     BuildResponse(#[from] http::Error),
 }
