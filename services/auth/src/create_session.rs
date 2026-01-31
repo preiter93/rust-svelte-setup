@@ -1,8 +1,8 @@
 use crate::{
     db::DBClient,
     error::Error,
+    handler::{Handler, SessionToken},
     proto::{CreateSessionReq, CreateSessionResp},
-    server::{Server, SessionToken},
     utils::{Session, hash_secret},
 };
 use common::Now;
@@ -10,7 +10,7 @@ use oauth::RandomSource;
 use setup::validate_user_id;
 use tonic::{Request, Response, Status};
 
-impl<D, R, N> Server<D, R, N>
+impl<D, R, N> Handler<D, R, N>
 where
     D: DBClient,
     R: RandomSource + Clone,
@@ -102,7 +102,7 @@ mod tests {
             insert_session: Mutex::new(Some(db_result)),
             ..Default::default()
         };
-        let service = Server {
+        let service = Handler {
             db,
             google: GoogleOAuth::<MockRandom>::default(),
             github: GithubOAuth::<MockRandom>::default(),

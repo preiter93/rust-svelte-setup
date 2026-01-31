@@ -2,11 +2,11 @@ pub mod testcontainers;
 
 use std::{error::Error, str::FromStr};
 
-use auth::proto::{CreateSessionReq, api_service_client::ApiServiceClient as AuthClient};
+use auth::proto::{CreateSessionReq, auth_service_client::AuthServiceClient as AuthClient};
 use axum::http::{HeaderMap, HeaderValue};
 use reqwest::header::COOKIE;
 use tonic::{Request, transport::Endpoint};
-use user::proto::{CreateUserReq, User, api_service_client::ApiServiceClient as UserClient};
+use user::proto::{CreateUserReq, User, user_service_client::UserServiceClient as UserClient};
 
 use crate::utils::testcontainers::TestContainers;
 

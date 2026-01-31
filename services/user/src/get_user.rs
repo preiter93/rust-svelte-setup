@@ -1,14 +1,14 @@
 use crate::{
     db::DBClient,
     error::{DBError, Error},
+    handler::Handler,
     proto::{GetUserReq, GetUserResp},
-    server::Server,
     utils::UuidGenerator,
 };
 use setup::validate_user_id;
 use tonic::{Request, Response, Status};
 
-impl<D, U> Server<D, U>
+impl<D, U> Handler<D, U>
 where
     D: DBClient,
     U: UuidGenerator,
@@ -42,8 +42,8 @@ mod tests {
     use crate::{
         db::test::MockDBClient,
         error::DBError,
+        handler::Handler,
         proto::{GetUserReq, GetUserResp, User},
-        server::Server,
         utils::test::{MockUuidGenerator, assert_response, fixture_user, fixture_uuid},
     };
 
@@ -84,7 +84,7 @@ mod tests {
             get_user: Mutex::new(Some(db_result)),
             ..Default::default()
         };
-        let service = Server {
+        let service = Handler {
             db,
             uuid: MockUuidGenerator::default(),
         };

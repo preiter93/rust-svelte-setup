@@ -26,14 +26,14 @@ use tonic::{Request, Response, Status};
 use tracing::instrument;
 
 #[derive(Clone)]
-pub struct Server<D, R, N> {
+pub struct Handler<D, R, N> {
     pub db: D,
     pub google: GoogleOAuth<R>,
     pub github: GithubOAuth<R>,
     pub(crate) _now: PhantomData<N>,
 }
 
-impl<D, R> Server<D, R, SystemNow> {
+impl<D, R> Handler<D, R, SystemNow> {
     pub fn new(db: D, google: GoogleOAuth<R>, github: GithubOAuth<R>) -> Self {
         Self {
             db,
@@ -47,7 +47,7 @@ impl<D, R> Server<D, R, SystemNow> {
 pub(crate) type SessionToken = String;
 
 #[tonic::async_trait]
-impl<D, R, N> AuthService for Server<D, R, N>
+impl<D, R, N> AuthService for Handler<D, R, N>
 where
     D: DBClient,
     R: RandomSource + Clone,

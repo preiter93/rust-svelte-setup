@@ -3,11 +3,11 @@ use tonic::{Request, Response, Status};
 
 use crate::{
     error::Error,
+    handler::Handler,
     proto::{OauthProvider, StartOauthLoginReq, StartOauthLoginResp},
-    server::Server,
 };
 
-impl<D, R, N> Server<D, R, N>
+impl<D, R, N> Handler<D, R, N>
 where
     R: RandomSource + Clone,
 {

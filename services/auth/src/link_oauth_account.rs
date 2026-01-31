@@ -1,14 +1,15 @@
 use crate::{
     db::DBClient,
     error::Error,
+    handler::Handler,
     proto::{LinkOauthAccountReq, LinkOauthAccountResp},
-    server::Server,
 };
 use common::Now;
 use oauth::RandomSource;
 use setup::validate_user_id;
 use tonic::{Request, Response, Status};
-impl<D, R, N> Server<D, R, N>
+
+impl<D, R, N> Handler<D, R, N>
 where
     D: DBClient,
     R: RandomSource + Clone,

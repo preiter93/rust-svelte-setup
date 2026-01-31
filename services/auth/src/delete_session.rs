@@ -3,11 +3,11 @@ use tonic::{Request, Response, Status};
 use crate::{
     db::DBClient,
     error::Error,
+    handler::Handler,
     proto::{DeleteSessionReq, DeleteSessionResp},
-    server::Server,
 };
 
-impl<D, R, N> Server<D, R, N>
+impl<D, R, N> Handler<D, R, N>
 where
     D: DBClient,
 {
@@ -59,9 +59,9 @@ mod tests {
     use crate::{
         db::test::MockDBClient,
         error::DBError,
+        handler::Handler,
         oauth::{github::GithubOAuth, google::GoogleOAuth},
         proto::{DeleteSessionReq, DeleteSessionResp},
-        server::Server,
         utils::tests::fixture_token,
     };
 
@@ -105,7 +105,7 @@ mod tests {
             delete_session: Mutex::new(Some(db_result)),
             ..Default::default()
         };
-        let service = Server {
+        let service = Handler {
             db,
             google: GoogleOAuth::<MockRandom>::default(),
             github: GithubOAuth::<MockRandom>::default(),

@@ -1,12 +1,12 @@
 pub mod db;
 pub mod error;
 pub mod get_entity;
+pub mod handler;
 #[allow(clippy::all)]
 pub mod proto;
-pub mod server;
 pub mod utils;
 
-use crate::{proto::dummy_service_server::DummyServiceServer, server::Server};
+use crate::{handler::Handler, proto::dummy_service_server::DummyServiceServer};
 use common::UuidV4Generator;
 use db::PostgresDBClient;
 use dotenv::dotenv;
@@ -24,13 +24,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pool = database::connect(&pg_cfg)?;
     database::run_migrations!(pool, "./migrations");
 
-    let server = Server {
+    let handler = Handler {
         db: PostgresDBClient::new(pool),
         uuid: UuidV4Generator,
     };
 
     let addr = format!("0.0.0.0:{GRPC_PORT}").parse()?;
-    let svc = DummyServiceServer::new(server);
+    let svc = DummyServiceServer::new(handler);
 
     println!("listening on :{GRPC_PORT}");
     let mut server = tonic::transport::Server::builder().layer(TracingGrpcServiceLayer);

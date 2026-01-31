@@ -1,9 +1,9 @@
 mod error;
-mod server;
+mod handler;
 mod utils;
 
-use crate::server::{
-    Server, get_current_user, handle_oauth_callback, logout_user, start_oauth_login,
+use crate::handler::{
+    Handler, get_current_user, handle_oauth_callback, logout_user, start_oauth_login,
 };
 use auth::client::AuthClient;
 use axum::{
@@ -32,13 +32,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let auth_client = AuthClient::new().await?;
 
-    let server = Server::new().await?;
+    let handler = Handler::new().await?;
     let mut router = Router::new()
         .route("/logout", post(logout_user))
         .route("/user/me", get(get_current_user))
         .route("/auth/{provider}/login", get(start_oauth_login))
         .route("/auth/{provider}/callback", get(handle_oauth_callback))
-        .with_state(server);
+        .with_state(handler);
     router = router.layer(SessionAuthLayer::new(
         auth_client.clone(),
         vec![

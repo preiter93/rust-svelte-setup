@@ -3,13 +3,13 @@ use tonic::{Request, Response, Status};
 use crate::{
     db::DBClient,
     error::Error,
+    handler::Handler,
     proto::{HandleOauthCallbackReq, HandleOauthCallbackResp, OauthProvider},
-    server::Server,
 };
 use common::Now;
 use oauth::{OAuthProvider as _, RandomSource};
 
-impl<D, R, N> Server<D, R, N>
+impl<D, R, N> Handler<D, R, N>
 where
     D: DBClient,
     R: RandomSource + Clone,

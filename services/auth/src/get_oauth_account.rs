@@ -1,15 +1,15 @@
 use crate::{
     db::DBClient,
     error::Error,
+    handler::Handler,
     proto::{GetOauthAccountReq, GetOauthAccountResp},
-    server::Server,
 };
 use common::Now;
 use oauth::RandomSource;
 use setup::validate_user_id;
 use tonic::{Request, Response, Status};
 
-impl<D, R, N> Server<D, R, N>
+impl<D, R, N> Handler<D, R, N>
 where
     D: DBClient,
     R: RandomSource + Clone,
@@ -40,9 +40,9 @@ mod tests {
     use crate::{
         db::test::MockDBClient,
         error::DBError,
+        handler::Handler,
         oauth::{github::GithubOAuth, google::GoogleOAuth},
         proto::{GetOauthAccountReq, GetOauthAccountResp, OauthProvider},
-        server::Server,
         utils::{OAuthAccount, tests::fixture_oauth_account},
     };
     use common::mock::MockNow;
@@ -87,7 +87,7 @@ mod tests {
             get_oauth_account: Mutex::new(Some(db_result)),
             ..Default::default()
         };
-        let service = Server {
+        let service = Handler {
             db,
             google: GoogleOAuth::<MockRandom>::default(),
             github: GithubOAuth::<MockRandom>::default(),

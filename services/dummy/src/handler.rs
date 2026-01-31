@@ -7,14 +7,14 @@ use tonic::{Request, Response, Status};
 use tracing::instrument;
 
 #[derive(Clone)]
-pub struct Server<D, U> {
+pub struct Handler<D, U> {
     pub db: D,
     #[allow(dead_code)]
     pub uuid: U,
 }
 
 #[tonic::async_trait]
-impl<D, U> DummyService for Server<D, U>
+impl<D, U> DummyService for Handler<D, U>
 where
     D: DBClient,
     U: UuidGenerator,

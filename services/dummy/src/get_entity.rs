@@ -3,14 +3,14 @@ use crate::utils::validate_entity_id;
 
 use crate::{
     db::DBClient,
+    handler::Handler,
     proto::{GetEntityReq, GetEntityResp},
-    server::Server,
 };
 use common::UuidGenerator;
 use setup::validate_user_id;
 use tonic::{Request, Response, Status};
 
-impl<D, U> Server<D, U>
+impl<D, U> Handler<D, U>
 where
     D: DBClient,
     U: UuidGenerator,
@@ -49,8 +49,8 @@ mod tests {
     use crate::{
         db::test::MockDBClient,
         error::DBError,
+        handler::Handler,
         proto::{Entity, GetEntityReq, GetEntityResp},
-        server::Server,
         utils::test::{fixture_entity, fixture_get_entity_req, fixture_get_entity_resp},
     };
 
@@ -93,7 +93,7 @@ mod tests {
             get_entity: Mutex::new(Some(db_result)),
             ..Default::default()
         };
-        let service = Server {
+        let service = Handler {
             db,
             uuid: MockUuidGenerator::default(),
         };
