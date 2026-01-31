@@ -122,6 +122,7 @@ Traces are propagated between microservices
 3. Build and deploy the backend:
    ```
    just build-services
+   just create-network
    just deploy
    ```
 4. To run the app locally (in the `app` directory):
