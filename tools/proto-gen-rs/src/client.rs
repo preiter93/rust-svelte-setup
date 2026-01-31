@@ -11,7 +11,6 @@ pub(crate) fn generate_client<P: AsRef<Path>>(
 ) -> Result<()> {
     let file = find_target_file(&fds);
 
-    // Panic if the file contains multiple services
     if file.service.len() != 1 {
         panic!(
             "Proto file '{}' contains {} services, but exactly 1 is required.",
@@ -20,7 +19,6 @@ pub(crate) fn generate_client<P: AsRef<Path>>(
         );
     }
 
-    // Panic if the file contains multiple services
     if file.service.len() != 1 {
         panic!(
             "Proto file '{}' contains {} services, but exactly 1 is required.",
@@ -29,14 +27,12 @@ pub(crate) fn generate_client<P: AsRef<Path>>(
         );
     }
 
-    // Get the service name from the path
     let service_name = std::path::Path::new(proto_dir.as_ref())
         .file_name()
         .unwrap()
         .to_string_lossy()
         .to_string();
 
-    // Generate the client.rs
     let service = &file.service[0];
     let code = generate_client_code(service, &service_name)?;
     let fname = format!("{}/client.rs", src_dir.as_ref().to_string_lossy());

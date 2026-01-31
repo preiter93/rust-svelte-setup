@@ -1,7 +1,6 @@
 mod client;
 mod proto;
-mod utils;
-use crate::{client::generate_client, proto::generate_protos, utils::compile_proto};
+use crate::{client::generate_client, proto::compile_proto, proto::generate_protos};
 
 fn main() -> anyhow::Result<()> {
     let current_dir = std::env::current_dir()?;
@@ -18,23 +17,20 @@ fn main() -> anyhow::Result<()> {
     src_dir.push("src");
 
     if !proto_files.is_empty() {
-        // Compile proto to get the file descriptor
-        let fds = compile_proto(&proto_files[0])?;
+        // Generate protobuf code into src/proto/
+        let file_descriptor = compile_proto(&proto_files[0])?;
 
-        // Extract package name from the file descriptor
-        let package_name = fds
+        let package_name = file_descriptor
             .file
             .iter()
-            .find(|f| {
+            .find_map(|f| {
                 f.name
-                    .as_ref()
-                    .map(|n| n.ends_with("api.proto"))
-                    .unwrap_or(false)
+                    .as_deref()
+                    .filter(|n| n.ends_with("api.proto"))
+                    .and_then(|_| f.package.clone())
             })
-            .and_then(|f| f.package.clone())
             .expect("Proto file must have a package name");
 
-        // Generate protobuf code into src/proto/
         generate_protos(
             src_dir.clone(),
             &proto_files,
@@ -42,7 +38,7 @@ fn main() -> anyhow::Result<()> {
             &package_name,
         );
 
-        // Generate custom client code
+        // Generate custom client code into src/client.rs
         for proto_path in proto_files {
             let fds = compile_proto(&proto_path)?;
             generate_client(&src_dir, &current_dir, &fds)?;
