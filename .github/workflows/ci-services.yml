@@ -1,0 +1,55 @@
+# TODO: Discover services
+# TODO: Run integration tests
+name: Continuous Integration - Services
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service:
+          - auth
+          - user
+          - dummy
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+
+    - name: Install Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
+
+    - name: Cache Cargo registry and build
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          services/target
+        key: ${{ runner.os }}-cargo-${{ matrix.service }}-${{ hashFiles('services/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ matrix.service }}-
+
+    - name: Build
+      working-directory: services/${{ matrix.service }}
+      run: cargo build --verbose
+
+    - name: Run tests
+      working-directory: services/${{ matrix.service }}
+      run: cargo test --verbose
+
+    - name: Clippy
+      working-directory: services/${{ matrix.service }}
+      run: cargo clippy --workspace -- -D warnings
