@@ -18,8 +18,29 @@ fn main() -> anyhow::Result<()> {
     src_dir.push("src");
 
     if !proto_files.is_empty() {
-        // Generate code from proto
-        generate_protos(src_dir.clone(), &proto_files, current_dir.clone());
+        // Compile proto to get the file descriptor
+        let fds = compile_proto(&proto_files[0])?;
+
+        // Extract package name from the file descriptor
+        let package_name = fds
+            .file
+            .iter()
+            .find(|f| {
+                f.name
+                    .as_ref()
+                    .map(|n| n.ends_with("api.proto"))
+                    .unwrap_or(false)
+            })
+            .and_then(|f| f.package.clone())
+            .expect("Proto file must have a package name");
+
+        // Generate protobuf code into src/proto/
+        generate_protos(
+            src_dir.clone(),
+            &proto_files,
+            current_dir.clone(),
+            &package_name,
+        );
 
         // Generate custom client code
         for proto_path in proto_files {
