@@ -65,10 +65,6 @@ I use a custom version of `cargo-chef` (not the main release), because of a fix 
 
 At the moment I build the binary within the docker build process. For Rust images this can be very slow 🐌. I put a lot of effor into caching everything optimally and reduce this time, but if a central dependency changes this can be a pain.An alternative would be to build the binary outside of docker and copy the binary into a minimal docker image (e.g., `scratch` or `alpine`). If I am honest, this sounds like the more scalable approach. But my software engineering pride resisted that idea in the beginning, there is something more elegant about building everything within docker.
 
-## CI/CD
-
-This project currently does **not** have a CI/CD pipeline set up but you definitely should add one. I've just not gotten around to do it yet.
-
 ## Authentication
 
 Authentication is hand-rolled using information from [lucia](https://lucia-auth.com/) and implements oauth login with google and gitHub. **This is not production-grade security. I'm not a security expert. Do really not use this for your super private production app!**
