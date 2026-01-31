@@ -1,7 +1,7 @@
 set dotenv-load
 
-PROTO_GEN_RS_BINARY := "../../scripts/proto-gen-rs/proto-gen-rs"
-DOCKER_GEN_BINARY := "../../scripts/docker-gen/docker-gen"
+PROTO_GEN_RS_BINARY := "../../tools/proto-gen-rs/proto-gen-rs"
+DOCKER_GEN_BINARY := "../../tools/docker-gen/docker-gen"
 
 generate-protos:
   @{{PROTO_GEN_RS_BINARY}}
