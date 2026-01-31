@@ -41,11 +41,11 @@ where
             .await
             .map_err(Error::UpsertOauthAccount)?;
 
-        return Ok(Response::new(HandleOauthCallbackResp {
+        Ok(Response::new(HandleOauthCallbackResp {
             account_id: account.id,
             external_user_name: account.external_user_name.unwrap_or_default(),
             external_user_email: account.external_user_email.unwrap_or_default(),
             user_id: account.user_id.map(|e| e.to_string()).unwrap_or_default(),
-        }));
+        }))
     }
 }
