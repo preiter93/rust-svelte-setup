@@ -1,7 +1,7 @@
 use crate::{
     db::DBClient,
     proto::{
-        CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, api_service_server::ApiService,
+        CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, user_service_server::UserService,
     },
     utils::UuidGenerator,
 };
@@ -15,7 +15,7 @@ pub struct Server<D, U> {
 }
 
 #[tonic::async_trait]
-impl<D, U> ApiService for Server<D, U>
+impl<D, U> UserService for Server<D, U>
 where
     D: DBClient,
     U: UuidGenerator,

@@ -5,14 +5,14 @@ use crate::proto::CreateUserReq;
 use crate::proto::CreateUserResp;
 use crate::proto::GetUserReq;
 use crate::proto::GetUserResp;
-use crate::proto::api_service_client::ApiServiceClient;
+use crate::proto::user_service_client::UserServiceClient;
 use setup::{middleware::tracing::TracingServiceClient, patched_host};
 use std::{error::Error, str::FromStr as _};
 use tonic::transport::{Channel, Endpoint};
 use tonic::{Request, Response, Status, async_trait};
 
 #[derive(Clone)]
-pub struct UserClient(ApiServiceClient<TracingServiceClient<Channel>>);
+pub struct UserClient(UserServiceClient<TracingServiceClient<Channel>>);
 
 impl UserClient {
     pub async fn new() -> Result<Self, Box<dyn Error>> {
@@ -20,7 +20,7 @@ impl UserClient {
         let endpoint = Endpoint::from_str(&format!("http://{host}:{GRPC_PORT}"))?;
         let channel = endpoint.connect().await?;
         let client = TracingServiceClient::new(channel);
-        let client = ApiServiceClient::new(client);
+        let client = UserServiceClient::new(client);
 
         Ok(Self(client))
     }

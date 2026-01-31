@@ -1,6 +1,6 @@
 use crate::{
     db::DBClient,
-    proto::{GetEntityReq, GetEntityResp, api_service_server::ApiService},
+    proto::{GetEntityReq, GetEntityResp, dummy_service_server::DummyService},
 };
 use common::UuidGenerator;
 use tonic::{Request, Response, Status};
@@ -14,7 +14,7 @@ pub struct Server<D, U> {
 }
 
 #[tonic::async_trait]
-impl<D, U> ApiService for Server<D, U>
+impl<D, U> DummyService for Server<D, U>
 where
     D: DBClient,
     U: UuidGenerator,

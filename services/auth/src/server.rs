@@ -17,7 +17,7 @@ use crate::{
         CreateSessionReq, CreateSessionResp, DeleteSessionReq, DeleteSessionResp,
         GetOauthAccountReq, GetOauthAccountResp, HandleOauthCallbackReq, HandleOauthCallbackResp,
         LinkOauthAccountReq, LinkOauthAccountResp, StartOauthLoginReq, StartOauthLoginResp,
-        ValidateSessionReq, ValidateSessionResp, api_service_server::ApiService,
+        ValidateSessionReq, ValidateSessionResp, auth_service_server::AuthService,
     },
 };
 use common::{Now, SystemNow};
@@ -47,7 +47,7 @@ impl<D, R> Server<D, R, SystemNow> {
 pub(crate) type SessionToken = String;
 
 #[tonic::async_trait]
-impl<D, R, N> ApiService for Server<D, R, N>
+impl<D, R, N> AuthService for Server<D, R, N>
 where
     D: DBClient,
     R: RandomSource + Clone,

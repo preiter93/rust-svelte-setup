@@ -3,14 +3,14 @@ use crate::GRPC_PORT;
 use crate::SERVICE_NAME;
 use crate::proto::GetEntityReq;
 use crate::proto::GetEntityResp;
-use crate::proto::api_service_client::ApiServiceClient;
+use crate::proto::dummy_service_client::DummyServiceClient;
 use setup::{middleware::tracing::TracingServiceClient, patched_host};
 use std::{error::Error, str::FromStr as _};
 use tonic::transport::{Channel, Endpoint};
 use tonic::{Request, Response, Status, async_trait};
 
 #[derive(Clone)]
-pub struct DummyClient(ApiServiceClient<TracingServiceClient<Channel>>);
+pub struct DummyClient(DummyServiceClient<TracingServiceClient<Channel>>);
 
 impl DummyClient {
     pub async fn new() -> Result<Self, Box<dyn Error>> {
@@ -18,7 +18,7 @@ impl DummyClient {
         let endpoint = Endpoint::from_str(&format!("http://{host}:{GRPC_PORT}"))?;
         let channel = endpoint.connect().await?;
         let client = TracingServiceClient::new(channel);
-        let client = ApiServiceClient::new(client);
+        let client = DummyServiceClient::new(client);
 
         Ok(Self(client))
     }

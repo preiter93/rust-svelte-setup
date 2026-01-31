@@ -15,14 +15,14 @@ use crate::proto::StartOauthLoginReq;
 use crate::proto::StartOauthLoginResp;
 use crate::proto::ValidateSessionReq;
 use crate::proto::ValidateSessionResp;
-use crate::proto::api_service_client::ApiServiceClient;
+use crate::proto::auth_service_client::AuthServiceClient;
 use setup::{middleware::tracing::TracingServiceClient, patched_host};
 use std::{error::Error, str::FromStr as _};
 use tonic::transport::{Channel, Endpoint};
 use tonic::{Request, Response, Status, async_trait};
 
 #[derive(Clone)]
-pub struct AuthClient(ApiServiceClient<TracingServiceClient<Channel>>);
+pub struct AuthClient(AuthServiceClient<TracingServiceClient<Channel>>);
 
 impl AuthClient {
     pub async fn new() -> Result<Self, Box<dyn Error>> {
@@ -30,7 +30,7 @@ impl AuthClient {
         let endpoint = Endpoint::from_str(&format!("http://{host}:{GRPC_PORT}"))?;
         let channel = endpoint.connect().await?;
         let client = TracingServiceClient::new(channel);
-        let client = ApiServiceClient::new(client);
+        let client = AuthServiceClient::new(client);
 
         Ok(Self(client))
     }

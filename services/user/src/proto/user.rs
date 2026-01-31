@@ -44,7 +44,7 @@ pub struct User {
     pub email: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
-pub mod api_service_client {
+pub mod user_service_client {
     #![allow(
         unused_variables,
         dead_code,
@@ -56,10 +56,10 @@ pub mod api_service_client {
     use tonic::codegen::http::Uri;
     /// Service for managing users.
     #[derive(Debug, Clone)]
-    pub struct ApiServiceClient<T> {
+    pub struct UserServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl ApiServiceClient<tonic::transport::Channel> {
+    impl UserServiceClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -70,7 +70,7 @@ pub mod api_service_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> ApiServiceClient<T>
+    impl<T> UserServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::Body>,
         T::Error: Into<StdError>,
@@ -88,7 +88,7 @@ pub mod api_service_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> ApiServiceClient<InterceptedService<T, F>>
+        ) -> UserServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -102,7 +102,7 @@ pub mod api_service_client {
                 http::Request<tonic::body::Body>,
             >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
         {
-            ApiServiceClient::new(InterceptedService::new(inner, interceptor))
+            UserServiceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -150,11 +150,11 @@ pub mod api_service_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/CreateUser",
+                "/user.UserService/CreateUser",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "CreateUser"));
+                .insert(GrpcMethod::new("user.UserService", "CreateUser"));
             self.inner.unary(req, path, codec).await
         }
         /// Resolves the user by its user id.
@@ -171,15 +171,15 @@ pub mod api_service_client {
                     )
                 })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/proto.ApiService/GetUser");
+            let path = http::uri::PathAndQuery::from_static("/user.UserService/GetUser");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("proto.ApiService", "GetUser"));
+            req.extensions_mut().insert(GrpcMethod::new("user.UserService", "GetUser"));
             self.inner.unary(req, path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod api_service_server {
+pub mod user_service_server {
     #![allow(
         unused_variables,
         dead_code,
@@ -188,9 +188,9 @@ pub mod api_service_server {
         clippy::let_unit_value,
     )]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with ApiServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with UserServiceServer.
     #[async_trait]
-    pub trait ApiService: std::marker::Send + std::marker::Sync + 'static {
+    pub trait UserService: std::marker::Send + std::marker::Sync + 'static {
         /// Creates a new user.
         async fn create_user(
             &self,
@@ -204,14 +204,14 @@ pub mod api_service_server {
     }
     /// Service for managing users.
     #[derive(Debug)]
-    pub struct ApiServiceServer<T> {
+    pub struct UserServiceServer<T> {
         inner: Arc<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
         max_decoding_message_size: Option<usize>,
         max_encoding_message_size: Option<usize>,
     }
-    impl<T> ApiServiceServer<T> {
+    impl<T> UserServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -262,9 +262,9 @@ pub mod api_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for ApiServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for UserServiceServer<T>
     where
-        T: ApiService,
+        T: UserService,
         B: Body + std::marker::Send + 'static,
         B::Error: Into<StdError> + std::marker::Send + 'static,
     {
@@ -279,10 +279,12 @@ pub mod api_service_server {
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             match req.uri().path() {
-                "/proto.ApiService/CreateUser" => {
+                "/user.UserService/CreateUser" => {
                     #[allow(non_camel_case_types)]
-                    struct CreateUserSvc<T: ApiService>(pub Arc<T>);
-                    impl<T: ApiService> tonic::server::UnaryService<super::CreateUserReq>
+                    struct CreateUserSvc<T: UserService>(pub Arc<T>);
+                    impl<
+                        T: UserService,
+                    > tonic::server::UnaryService<super::CreateUserReq>
                     for CreateUserSvc<T> {
                         type Response = super::CreateUserResp;
                         type Future = BoxFuture<
@@ -295,7 +297,7 @@ pub mod api_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::create_user(&inner, request).await
+                                <T as UserService>::create_user(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -322,10 +324,10 @@ pub mod api_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/proto.ApiService/GetUser" => {
+                "/user.UserService/GetUser" => {
                     #[allow(non_camel_case_types)]
-                    struct GetUserSvc<T: ApiService>(pub Arc<T>);
-                    impl<T: ApiService> tonic::server::UnaryService<super::GetUserReq>
+                    struct GetUserSvc<T: UserService>(pub Arc<T>);
+                    impl<T: UserService> tonic::server::UnaryService<super::GetUserReq>
                     for GetUserSvc<T> {
                         type Response = super::GetUserResp;
                         type Future = BoxFuture<
@@ -338,7 +340,7 @@ pub mod api_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::get_user(&inner, request).await
+                                <T as UserService>::get_user(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -387,7 +389,7 @@ pub mod api_service_server {
             }
         }
     }
-    impl<T> Clone for ApiServiceServer<T> {
+    impl<T> Clone for UserServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -400,8 +402,8 @@ pub mod api_service_server {
         }
     }
     /// Generated gRPC service name
-    pub const SERVICE_NAME: &str = "proto.ApiService";
-    impl<T> tonic::server::NamedService for ApiServiceServer<T> {
+    pub const SERVICE_NAME: &str = "user.UserService";
+    impl<T> tonic::server::NamedService for UserServiceServer<T> {
         const NAME: &'static str = SERVICE_NAME;
     }
 }

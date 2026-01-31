@@ -20,7 +20,7 @@ pub struct Entity {
     pub id: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
-pub mod api_service_client {
+pub mod dummy_service_client {
     #![allow(
         unused_variables,
         dead_code,
@@ -31,10 +31,10 @@ pub mod api_service_client {
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
-    pub struct ApiServiceClient<T> {
+    pub struct DummyServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl ApiServiceClient<tonic::transport::Channel> {
+    impl DummyServiceClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -45,7 +45,7 @@ pub mod api_service_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> ApiServiceClient<T>
+    impl<T> DummyServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::Body>,
         T::Error: Into<StdError>,
@@ -63,7 +63,7 @@ pub mod api_service_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> ApiServiceClient<InterceptedService<T, F>>
+        ) -> DummyServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -77,7 +77,7 @@ pub mod api_service_client {
                 http::Request<tonic::body::Body>,
             >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
         {
-            ApiServiceClient::new(InterceptedService::new(inner, interceptor))
+            DummyServiceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -124,17 +124,17 @@ pub mod api_service_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/GetEntity",
+                "/dummy.DummyService/GetEntity",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "GetEntity"));
+                .insert(GrpcMethod::new("dummy.DummyService", "GetEntity"));
             self.inner.unary(req, path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod api_service_server {
+pub mod dummy_service_server {
     #![allow(
         unused_variables,
         dead_code,
@@ -143,23 +143,23 @@ pub mod api_service_server {
         clippy::let_unit_value,
     )]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with ApiServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with DummyServiceServer.
     #[async_trait]
-    pub trait ApiService: std::marker::Send + std::marker::Sync + 'static {
+    pub trait DummyService: std::marker::Send + std::marker::Sync + 'static {
         async fn get_entity(
             &self,
             request: tonic::Request<super::GetEntityReq>,
         ) -> std::result::Result<tonic::Response<super::GetEntityResp>, tonic::Status>;
     }
     #[derive(Debug)]
-    pub struct ApiServiceServer<T> {
+    pub struct DummyServiceServer<T> {
         inner: Arc<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
         max_decoding_message_size: Option<usize>,
         max_encoding_message_size: Option<usize>,
     }
-    impl<T> ApiServiceServer<T> {
+    impl<T> DummyServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -210,9 +210,9 @@ pub mod api_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for ApiServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for DummyServiceServer<T>
     where
-        T: ApiService,
+        T: DummyService,
         B: Body + std::marker::Send + 'static,
         B::Error: Into<StdError> + std::marker::Send + 'static,
     {
@@ -227,10 +227,12 @@ pub mod api_service_server {
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             match req.uri().path() {
-                "/proto.ApiService/GetEntity" => {
+                "/dummy.DummyService/GetEntity" => {
                     #[allow(non_camel_case_types)]
-                    struct GetEntitySvc<T: ApiService>(pub Arc<T>);
-                    impl<T: ApiService> tonic::server::UnaryService<super::GetEntityReq>
+                    struct GetEntitySvc<T: DummyService>(pub Arc<T>);
+                    impl<
+                        T: DummyService,
+                    > tonic::server::UnaryService<super::GetEntityReq>
                     for GetEntitySvc<T> {
                         type Response = super::GetEntityResp;
                         type Future = BoxFuture<
@@ -243,7 +245,7 @@ pub mod api_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::get_entity(&inner, request).await
+                                <T as DummyService>::get_entity(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -292,7 +294,7 @@ pub mod api_service_server {
             }
         }
     }
-    impl<T> Clone for ApiServiceServer<T> {
+    impl<T> Clone for DummyServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -305,8 +307,8 @@ pub mod api_service_server {
         }
     }
     /// Generated gRPC service name
-    pub const SERVICE_NAME: &str = "proto.ApiService";
-    impl<T> tonic::server::NamedService for ApiServiceServer<T> {
+    pub const SERVICE_NAME: &str = "dummy.DummyService";
+    impl<T> tonic::server::NamedService for DummyServiceServer<T> {
         const NAME: &'static str = SERVICE_NAME;
     }
 }

@@ -7,10 +7,11 @@ pub mod proto;
 pub mod server;
 pub mod utils;
 
-use crate::{server::Server, utils::UuidV4Generator};
+use crate::{
+    proto::user_service_server::UserServiceServer, server::Server, utils::UuidV4Generator,
+};
 use db::PostgresDBClient;
 use dotenv::dotenv;
-use proto::api_service_server::ApiServiceServer;
 use setup::{middleware::TracingGrpcServiceLayer, tracing::init_tracer};
 use std::error::Error;
 use user::{GRPC_PORT, SERVICE_NAME};
@@ -31,7 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let addr = format!("0.0.0.0:{GRPC_PORT}").parse()?;
-    let svc = ApiServiceServer::new(server);
+    let svc = UserServiceServer::new(server);
 
     println!("listening on :{GRPC_PORT}");
     let mut server = tonic::transport::Server::builder().layer(TracingGrpcServiceLayer);

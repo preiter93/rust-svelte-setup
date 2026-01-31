@@ -2,7 +2,7 @@
 use crate::{
     db::PostgresDBClient,
     oauth::{config::OauthConfig, github::GithubOAuth, google::GoogleOAuth},
-    proto::api_service_server::ApiServiceServer,
+    proto::auth_service_server::AuthServiceServer,
     server::Server,
 };
 use auth::{GRPC_PORT, SERVICE_NAME};
@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let address = format!("0.0.0.0:{GRPC_PORT}").parse()?;
-    let service = ApiServiceServer::new(server);
+    let service = AuthServiceServer::new(server);
 
     println!("listening on :{GRPC_PORT}");
     let mut server = tonic::transport::Server::builder().layer(TracingGrpcServiceLayer);

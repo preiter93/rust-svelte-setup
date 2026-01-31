@@ -157,7 +157,7 @@ impl OauthProvider {
     }
 }
 /// Generated client implementations.
-pub mod api_service_client {
+pub mod auth_service_client {
     #![allow(
         unused_variables,
         dead_code,
@@ -169,10 +169,10 @@ pub mod api_service_client {
     use tonic::codegen::http::Uri;
     /// Service for authentication, session management, and OAuth integration.
     #[derive(Debug, Clone)]
-    pub struct ApiServiceClient<T> {
+    pub struct AuthServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl ApiServiceClient<tonic::transport::Channel> {
+    impl AuthServiceClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -183,7 +183,7 @@ pub mod api_service_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> ApiServiceClient<T>
+    impl<T> AuthServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::Body>,
         T::Error: Into<StdError>,
@@ -201,7 +201,7 @@ pub mod api_service_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> ApiServiceClient<InterceptedService<T, F>>
+        ) -> AuthServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -215,7 +215,7 @@ pub mod api_service_client {
                 http::Request<tonic::body::Body>,
             >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
         {
-            ApiServiceClient::new(InterceptedService::new(inner, interceptor))
+            AuthServiceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -266,11 +266,11 @@ pub mod api_service_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/CreateSession",
+                "/auth.AuthService/CreateSession",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "CreateSession"));
+                .insert(GrpcMethod::new("auth.AuthService", "CreateSession"));
             self.inner.unary(req, path, codec).await
         }
         /// Validates an existing session token.
@@ -291,11 +291,11 @@ pub mod api_service_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/ValidateSession",
+                "/auth.AuthService/ValidateSession",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "ValidateSession"));
+                .insert(GrpcMethod::new("auth.AuthService", "ValidateSession"));
             self.inner.unary(req, path, codec).await
         }
         /// Deletes/invalidates a session.
@@ -316,11 +316,11 @@ pub mod api_service_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/DeleteSession",
+                "/auth.AuthService/DeleteSession",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "DeleteSession"));
+                .insert(GrpcMethod::new("auth.AuthService", "DeleteSession"));
             self.inner.unary(req, path, codec).await
         }
         /// Starts OAuth login flow and returns authorization URL.
@@ -341,11 +341,11 @@ pub mod api_service_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/StartOauthLogin",
+                "/auth.AuthService/StartOauthLogin",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "StartOauthLogin"));
+                .insert(GrpcMethod::new("auth.AuthService", "StartOauthLogin"));
             self.inner.unary(req, path, codec).await
         }
         /// Handles OAuth callback and exchanges code for tokens.
@@ -366,11 +366,11 @@ pub mod api_service_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/HandleOauthCallback",
+                "/auth.AuthService/HandleOauthCallback",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "HandleOauthCallback"));
+                .insert(GrpcMethod::new("auth.AuthService", "HandleOauthCallback"));
             self.inner.unary(req, path, codec).await
         }
         /// Links an OAuth account to a user.
@@ -391,11 +391,11 @@ pub mod api_service_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/LinkOauthAccount",
+                "/auth.AuthService/LinkOauthAccount",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "LinkOauthAccount"));
+                .insert(GrpcMethod::new("auth.AuthService", "LinkOauthAccount"));
             self.inner.unary(req, path, codec).await
         }
         /// Gets OAuth account information for a user.
@@ -416,17 +416,17 @@ pub mod api_service_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/proto.ApiService/GetOauthAccount",
+                "/auth.AuthService/GetOauthAccount",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("proto.ApiService", "GetOauthAccount"));
+                .insert(GrpcMethod::new("auth.AuthService", "GetOauthAccount"));
             self.inner.unary(req, path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod api_service_server {
+pub mod auth_service_server {
     #![allow(
         unused_variables,
         dead_code,
@@ -435,9 +435,9 @@ pub mod api_service_server {
         clippy::let_unit_value,
     )]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with ApiServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with AuthServiceServer.
     #[async_trait]
-    pub trait ApiService: std::marker::Send + std::marker::Sync + 'static {
+    pub trait AuthService: std::marker::Send + std::marker::Sync + 'static {
         /// Creates a new session for a user.
         async fn create_session(
             &self,
@@ -497,14 +497,14 @@ pub mod api_service_server {
     }
     /// Service for authentication, session management, and OAuth integration.
     #[derive(Debug)]
-    pub struct ApiServiceServer<T> {
+    pub struct AuthServiceServer<T> {
         inner: Arc<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
         max_decoding_message_size: Option<usize>,
         max_encoding_message_size: Option<usize>,
     }
-    impl<T> ApiServiceServer<T> {
+    impl<T> AuthServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -555,9 +555,9 @@ pub mod api_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for ApiServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for AuthServiceServer<T>
     where
-        T: ApiService,
+        T: AuthService,
         B: Body + std::marker::Send + 'static,
         B::Error: Into<StdError> + std::marker::Send + 'static,
     {
@@ -572,11 +572,11 @@ pub mod api_service_server {
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             match req.uri().path() {
-                "/proto.ApiService/CreateSession" => {
+                "/auth.AuthService/CreateSession" => {
                     #[allow(non_camel_case_types)]
-                    struct CreateSessionSvc<T: ApiService>(pub Arc<T>);
+                    struct CreateSessionSvc<T: AuthService>(pub Arc<T>);
                     impl<
-                        T: ApiService,
+                        T: AuthService,
                     > tonic::server::UnaryService<super::CreateSessionReq>
                     for CreateSessionSvc<T> {
                         type Response = super::CreateSessionResp;
@@ -590,7 +590,7 @@ pub mod api_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::create_session(&inner, request).await
+                                <T as AuthService>::create_session(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -617,11 +617,11 @@ pub mod api_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/proto.ApiService/ValidateSession" => {
+                "/auth.AuthService/ValidateSession" => {
                     #[allow(non_camel_case_types)]
-                    struct ValidateSessionSvc<T: ApiService>(pub Arc<T>);
+                    struct ValidateSessionSvc<T: AuthService>(pub Arc<T>);
                     impl<
-                        T: ApiService,
+                        T: AuthService,
                     > tonic::server::UnaryService<super::ValidateSessionReq>
                     for ValidateSessionSvc<T> {
                         type Response = super::ValidateSessionResp;
@@ -635,7 +635,7 @@ pub mod api_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::validate_session(&inner, request).await
+                                <T as AuthService>::validate_session(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -662,11 +662,11 @@ pub mod api_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/proto.ApiService/DeleteSession" => {
+                "/auth.AuthService/DeleteSession" => {
                     #[allow(non_camel_case_types)]
-                    struct DeleteSessionSvc<T: ApiService>(pub Arc<T>);
+                    struct DeleteSessionSvc<T: AuthService>(pub Arc<T>);
                     impl<
-                        T: ApiService,
+                        T: AuthService,
                     > tonic::server::UnaryService<super::DeleteSessionReq>
                     for DeleteSessionSvc<T> {
                         type Response = super::DeleteSessionResp;
@@ -680,7 +680,7 @@ pub mod api_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::delete_session(&inner, request).await
+                                <T as AuthService>::delete_session(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -707,11 +707,11 @@ pub mod api_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/proto.ApiService/StartOauthLogin" => {
+                "/auth.AuthService/StartOauthLogin" => {
                     #[allow(non_camel_case_types)]
-                    struct StartOauthLoginSvc<T: ApiService>(pub Arc<T>);
+                    struct StartOauthLoginSvc<T: AuthService>(pub Arc<T>);
                     impl<
-                        T: ApiService,
+                        T: AuthService,
                     > tonic::server::UnaryService<super::StartOauthLoginReq>
                     for StartOauthLoginSvc<T> {
                         type Response = super::StartOauthLoginResp;
@@ -725,7 +725,7 @@ pub mod api_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::start_oauth_login(&inner, request).await
+                                <T as AuthService>::start_oauth_login(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -752,11 +752,11 @@ pub mod api_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/proto.ApiService/HandleOauthCallback" => {
+                "/auth.AuthService/HandleOauthCallback" => {
                     #[allow(non_camel_case_types)]
-                    struct HandleOauthCallbackSvc<T: ApiService>(pub Arc<T>);
+                    struct HandleOauthCallbackSvc<T: AuthService>(pub Arc<T>);
                     impl<
-                        T: ApiService,
+                        T: AuthService,
                     > tonic::server::UnaryService<super::HandleOauthCallbackReq>
                     for HandleOauthCallbackSvc<T> {
                         type Response = super::HandleOauthCallbackResp;
@@ -770,7 +770,7 @@ pub mod api_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::handle_oauth_callback(&inner, request)
+                                <T as AuthService>::handle_oauth_callback(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -798,11 +798,11 @@ pub mod api_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/proto.ApiService/LinkOauthAccount" => {
+                "/auth.AuthService/LinkOauthAccount" => {
                     #[allow(non_camel_case_types)]
-                    struct LinkOauthAccountSvc<T: ApiService>(pub Arc<T>);
+                    struct LinkOauthAccountSvc<T: AuthService>(pub Arc<T>);
                     impl<
-                        T: ApiService,
+                        T: AuthService,
                     > tonic::server::UnaryService<super::LinkOauthAccountReq>
                     for LinkOauthAccountSvc<T> {
                         type Response = super::LinkOauthAccountResp;
@@ -816,7 +816,8 @@ pub mod api_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::link_oauth_account(&inner, request).await
+                                <T as AuthService>::link_oauth_account(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -843,11 +844,11 @@ pub mod api_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/proto.ApiService/GetOauthAccount" => {
+                "/auth.AuthService/GetOauthAccount" => {
                     #[allow(non_camel_case_types)]
-                    struct GetOauthAccountSvc<T: ApiService>(pub Arc<T>);
+                    struct GetOauthAccountSvc<T: AuthService>(pub Arc<T>);
                     impl<
-                        T: ApiService,
+                        T: AuthService,
                     > tonic::server::UnaryService<super::GetOauthAccountReq>
                     for GetOauthAccountSvc<T> {
                         type Response = super::GetOauthAccountResp;
@@ -861,7 +862,7 @@ pub mod api_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ApiService>::get_oauth_account(&inner, request).await
+                                <T as AuthService>::get_oauth_account(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -910,7 +911,7 @@ pub mod api_service_server {
             }
         }
     }
-    impl<T> Clone for ApiServiceServer<T> {
+    impl<T> Clone for AuthServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -923,8 +924,8 @@ pub mod api_service_server {
         }
     }
     /// Generated gRPC service name
-    pub const SERVICE_NAME: &str = "proto.ApiService";
-    impl<T> tonic::server::NamedService for ApiServiceServer<T> {
+    pub const SERVICE_NAME: &str = "auth.AuthService";
+    impl<T> tonic::server::NamedService for AuthServiceServer<T> {
         const NAME: &'static str = SERVICE_NAME;
     }
 }
