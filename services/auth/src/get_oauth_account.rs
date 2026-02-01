@@ -87,7 +87,7 @@ mod tests {
             get_oauth_account: Mutex::new(Some(db_result)),
             ..Default::default()
         };
-        let service = Handler {
+        let handler = Handler {
             db,
             google: GoogleOAuth::<MockRandom>::default(),
             github: GithubOAuth::<MockRandom>::default(),
@@ -95,7 +95,7 @@ mod tests {
         };
 
         // when
-        let got = service.get_oauth_account(Request::new(req)).await;
+        let got = handler.get_oauth_account(Request::new(req)).await;
 
         // then
         assert_response(got, want);

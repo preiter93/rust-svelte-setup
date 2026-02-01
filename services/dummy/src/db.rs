@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::proto::Entity;
 
+#[cfg_attr(test, mock::db_client)]
 #[async_trait]
 pub trait DBClient: Send + Sync + 'static {
     async fn insert_entity(&self, id: Uuid, user_id: Uuid) -> Result<(), DBError>;
@@ -75,6 +76,7 @@ impl TryFrom<Row> for Entity {
 
 #[cfg(test)]
 pub mod test {
+    pub(crate) use super::MockDBClient;
     use crate::SERVICE_NAME;
     use crate::{
         proto::Entity,
@@ -82,38 +84,11 @@ pub mod test {
     };
     use rstest::rstest;
     use testutils::get_test_db;
-    use tokio::sync::Mutex;
-    use tonic::async_trait;
     use uuid::Uuid;
 
     use super::*;
 
     use crate::error::DBError;
-
-    pub struct MockDBClient {
-        pub get_entity: Mutex<Option<Result<Entity, DBError>>>,
-        pub insert_entity: Mutex<Option<Result<(), DBError>>>,
-    }
-
-    impl Default for MockDBClient {
-        fn default() -> Self {
-            Self {
-                insert_entity: Mutex::new(None),
-                get_entity: Mutex::new(None),
-            }
-        }
-    }
-
-    #[async_trait]
-    impl DBClient for MockDBClient {
-        async fn insert_entity(&self, _: Uuid, _: Uuid) -> Result<(), DBError> {
-            self.insert_entity.lock().await.take().unwrap()
-        }
-
-        async fn get_entity(&self, _: Uuid, _: Uuid) -> Result<Entity, DBError> {
-            self.get_entity.lock().await.take().unwrap()
-        }
-    }
 
     #[derive(Clone)]
     struct DBEntity {

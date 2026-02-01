@@ -90,6 +90,7 @@ dependencies = [
  "database",
  "deadpool-postgres",
  "dotenv",
+ "mock",
  "oauth",
  "prost 0.14.3",
  "refinery",
@@ -529,6 +530,7 @@ dependencies = [
  "database",
  "deadpool-postgres",
  "dotenv",
+ "mock",
  "prost 0.14.3",
  "refinery",
  "rstest",
@@ -1313,6 +1315,15 @@ dependencies = [
  "libc",
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "mock"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -3148,6 +3159,7 @@ dependencies = [
  "database",
  "deadpool-postgres",
  "dotenv",
+ "mock",
  "prost 0.14.3",
  "refinery",
  "rstest",

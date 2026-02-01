@@ -9,6 +9,7 @@ use setup::session::SESSION_TOKEN_EXPIRY_DURATION;
 use tonic::async_trait;
 use uuid::Uuid;
 
+#[cfg_attr(test, mock::db_client)]
 #[async_trait]
 pub trait DBClient: Send + Sync + 'static {
     async fn insert_session(&self, session: Session) -> Result<(), DBError>;
@@ -216,82 +217,13 @@ impl DBClient for PostgresDBClient {
 
 #[cfg(test)]
 pub(crate) mod test {
+    pub(crate) use super::MockDBClient;
     use super::*;
     use crate::utils::tests::{fixture_oauth_account, fixture_session, fixture_uuid};
     use crate::{SERVICE_NAME, error::DBError};
     use chrono::TimeZone;
     use rstest::rstest;
-    use std::sync::Arc;
     use testutils::get_test_db;
-    use tokio::sync::Mutex;
-    use tonic::async_trait;
-
-    pub(crate) struct MockDBClient {
-        pub(crate) insert_session: Mutex<Option<Result<(), DBError>>>,
-        pub(crate) get_session: Mutex<Option<Result<Session, DBError>>>,
-        pub(crate) delete_session: Mutex<Option<Result<(), DBError>>>,
-        pub(crate) update_session: Mutex<Option<Result<(), DBError>>>,
-        pub(crate) update_session_count: Arc<Mutex<usize>>,
-        pub(crate) delete_session_count: Arc<Mutex<usize>>,
-        pub(crate) upsert_oauth_account: Mutex<Option<Result<OAuthAccount, DBError>>>,
-        pub(crate) update_oauth_account: Mutex<Option<Result<OAuthAccount, DBError>>>,
-        pub(crate) get_oauth_account: Mutex<Option<Result<OAuthAccount, DBError>>>,
-    }
-
-    impl Default for MockDBClient {
-        fn default() -> Self {
-            Self {
-                insert_session: Mutex::new(None),
-                get_session: Mutex::new(None),
-                delete_session: Mutex::new(None),
-                update_session: Mutex::new(None),
-                update_session_count: Arc::new(Mutex::new(0)),
-                delete_session_count: Arc::new(Mutex::new(0)),
-                upsert_oauth_account: Mutex::new(None),
-                update_oauth_account: Mutex::new(None),
-                get_oauth_account: Mutex::new(None),
-            }
-        }
-    }
-
-    #[async_trait]
-    impl DBClient for MockDBClient {
-        async fn insert_session(&self, _: Session) -> Result<(), DBError> {
-            self.insert_session.lock().await.take().unwrap()
-        }
-
-        async fn get_session(&self, _: &str) -> Result<Session, DBError> {
-            self.get_session.lock().await.take().unwrap()
-        }
-
-        async fn delete_session(&self, _: &str) -> Result<(), DBError> {
-            let mut count = self.delete_session_count.lock().await;
-            *count += 1;
-            self.delete_session.lock().await.take().unwrap()
-        }
-
-        async fn update_session(&self, _: &str, _: &DateTime<Utc>) -> Result<(), DBError> {
-            let mut count = self.update_session_count.lock().await;
-            *count += 1;
-            self.update_session.lock().await.take().unwrap()
-        }
-
-        async fn upsert_oauth_account(&self, _: &OAuthAccount) -> Result<OAuthAccount, DBError> {
-            self.upsert_oauth_account.lock().await.take().unwrap()
-        }
-
-        async fn update_oauth_account(&self, _: &str, _: Uuid) -> Result<OAuthAccount, DBError> {
-            self.update_oauth_account.lock().await.take().unwrap()
-        }
-
-        async fn get_oauth_account(
-            &self,
-            _: Uuid,
-            _: OauthProvider,
-        ) -> Result<OAuthAccount, DBError> {
-            self.get_oauth_account.lock().await.take().unwrap()
-        }
-    }
 
     async fn run_db_session_test<F, Fut>(given_sessions: Vec<Session>, test_fn: F)
     where

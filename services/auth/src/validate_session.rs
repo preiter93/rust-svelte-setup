@@ -209,7 +209,7 @@ mod tests {
             update_session: Mutex::new(Some(Ok(()))),
             ..Default::default()
         };
-        let service = Handler {
+        let handler = Handler {
             db,
             google: GoogleOAuth::<MockRandom>::default(),
             github: GithubOAuth::<MockRandom>::default(),
@@ -217,21 +217,21 @@ mod tests {
         };
 
         // when
-        let got = service.validate_session(Request::new(req)).await;
+        let got = handler.validate_session(Request::new(req)).await;
 
         // then
         assert_response(got, want);
 
         assert_eq!(
-            *service.db.update_session_count.lock().await,
+            handler.db.update_session_calls(),
             want_update_count,
-            "update_session_count mismatch",
+            "update_session_calls mismatch",
         );
 
         assert_eq!(
-            *service.db.delete_session_count.lock().await,
+            handler.db.delete_session_calls(),
             want_delete_count,
-            "delete_session_count mismatch",
+            "delete_session_calls mismatch",
         );
     }
 }

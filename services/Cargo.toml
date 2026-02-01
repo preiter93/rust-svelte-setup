@@ -6,6 +6,7 @@ members = [
     "dummy",
     "pkg/common",
     "pkg/database",
+    "pkg/mock",
     "pkg/setup",
     "pkg/oauth",
     "pkg/testutils",

@@ -25,6 +25,7 @@ setup = { version = "0.1", path = "../pkg/setup" }
 rstest = { workspace = true }
 
 testutils = { version = "0.1", path = "../pkg/testutils" }
+mock = { version = "0.1", path = "../pkg/mock" }
 
 [features]
 default = ["testutils"]

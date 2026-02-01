@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::proto::User;
 
+#[cfg_attr(test, mock::db_client)]
 #[async_trait]
 pub trait DBClient: Send + Sync + 'static {
     async fn insert_user(&self, id: Uuid, name: &str, email: &str) -> Result<(), DBError>;
@@ -81,46 +82,17 @@ impl TryFrom<Row> for User {
 
 #[cfg(test)]
 pub mod test {
+    pub(crate) use super::MockDBClient;
+    use super::*;
+    use crate::error::DBError;
     use crate::{
         proto::User,
         utils::test::{fixture_user, fixture_uuid},
     };
     use rstest::rstest;
     use testutils::get_test_db;
-    use tokio::sync::Mutex;
-    use tonic::async_trait;
     use user::SERVICE_NAME;
     use uuid::Uuid;
-
-    use super::*;
-
-    use crate::error::DBError;
-
-    pub struct MockDBClient {
-        pub get_user: Mutex<Option<Result<User, DBError>>>,
-        pub insert_user: Mutex<Option<Result<(), DBError>>>,
-        pub get_user_id_from_oauth_id: Mutex<Option<Result<Uuid, DBError>>>,
-    }
-    impl Default for MockDBClient {
-        fn default() -> Self {
-            Self {
-                insert_user: Mutex::new(None),
-                get_user: Mutex::new(None),
-                get_user_id_from_oauth_id: Mutex::new(None),
-            }
-        }
-    }
-
-    #[async_trait]
-    impl DBClient for MockDBClient {
-        async fn insert_user(&self, _: Uuid, _: &str, _: &str) -> Result<(), DBError> {
-            self.insert_user.lock().await.take().unwrap()
-        }
-
-        async fn get_user(&self, _: Uuid) -> Result<User, DBError> {
-            self.get_user.lock().await.take().unwrap()
-        }
-    }
 
     #[derive(Clone)]
     struct DBUser {
