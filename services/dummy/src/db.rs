@@ -80,6 +80,7 @@ pub mod test {
         proto::Entity,
         utils::test::{fixture_entity, fixture_uuid},
     };
+    use rstest::rstest;
     use testutils::get_test_db;
     use tokio::sync::Mutex;
     use tonic::async_trait;
@@ -153,33 +154,34 @@ pub mod test {
         test_fn(db_client).await;
     }
 
+    #[rstest]
+    #[case::happy_path(
+        fixture_uuid(),
+        vec![fixture_db_entity(|_| {})],
+        Ok(fixture_entity(|_| {}))
+    )]
+    #[case::not_found(
+        Uuid::parse_str("99999999-9999-9999-9999-999999999999").unwrap(),
+        vec![],
+        Err(DBError::NotFound)
+    )]
     #[tokio::test]
-    async fn test_get_entity() {
-        let id = fixture_uuid();
-        let user_id = fixture_uuid();
-        let given_entity = fixture_db_entity(|u| u.id = id);
-        let want_entity = fixture_entity(|u| u.id = id.to_string());
+    async fn test_get_entity(
+        #[case] entity_id: Uuid,
+        #[case] given_entity: Vec<DBEntity>,
+        #[case] want: Result<Entity, DBError>,
+    ) {
+        run_db_test(given_entity, |db_client| async move {
+            let user_id = fixture_uuid();
+            let got = db_client.get_entity(entity_id, user_id).await;
 
-        run_db_test(vec![given_entity], |db_client| async move {
-            let got_entity = db_client
-                .get_entity(id, user_id)
-                .await
-                .expect("failed to get entity");
-
-            assert_eq!(got_entity, want_entity);
-        })
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_get_entity_not_found() {
-        let id = Uuid::parse_str("99999999-9999-9999-9999-999999999999").unwrap();
-        let user_id = fixture_uuid();
-
-        run_db_test(vec![], |db_client| async move {
-            let got_result = db_client.get_entity(id, user_id).await;
-
-            assert!(matches!(got_result, Err(DBError::NotFound)));
+            match (got, want) {
+                (Ok(got_entity), Ok(want_entity)) => assert_eq!(got_entity, want_entity),
+                (Err(got_err), Err(want_err)) => {
+                    assert_eq!(format!("{got_err}"), format!("{want_err}"))
+                }
+                (got, want) => panic!("expected {want:?}, got {got:?}"),
+            }
         })
         .await;
     }

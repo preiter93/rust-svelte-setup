@@ -85,6 +85,7 @@ pub mod test {
         proto::User,
         utils::test::{fixture_user, fixture_uuid},
     };
+    use rstest::rstest;
     use testutils::get_test_db;
     use tokio::sync::Mutex;
     use tonic::async_trait;
@@ -162,28 +163,33 @@ pub mod test {
         test_fn(db_client).await;
     }
 
+    #[rstest]
+    #[case::happy_path(
+        fixture_uuid(),
+        vec![fixture_db_user(|_| {})],
+        Ok(fixture_user(|_| {}))
+    )]
+    #[case::not_found(
+        Uuid::parse_str("99999999-9999-9999-9999-999999999999").unwrap(),
+        vec![],
+        Err(DBError::NotFound)
+    )]
     #[tokio::test]
-    async fn test_get_user() {
-        let id = fixture_uuid();
-        let given_user = fixture_db_user(|u| u.id = id);
-        let want_user = fixture_user(|u| u.id = id.to_string());
+    async fn test_get_user(
+        #[case] user_id: Uuid,
+        #[case] given_users: Vec<DBUser>,
+        #[case] want: Result<User, DBError>,
+    ) {
+        run_db_test(given_users, |db_client| async move {
+            let got = db_client.get_user(user_id).await;
 
-        run_db_test(vec![given_user], |db_client| async move {
-            let got_user = db_client.get_user(id).await.expect("failed to get user");
-
-            assert_eq!(got_user, want_user);
-        })
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_get_user_not_found() {
-        let id = Uuid::parse_str("99999999-9999-9999-9999-999999999999").unwrap();
-
-        run_db_test(vec![], |db_client| async move {
-            let got_result = db_client.get_user(id).await;
-
-            assert!(matches!(got_result, Err(DBError::NotFound)));
+            match (got, want) {
+                (Ok(got_user), Ok(want_user)) => assert_eq!(got_user, want_user),
+                (Err(got_err), Err(want_err)) => {
+                    assert_eq!(format!("{got_err}"), format!("{want_err}"))
+                }
+                (got, want) => panic!("expected {want:?}, got {got:?}"),
+            }
         })
         .await;
     }

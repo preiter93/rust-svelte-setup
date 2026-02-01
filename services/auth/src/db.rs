@@ -220,6 +220,7 @@ pub(crate) mod test {
     use crate::utils::tests::{fixture_oauth_account, fixture_session, fixture_uuid};
     use crate::{SERVICE_NAME, error::DBError};
     use chrono::TimeZone;
+    use rstest::rstest;
     use std::sync::Arc;
     use testutils::get_test_db;
     use tokio::sync::Mutex;
@@ -450,44 +451,45 @@ pub(crate) mod test {
         .await;
     }
 
+    #[rstest]
+    #[case::happy_path(
+        Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+        OauthProvider::Unspecified,
+        vec![fixture_oauth_account(|v| {
+            v.id = "oauth-id-get".to_string();
+            v.external_user_id = "external-user-id-get".to_string();
+            v.provider = OauthProvider::Unspecified as i32;
+            v.user_id = Some(Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap());
+        })],
+        Ok(fixture_oauth_account(|v| {
+            v.id = "oauth-id-get".to_string();
+            v.external_user_id = "external-user-id-get".to_string();
+            v.provider = OauthProvider::Unspecified as i32;
+            v.user_id = Some(Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap());
+        }))
+    )]
+    #[case::not_found(
+        Uuid::parse_str("99999999-9999-9999-9999-999999999999").unwrap(),
+        OauthProvider::Unspecified,
+        vec![],
+        Err(DBError::NotFound("99999999-9999-9999-9999-999999999999".to_string()))
+    )]
     #[tokio::test]
-    async fn test_get_oauth_account() {
-        let oauth_id = "oauth-id-get";
-        let external_user_id = "external-user-id-get";
-        let user_id = fixture_uuid();
-        let provider = OauthProvider::Github;
+    async fn test_get_oauth_account(
+        #[case] user_id: Uuid,
+        #[case] provider: OauthProvider,
+        #[case] given_accounts: Vec<OAuthAccount>,
+        #[case] want: Result<OAuthAccount, DBError>,
+    ) {
+        run_db_oauth_accounts_test(given_accounts, |db_client| async move {
+            let got = db_client.get_oauth_account(user_id, provider).await;
 
-        let account = fixture_oauth_account(|v| {
-            v.id = oauth_id.to_string();
-            v.external_user_id = external_user_id.to_string();
-            v.provider = provider as i32;
-            v.user_id = Some(user_id);
-        });
-
-        run_db_oauth_accounts_test(vec![account.clone()], |db_client| async move {
-            let got_account = db_client
-                .get_oauth_account(user_id, provider)
-                .await
-                .expect("failed to get account");
-
-            assert_eq!(got_account, account);
-        })
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_get_oauth_account_not_found() {
-        let user_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
-
-        run_db_oauth_accounts_test(vec![], |db_client| async move {
-            let got_result = db_client
-                .get_oauth_account(user_id, OauthProvider::Unspecified)
-                .await;
-
-            if let Err(DBError::NotFound(s)) = got_result {
-                assert_eq!(s, user_id.to_string());
-            } else {
-                panic!("expected NotFound error");
+            match (got, want) {
+                (Ok(got_account), Ok(want_account)) => assert_eq!(got_account, want_account),
+                (Err(got_err), Err(want_err)) => {
+                    assert_eq!(format!("{got_err}"), format!("{want_err}"))
+                }
+                (got, want) => panic!("expected {want:?}, got {got:?}"),
             }
         })
         .await;
