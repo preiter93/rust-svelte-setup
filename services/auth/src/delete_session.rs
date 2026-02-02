@@ -59,10 +59,10 @@ mod tests {
     use crate::{
         db::test::MockDBClient,
         error::DBError,
+        fixture::fixture_token,
         handler::Handler,
         oauth::{github::GithubOAuth, google::GoogleOAuth},
         proto::{DeleteSessionReq, DeleteSessionResp},
-        utils::tests::fixture_token,
     };
 
     #[rstest]

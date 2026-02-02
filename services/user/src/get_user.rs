@@ -3,8 +3,8 @@ use crate::{
     error::{DBError, Error},
     handler::Handler,
     proto::{GetUserReq, GetUserResp},
-    utils::UuidGenerator,
 };
+use common::UuidGenerator;
 use setup::validate_user_id;
 use tonic::{Request, Response, Status};
 
@@ -42,9 +42,9 @@ mod tests {
     use crate::{
         db::test::MockDBClient,
         error::DBError,
+        fixture::{fixture_user, fixture_uuid},
         handler::Handler,
         proto::{GetUserReq, GetUserResp, User},
-        utils::test::{MockUuidGenerator, assert_response, fixture_user, fixture_uuid},
     };
 
     #[rstest]
@@ -80,6 +80,8 @@ mod tests {
         #[case] want: Result<GetUserResp, Code>,
     ) {
         // given
+        use common::mock::MockUuidGenerator;
+        use testutils::assert_response;
         let db = MockDBClient {
             get_user: Mutex::new(Some(db_result)),
             ..Default::default()

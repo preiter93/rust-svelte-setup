@@ -5,11 +5,12 @@ pub mod get_user;
 pub mod handler;
 #[allow(clippy::all)]
 pub mod proto;
-pub mod utils;
 
-use crate::{
-    handler::Handler, proto::user_service_server::UserServiceServer, utils::UuidV4Generator,
-};
+#[cfg(test)]
+mod fixture;
+
+use crate::{handler::Handler, proto::user_service_server::UserServiceServer};
+use common::UuidV4Generator;
 use db::PostgresDBClient;
 use dotenv::dotenv;
 use setup::{middleware::TracingGrpcServiceLayer, tracing::init_tracer};

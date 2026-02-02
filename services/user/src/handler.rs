@@ -3,8 +3,8 @@ use crate::{
     proto::{
         CreateUserReq, CreateUserResp, GetUserReq, GetUserResp, user_service_server::UserService,
     },
-    utils::UuidGenerator,
 };
+use common::UuidGenerator;
 use tonic::{Request, Response, Status};
 use tracing::instrument;
 

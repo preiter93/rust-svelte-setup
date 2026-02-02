@@ -49,9 +49,9 @@ mod tests {
     use crate::{
         db::test::MockDBClient,
         error::DBError,
+        fixture::{fixture_entity, fixture_get_entity_req, fixture_get_entity_resp},
         handler::Handler,
         proto::{Entity, GetEntityReq, GetEntityResp},
-        utils::test::{fixture_entity, fixture_get_entity_req, fixture_get_entity_resp},
     };
 
     #[rstest]

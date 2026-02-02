@@ -85,34 +85,12 @@ pub mod test {
     pub(crate) use super::MockDBClient;
     use super::*;
     use crate::error::DBError;
-    use crate::{
-        proto::User,
-        utils::test::{fixture_user, fixture_uuid},
-    };
+    use crate::fixture::{DBUser, fixture_db_user, fixture_user, fixture_uuid};
+    use crate::proto::User;
     use rstest::rstest;
     use testutils::get_test_db;
     use user::SERVICE_NAME;
     use uuid::Uuid;
-
-    #[derive(Clone)]
-    struct DBUser {
-        id: Uuid,
-        name: &'static str,
-        email: &'static str,
-    }
-
-    fn fixture_db_user<F>(mut func: F) -> DBUser
-    where
-        F: FnMut(&mut DBUser),
-    {
-        let mut user = DBUser {
-            id: fixture_uuid(),
-            name: "name",
-            email: "email",
-        };
-        func(&mut user);
-        user
-    }
 
     async fn run_db_test<F, Fut>(given_user: Vec<DBUser>, test_fn: F)
     where

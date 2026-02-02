@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 use tokio_postgres::Row;
 
 #[derive(Clone, PartialEq, Debug, Default)]
-pub struct Session {
+pub struct DBSession {
     pub id: String,
     pub secret_hash: Vec<u8>,
     pub created_at: DateTime<Utc>,
@@ -15,11 +15,11 @@ pub struct Session {
     pub user_id: Uuid,
 }
 
-impl TryFrom<&Row> for Session {
+impl TryFrom<&Row> for DBSession {
     type Error = tokio_postgres::Error;
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        Ok(Session {
+        Ok(DBSession {
             id: row.try_get("id")?,
             secret_hash: row.try_get("secret_hash")?,
             created_at: row.try_get("created_at")?,
@@ -123,53 +123,4 @@ async fn get_jwks(endpoint: &str) -> Result<Jwks, Box<dyn std::error::Error>> {
     let client = Client::new();
     let res = client.get(endpoint).send().await?.json::<Jwks>().await?;
     Ok(res)
-}
-
-#[cfg(test)]
-pub(crate) mod tests {
-    use chrono::TimeZone;
-
-    use super::*;
-
-    pub fn fixture_uuid() -> Uuid {
-        Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
-    }
-
-    pub(crate) fn fixture_token() -> String {
-        "secret.secret".to_string()
-    }
-
-    pub(crate) fn fixture_session<F>(mut func: F) -> Session
-    where
-        F: FnMut(&mut Session),
-    {
-        let mut session = Session {
-            id: "session-id".to_string(),
-            secret_hash: hash_secret("secret"),
-            created_at: chrono::Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
-            expires_at: chrono::Utc.with_ymd_and_hms(2020, 1, 8, 0, 0, 0).unwrap(),
-            user_id: fixture_uuid(),
-        };
-        func(&mut session);
-        session
-    }
-
-    pub(crate) fn fixture_oauth_account<F>(mut func: F) -> OAuthAccount
-    where
-        F: FnMut(&mut OAuthAccount),
-    {
-        let mut token = OAuthAccount {
-            id: "oauth-id".to_string(),
-            external_user_id: "external-user-id".to_string(),
-            external_user_name: Some("external-user-name".to_string()),
-            external_user_email: Some("external-user-email".to_string()),
-            provider: 0,
-            access_token: Some("access-token".to_string()),
-            access_token_expires_at: None,
-            refresh_token: None,
-            user_id: None,
-        };
-        func(&mut token);
-        token
-    }
 }

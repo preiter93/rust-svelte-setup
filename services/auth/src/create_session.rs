@@ -3,7 +3,7 @@ use crate::{
     error::Error,
     handler::{Handler, SessionToken},
     proto::{CreateSessionReq, CreateSessionResp},
-    utils::{Session, hash_secret},
+    utils::{DBSession, hash_secret},
 };
 use common::Now;
 use oauth::RandomSource;
@@ -35,7 +35,7 @@ where
         let secret = R::alphanumeric(24);
         let token: SessionToken = format!("{id}.{secret}");
 
-        let session = Session {
+        let session = DBSession {
             id,
             secret_hash: hash_secret(&secret),
             created_at: N::now(),
@@ -57,8 +57,8 @@ mod tests {
     use super::*;
     use crate::db::test::MockDBClient;
     use crate::error::DBError;
+    use crate::fixture::{fixture_token, fixture_uuid};
     use crate::oauth::{github::GithubOAuth, google::GoogleOAuth};
-    use crate::utils::tests::{fixture_token, fixture_uuid};
     use common::mock::MockNow;
     use oauth::mock::MockRandom;
     use rstest::rstest;

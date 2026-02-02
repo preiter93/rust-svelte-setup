@@ -40,10 +40,11 @@ mod tests {
     use crate::{
         db::test::MockDBClient,
         error::DBError,
+        fixture::fixture_oauth_account,
         handler::Handler,
         oauth::{github::GithubOAuth, google::GoogleOAuth},
         proto::{GetOauthAccountReq, GetOauthAccountResp, OauthProvider},
-        utils::{OAuthAccount, tests::fixture_oauth_account},
+        utils::OAuthAccount,
     };
     use common::mock::MockNow;
     use oauth::mock::MockRandom;

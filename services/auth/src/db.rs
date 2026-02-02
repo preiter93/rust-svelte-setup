@@ -1,7 +1,7 @@
 use crate::{
     error::DBError,
     proto::OauthProvider,
-    utils::{OAuthAccount, Session},
+    utils::{DBSession, OAuthAccount},
 };
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
@@ -12,9 +12,9 @@ use uuid::Uuid;
 #[cfg_attr(test, mock::db_client)]
 #[async_trait]
 pub trait DBClient: Send + Sync + 'static {
-    async fn insert_session(&self, session: Session) -> Result<(), DBError>;
+    async fn insert_session(&self, session: DBSession) -> Result<(), DBError>;
 
-    async fn get_session(&self, id: &str) -> Result<Session, DBError>;
+    async fn get_session(&self, id: &str) -> Result<DBSession, DBError>;
 
     async fn delete_session(&self, id: &str) -> Result<(), DBError>;
 
@@ -54,7 +54,7 @@ impl DBClient for PostgresDBClient {
     /// # Errors
     /// - database connection cannot be established
     /// - executing database statement fails
-    async fn insert_session(&self, session: Session) -> Result<(), DBError> {
+    async fn insert_session(&self, session: DBSession) -> Result<(), DBError> {
         let client = self.pool.get().await?;
         let expires_at = session
             .created_at
@@ -76,7 +76,7 @@ impl DBClient for PostgresDBClient {
     /// - not found
     /// - database connection cannot be established
     /// - executing database statement fails
-    async fn get_session(&self, id: &str) -> Result<Session, DBError> {
+    async fn get_session(&self, id: &str) -> Result<DBSession, DBError> {
         let client = self.pool.get().await?;
 
         let stmt = client
@@ -87,7 +87,7 @@ impl DBClient for PostgresDBClient {
             return Err(DBError::NotFound(id.to_string()));
         };
 
-        let session = Session::try_from(&row)?;
+        let session = DBSession::try_from(&row)?;
 
         Ok(session)
     }
@@ -219,13 +219,16 @@ impl DBClient for PostgresDBClient {
 pub(crate) mod test {
     pub(crate) use super::MockDBClient;
     use super::*;
-    use crate::utils::tests::{fixture_oauth_account, fixture_session, fixture_uuid};
-    use crate::{SERVICE_NAME, error::DBError};
+    use crate::{
+        SERVICE_NAME,
+        error::DBError,
+        fixture::{fixture_db_session, fixture_oauth_account, fixture_uuid},
+    };
     use chrono::TimeZone;
     use rstest::rstest;
     use testutils::get_test_db;
 
-    async fn run_db_session_test<F, Fut>(given_sessions: Vec<Session>, test_fn: F)
+    async fn run_db_session_test<F, Fut>(given_sessions: Vec<DBSession>, test_fn: F)
     where
         F: FnOnce(PostgresDBClient) -> Fut,
         Fut: std::future::Future<Output = ()>,
@@ -270,7 +273,7 @@ pub(crate) mod test {
     #[tokio::test]
     async fn test_get_session() {
         let session_id = "session-id-get";
-        let session = fixture_session(|s| s.id = session_id.to_string());
+        let session = fixture_db_session(|s| s.id = session_id.to_string());
 
         run_db_session_test(vec![session.clone()], |db_client| async move {
             let got_session = db_client
@@ -286,7 +289,7 @@ pub(crate) mod test {
     #[tokio::test]
     async fn test_update_session() {
         let session_id = "session-id-update";
-        let mut session = fixture_session(|s| s.id = session_id.to_string());
+        let mut session = fixture_db_session(|s| s.id = session_id.to_string());
 
         run_db_session_test(vec![session.clone()], |db_client| async move {
             session.expires_at = chrono::Utc.with_ymd_and_hms(2020, 1, 9, 0, 0, 0).unwrap();
@@ -308,7 +311,7 @@ pub(crate) mod test {
     #[tokio::test]
     async fn test_delete_session() {
         let session_id = "session-id-delete";
-        let session = fixture_session(|s| s.id = session_id.to_string());
+        let session = fixture_db_session(|s| s.id = session_id.to_string());
 
         run_db_session_test(vec![session.clone()], |db_client| async move {
             db_client

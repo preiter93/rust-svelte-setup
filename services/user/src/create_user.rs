@@ -3,8 +3,8 @@ use crate::{
     error::Error,
     handler::Handler,
     proto::{CreateUserReq, CreateUserResp, User},
-    utils::UuidGenerator,
 };
+use common::UuidGenerator;
 use tonic::{Request, Response, Status};
 
 impl<D, U> Handler<D, U>
@@ -54,17 +54,17 @@ where
 
 #[cfg(test)]
 mod tests {
-    use rstest::rstest;
-    use tokio::sync::Mutex;
-    use tonic::{Code, Request};
-
     use crate::{
         db::test::MockDBClient,
         error::DBError,
+        fixture::{fixture_create_user_req, fixture_user},
         handler::Handler,
         proto::{CreateUserReq, CreateUserResp},
-        utils::test::{MockUuidGenerator, assert_response, fixture_create_user_req, fixture_user},
     };
+    use common::mock::MockUuidGenerator;
+    use rstest::rstest;
+    use tokio::sync::Mutex;
+    use tonic::{Code, Request};
 
     #[rstest]
     #[case::happy(
@@ -93,6 +93,8 @@ mod tests {
         #[case] insert_res: Result<(), DBError>,
         #[case] want: Result<CreateUserResp, Code>,
     ) {
+        use testutils::assert_response;
+
         let db = MockDBClient {
             insert_user: Mutex::new(Some(insert_res)),
             ..Default::default()

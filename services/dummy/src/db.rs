@@ -77,36 +77,14 @@ impl TryFrom<Row> for Entity {
 #[cfg(test)]
 pub mod test {
     pub(crate) use super::MockDBClient;
+    use super::*;
     use crate::SERVICE_NAME;
-    use crate::{
-        proto::Entity,
-        utils::test::{fixture_entity, fixture_uuid},
-    };
+    use crate::error::DBError;
+    use crate::fixture::{DBEntity, fixture_db_entity, fixture_entity, fixture_uuid};
+    use crate::proto::Entity;
     use rstest::rstest;
     use testutils::get_test_db;
     use uuid::Uuid;
-
-    use super::*;
-
-    use crate::error::DBError;
-
-    #[derive(Clone)]
-    struct DBEntity {
-        id: Uuid,
-        user_id: Uuid,
-    }
-
-    fn fixture_db_entity<F>(mut func: F) -> DBEntity
-    where
-        F: FnMut(&mut DBEntity),
-    {
-        let mut entity = DBEntity {
-            id: fixture_uuid(),
-            user_id: fixture_uuid(),
-        };
-        func(&mut entity);
-        entity
-    }
 
     async fn run_db_test<F, Fut>(given_entity: Vec<DBEntity>, test_fn: F)
     where
@@ -147,6 +125,8 @@ pub mod test {
         #[case] want: Result<Entity, DBError>,
     ) {
         run_db_test(given_entity, |db_client| async move {
+            use crate::fixture::fixture_uuid;
+
             let user_id = fixture_uuid();
             let got = db_client.get_entity(entity_id, user_id).await;
 

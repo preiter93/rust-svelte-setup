@@ -1,15 +1,4 @@
 #![allow(dead_code)]
-use crate::{
-    db::PostgresDBClient,
-    handler::Handler,
-    oauth::{config::OauthConfig, github::GithubOAuth, google::GoogleOAuth},
-    proto::auth_service_server::AuthServiceServer,
-};
-use auth::{GRPC_PORT, SERVICE_NAME};
-use dotenv::dotenv;
-use setup::{middleware::TracingGrpcServiceLayer, tracing::init_tracer};
-use std::error::Error;
-
 pub(crate) mod create_session;
 pub(crate) mod db;
 pub(crate) mod delete_session;
@@ -24,6 +13,20 @@ pub(crate) mod proto;
 pub(crate) mod start_oauth_login;
 pub(crate) mod utils;
 pub(crate) mod validate_session;
+
+#[cfg(test)]
+mod fixture;
+
+use crate::{
+    db::PostgresDBClient,
+    handler::Handler,
+    oauth::{config::OauthConfig, github::GithubOAuth, google::GoogleOAuth},
+    proto::auth_service_server::AuthServiceServer,
+};
+use auth::{GRPC_PORT, SERVICE_NAME};
+use dotenv::dotenv;
+use setup::{middleware::TracingGrpcServiceLayer, tracing::init_tracer};
+use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

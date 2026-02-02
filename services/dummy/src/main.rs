@@ -6,6 +6,9 @@ pub mod handler;
 pub mod proto;
 pub mod utils;
 
+#[cfg(test)]
+mod fixture;
+
 use crate::{handler::Handler, proto::dummy_service_server::DummyServiceServer};
 use common::UuidV4Generator;
 use db::PostgresDBClient;
