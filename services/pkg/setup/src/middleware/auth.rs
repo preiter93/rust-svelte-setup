@@ -8,7 +8,34 @@ use thiserror::Error;
 use tonic::async_trait;
 use tower::{Layer, Service};
 
-/// Authentication layer that validates a session token from incoming requests.  
+#[async_trait]
+pub trait SessionAuthClient: Send + Sync {
+    /// Authenticates a session token.
+    ///
+    /// # Returns
+    /// - [`AuthenticatedSession`] if the token is valid.
+    /// - [`AuthenticateSessionErr::Unauthenticated`] if the session is missing not in the db or the token is invalid/expired.
+    /// - [`AuthenticateSessionErr::Internal`] on internal errors (e.g., connecting to a database).
+    async fn authenticate_session(
+        &mut self,
+        token: &str,
+    ) -> Result<AuthenticatedSession, AuthenticateSessionErr>;
+}
+
+/// Service produced by [`SessionAuthLayer`] that authenticates request with a session token.
+#[derive(Clone)]
+pub struct SessionAuthService<S, V> {
+    /// The inner service.
+    pub inner: S,
+
+    /// The auth client with which to authenticate the session.
+    pub auth_client: V,
+
+    /// Request uri paths for which authentication should be skipped.
+    pub no_auth: Vec<String>,
+}
+
+/// Authentication layer that validates a session token from incoming requests.
 ///
 /// After successful authentication the middleware inserts the user id
 /// into the request's extensions allowing handlers to access the user.
@@ -31,21 +58,6 @@ impl<A> SessionAuthLayer<A> {
     }
 }
 
-/// Trait for types that can authenticate a session token.
-#[async_trait]
-pub trait SessionAuthClient: Send + Sync {
-    /// Authenticates a session token.
-    ///
-    /// # Returns
-    /// - [`AuthenticatedSession`] if the token is valid.
-    /// - [`AuthenticateSessionErr::Unauthenticated`] if the session is missing not in the db or the token is invalid/expired.
-    /// - [`AuthenticateSessionErr::Internal`] on internal errors (e.g., connecting to a database).
-    async fn authenticate_session(
-        &mut self,
-        token: &str,
-    ) -> Result<AuthenticatedSession, AuthenticateSessionErr>;
-}
-
 /// The result of a successful session authentication.
 #[derive(Debug, Clone, Default)]
 pub struct AuthenticatedSession {
@@ -53,19 +65,6 @@ pub struct AuthenticatedSession {
     pub session_state: SessionState,
     /// Whether the session cookie should be refreshed.
     pub should_refresh_cookie: bool,
-}
-
-/// Service produced by [`SessionAuthLayer`] that authenticates request with a session token.
-#[derive(Clone)]
-pub struct SessionAuthService<S, V> {
-    /// The inner service.
-    pub inner: S,
-
-    /// The auth client with which to authenticate the session.
-    pub auth_client: V,
-
-    /// Request uri paths for which authentication should be skipped.
-    pub no_auth: Vec<String>,
 }
 
 impl<S, V: Clone> Layer<S> for SessionAuthLayer<V> {
@@ -107,15 +106,12 @@ where
             return Box::pin(self.inner.call(request));
         }
 
-        // Be careful when cloning inner services:
-        //
-        // https://docs.rs/tower/latest/tower/trait.Service.html#be-careful-when-cloning-inner-services
         let clone = self.inner.clone();
         let mut inner = std::mem::replace(&mut self.inner, clone);
         let mut validator = self.auth_client.clone();
 
+        // Extract session token from cookies and authenticate the session
         Box::pin(async move {
-            // Extract session token from cookies
             let Some(cookie) = request.headers().get(COOKIE) else {
                 return Ok(Response::builder()
                     .status(StatusCode::UNAUTHORIZED)
@@ -129,7 +125,6 @@ where
                     .unwrap());
             };
 
-            // Authenticate session and store session state in request extensions
             match validator.authenticate_session(&token).await {
                 Ok(s) => {
                     request.extensions_mut().insert(s.session_state);
@@ -190,155 +185,105 @@ mod tests {
     use std::future::ready;
 
     use http::header::SET_COOKIE;
+    use rstest::rstest;
     use tower::Service;
 
     use super::*;
 
-    struct TestCase<ReqBody> {
-        given_request: Request<ReqBody>,
-        given_validation_result: Result<AuthenticatedSession, AuthenticateSessionErr>,
-        given_no_auth: Vec<String>,
-        want_status_code: StatusCode,
-        want_resp_set_cookies: Option<&'static str>,
-    }
-
-    impl<ReqBody: Default> Default for TestCase<ReqBody> {
-        fn default() -> Self {
-            Self {
-                given_request: Request::<ReqBody>::default(),
-                given_validation_result: Ok(AuthenticatedSession::default()),
-                given_no_auth: Vec::new(),
-                want_status_code: StatusCode::INTERNAL_SERVER_ERROR,
-                want_resp_set_cookies: None,
-            }
-        }
-    }
-    impl<ReqBody> TestCase<ReqBody>
-    where
-        ReqBody: Send + 'static,
-    {
-        async fn run(self) {
-            // given
-            let mut service = SessionAuthService {
-                inner: MockService::default(),
-                auth_client: MockAuthClient {
-                    response: self.given_validation_result,
-                },
-                no_auth: self.given_no_auth,
-            };
-
-            // when
-            let resp = service.call(self.given_request).await.unwrap();
-
-            // then
-            assert_eq!(resp.status(), self.want_status_code);
-            let resp_set_cookies = resp.headers().get(SET_COOKIE).map(|x| x.to_str().unwrap());
-            assert_eq!(resp_set_cookies, self.want_resp_set_cookies);
-        }
-    }
-
+    #[rstest]
+    #[case::authenticated(
+        {
+            let c = format!("{}={}", SESSION_TOKEN_COOKIE_KEY, "token");
+            Request::builder().header("Cookie", c).body(()).unwrap()
+        },
+        Ok(AuthenticatedSession::default()),
+        Vec::new(),
+        StatusCode::OK,
+        None
+    )]
+    #[case::authenticated_and_refresh_cookie(
+        {
+            let c = format!("{}={}", SESSION_TOKEN_COOKIE_KEY, "token");
+            Request::builder().header("Cookie", c).body(()).unwrap()
+        },
+        Ok(AuthenticatedSession {
+            session_state: SessionState::default(),
+            should_refresh_cookie: true,
+        }),
+        Vec::new(),
+        StatusCode::OK,
+        Some("session_token=token; Max-Age=604800; Path=/; Secure; HttpOnly; SameSite=None")
+    )]
+    #[case::skip_preflight_requests(
+        Request::builder().method("OPTIONS").body(()).unwrap(),
+        Ok(AuthenticatedSession::default()),
+        Vec::new(),
+        StatusCode::OK,
+        None
+    )]
+    #[case::skip_no_auth_endpoints(
+        Request::builder().uri("/no-auth").body(()).unwrap(),
+        Ok(AuthenticatedSession::default()),
+        vec![String::from("/no-auth")],
+        StatusCode::OK,
+        None
+    )]
+    #[case::skip_no_auth_endpoints_with_wildcard(
+        Request::builder().uri("/google/no-auth").body(()).unwrap(),
+        Ok(AuthenticatedSession::default()),
+        vec![String::from("/*/no-auth")],
+        StatusCode::OK,
+        None
+    )]
+    #[case::unauthenticated_missing_cookies(
+        Request::builder().body(()).unwrap(),
+        Ok(AuthenticatedSession::default()),
+        Vec::new(),
+        StatusCode::UNAUTHORIZED,
+        None
+    )]
+    #[case::unauthenticated_missing_session_token_cookie(
+        Request::builder().header("Cookie", "").body(()).unwrap(),
+        Ok(AuthenticatedSession::default()),
+        Vec::new(),
+        StatusCode::UNAUTHORIZED,
+        None
+    )]
+    #[case::unauthenticated_invalid_token(
+        {
+            let session_token = "token";
+            let value = format!("{}={}", SESSION_TOKEN_COOKIE_KEY, session_token);
+            Request::builder().header("Cookie", value).body(()).unwrap()
+        },
+        Err(AuthenticateSessionErr::Unauthenticated),
+        Vec::new(),
+        StatusCode::UNAUTHORIZED,
+        None
+    )]
     #[tokio::test]
-    async fn test_authenticated() {
-        let c = format!("{}={}", SESSION_TOKEN_COOKIE_KEY, "token");
-        TestCase {
-            given_request: Request::builder().header("Cookie", c).body(()).unwrap(),
-            want_status_code: StatusCode::OK,
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
+    async fn test_auth_middleware(
+        #[case] request: Request<()>,
+        #[case] validation_result: Result<AuthenticatedSession, AuthenticateSessionErr>,
+        #[case] no_auth: Vec<String>,
+        #[case] want_status: StatusCode,
+        #[case] want_set_cookies: Option<&str>,
+    ) {
+        // given
+        let mut service = SessionAuthService {
+            inner: MockService::default(),
+            auth_client: MockAuthClient {
+                response: validation_result,
+            },
+            no_auth,
+        };
 
-    #[tokio::test]
-    async fn test_authenticated_and_refresh_cookie() {
-        let c = format!("{}={}", SESSION_TOKEN_COOKIE_KEY, "token");
-        TestCase {
-            given_request: Request::builder().header("Cookie", c).body(()).unwrap(),
-            given_validation_result: Ok(AuthenticatedSession {
-                session_state: SessionState::default(),
-                should_refresh_cookie: true,
-            }),
-            want_resp_set_cookies: Some(
-                "session_token=token; Max-Age=604800; Path=/; Secure; HttpOnly; SameSite=None",
-            ),
-            want_status_code: StatusCode::OK,
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
+        // when
+        let resp = service.call(request).await.unwrap();
 
-    #[tokio::test]
-    async fn test_skip_preflight_requests() {
-        TestCase {
-            given_request: Request::builder().method("OPTIONS").body(()).unwrap(),
-            want_status_code: StatusCode::OK,
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_skip_no_auth_endpoints() {
-        TestCase {
-            given_request: Request::builder().uri("/no-auth").body(()).unwrap(),
-            given_no_auth: vec![String::from("/no-auth")],
-            want_status_code: StatusCode::OK,
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_skip_no_auth_endpoints_with_wildcard() {
-        TestCase {
-            given_request: Request::builder().uri("/google/no-auth").body(()).unwrap(),
-            given_no_auth: vec![String::from("/*/no-auth")],
-            want_status_code: StatusCode::OK,
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_unauthenticated_missing_cookies() {
-        TestCase {
-            given_request: Request::builder().body(()).unwrap(),
-            want_status_code: StatusCode::UNAUTHORIZED,
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_unauthenticated_missing_session_token_cookie() {
-        TestCase {
-            given_request: Request::builder().header("Cookie", "").body(()).unwrap(),
-            given_validation_result: Ok(AuthenticatedSession::default()),
-            want_status_code: StatusCode::UNAUTHORIZED,
-            ..Default::default()
-        }
-        .run()
-        .await;
-    }
-
-    #[tokio::test]
-    async fn test_unauthenticated_invalid_token() {
-        let session_token = "token";
-        let value = format!("{}={}", SESSION_TOKEN_COOKIE_KEY, session_token);
-
-        TestCase {
-            given_request: Request::builder().header("Cookie", value).body(()).unwrap(),
-            given_validation_result: Err(AuthenticateSessionErr::Unauthenticated),
-            want_status_code: StatusCode::UNAUTHORIZED,
-            ..Default::default()
-        }
-        .run()
-        .await;
+        // then
+        assert_eq!(resp.status(), want_status);
+        let resp_set_cookies = resp.headers().get(SET_COOKIE).map(|x| x.to_str().unwrap());
+        assert_eq!(resp_set_cookies, want_set_cookies);
     }
 
     #[derive(Clone, Default)]
