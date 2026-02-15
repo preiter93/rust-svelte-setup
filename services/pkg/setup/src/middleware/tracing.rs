@@ -105,7 +105,16 @@ pub struct MakeSpan;
 impl<B> tower_http::trace::MakeSpan<B> for MakeSpan {
     /// Creates a new tracing span for an incoming request.
     fn make_span(&mut self, req: &Request<B>) -> Span {
-        info_span!("request", uri = %req.uri(), trace_id = field::Empty)
+        let method = req.method().as_str();
+        let path = req.uri().path();
+        let span_name = format!("{method} {path}");
+        info_span!(
+            "request",
+            otel.name = span_name.as_str(),
+            http.request.method = method,
+            url.path = path,
+            trace_id = field::Empty
+        )
     }
 }
 
