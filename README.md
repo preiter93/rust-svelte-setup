@@ -1,12 +1,8 @@
 # rust-svelte-setup
 
-This project is an exploration in creating a standard setup for a microservice backend using Rust. The main focus is on backend architecture, simple CRUD operations, no event-driven architecture. The focus is on simplicity, type safety and testability.
+This project aims to be a minimal standard setup for a microservice backend using Rust. The main focus is on backend architecture, basic CRUD operations, type safety and testability.
 
 # Architecture
-
-## Overview
-
-This project is an opinionated base setup for sveltekit apps with a rust based microservice backend.
 
 ## Services
 
