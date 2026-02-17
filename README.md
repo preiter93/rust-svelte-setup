@@ -11,7 +11,7 @@ The gateway exposes a restful http server (`axum`). Within the backend, the comm
 
 #### Microservice structure
 
-Each microservice is focused on simple CRUD operations and uses a straightforward structure. The architecture decouples the database/repository layer from the service logic. If complexity grows, you can further split responsibilities (e.g., add a dedicated service layer for domain logic).
+The microservice is structured to decouple the database/repository layer from the service logic.
 
 A typical microservice (see [`dummy`](./services/dummy)) will have the following files:
 - `main.rs`: setup (read env variables, open db connection) and run the service
