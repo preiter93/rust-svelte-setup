@@ -59,7 +59,7 @@ I use a custom version of `cargo-chef` (not the main release), because of a fix 
 
 #### Alternative docker strategy
 
-At the moment I build the binary within the docker build process. For Rust images this can be very slow 🐌. I put a lot of effor into caching everything optimally and reduce this time, but if a central dependency changes this can be a pain.An alternative would be to build the binary outside of docker and copy the binary into a minimal docker image (e.g., `scratch` or `alpine`). If I am honest, this sounds like the more scalable approach. But my software engineering pride resisted that idea in the beginning, there is something more elegant about building everything within docker.
+At the moment I build the binary within the docker build process. For Rust images this can be very slow. I put a lot of effort into caching everything optimally and reduce this time, but if a central dependency changes this can be a pain. An alternative would be to build the binary outside of docker and copy the binary into a minimal docker image (e.g., `scratch` or `alpine`). If I am honest, this sounds like the more scalable approach. But somehow I find it more elegant ato build everything within docker.
 
 ## Authentication
 
