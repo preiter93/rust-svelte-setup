@@ -33,7 +33,7 @@ This setup uses the second solution. It avoids introducing a shared `proto` libr
 
 #### Database
 
-I use `tokio-postgres` for database access. I tried `sqlx` with compiled sql statements, but found it caused more problems than it solved for me. To me a plain uncompiled sql statement with good unit testing is the way to go. And `deadpool-postgres` for connection pooling.
+I use `tokio-postgres` for database access. I tried `sqlx` with compiled sql statements, but its compile time evaluation caused more problems than it solved for me. The database layer is unit tested using `testcontainers`. `deadpool-postgres` is used for connection pooling.
 
 #### Shared dependencies (`workspace`)
 
