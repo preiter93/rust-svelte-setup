@@ -23,6 +23,7 @@ COPY ../auth auth
 COPY ../gateway gateway
 COPY ../pkg/common pkg/common
 COPY ../pkg/database pkg/database
+COPY ../pkg/mock pkg/mock
 COPY ../pkg/oauth pkg/oauth
 COPY ../pkg/setup pkg/setup
 COPY ../pkg/testutils pkg/testutils

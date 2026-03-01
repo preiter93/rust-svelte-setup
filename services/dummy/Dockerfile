@@ -22,6 +22,7 @@ COPY ../Cargo.lock Cargo.lock
 COPY ../dummy dummy
 COPY ../pkg/common pkg/common
 COPY ../pkg/database pkg/database
+COPY ../pkg/mock pkg/mock
 COPY ../pkg/setup pkg/setup
 COPY ../pkg/testutils pkg/testutils
 RUN cargo build --release --bin dummy
